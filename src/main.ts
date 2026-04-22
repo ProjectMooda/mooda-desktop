@@ -1,5 +1,12 @@
 import { createApp } from 'vue'
 import App from './App.vue'
+import { createPinia } from 'pinia'
 
-createApp(App).mount('#app')
+// 전역 CSS
+import './assets/styles/global.css'
 
+// 🔥 핵심
+const app = createApp(App);
+app.use(createPinia());
+
+app.mount('#app');

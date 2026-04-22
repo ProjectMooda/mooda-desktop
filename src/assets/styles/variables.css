@@ -1,0 +1,21 @@
+:root {
+  /* Brand Colors */
+  --color-primary: #6366F1;
+  --color-primary-light: #EEF2FF;
+  --color-danger: #F43F5E;
+  --color-danger-light: #FFF1F2;
+
+  /* Backgrounds & Borders */
+  --bg-app: #F6F6F9;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F4F4F5;
+  --border-color: #E4E4E7;
+
+  /* Text Colors */
+  --text-main: #18181B;
+  --text-sub: #71717A;
+  --text-muted: #A1A1AA;
+
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
