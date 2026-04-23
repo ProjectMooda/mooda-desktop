@@ -1,21 +1,27 @@
 :root {
   /* Brand Colors */
-  --color-primary: #6366F1;
-  --color-primary-light: #EEF2FF;
-  --color-danger: #F43F5E;
-  --color-danger-light: #FFF1F2;
+  --color-primary: #3b82f6; /* 메인 블루 (세련된 톤) */
+  --color-primary-light: #eff6ff; /* 아주 연한 블루 배경 */
+  --color-primary-pale: #e0f2fe; /* 마일스톤 카드 배경용 더 연한 블루 */
+
+  --text-main: #111827; /* 더 진한 검정 (가독성 확보) */
+  --text-muted: #6b7280; /* 부드러운 회색 */
+  --border-color: #e5e7eb; /* 연한 테두리 */
+  --bg-card: #ffffff;
+  --color-danger: #f43f5e;
+  --color-danger-light: #fff1f2;
 
   /* Backgrounds & Borders */
-  --bg-app: #F6F6F9;
-  --bg-card: #FFFFFF;
-  --bg-hover: #F4F4F5;
-  --border-color: #E4E4E7;
+  --bg-app: #f6f6f9;
+  --bg-card: #ffffff;
+  --bg-hover: #f4f4f5;
+  --border-color: #e4e4e7;
 
   /* Text Colors */
-  --text-main: #18181B;
-  --text-sub: #71717A;
-  --text-muted: #A1A1AA;
+  --text-main: #18181b;
+  --text-sub: #71717a;
+  --text-muted: #a1a1aa;
 
   /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }

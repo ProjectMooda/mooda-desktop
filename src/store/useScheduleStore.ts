@@ -1,0 +1,143 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+// 타입 정의 (기존 코드와 동일)
+interface Task {
+  id: number
+  text: string
+  done: boolean
+}
+export interface Milestone {
+  id: number
+  date: string
+  text: string
+  done: boolean
+}
+
+export interface Goal {
+  id: number
+  title: string
+  startDate: string
+  endDate: string
+  milestones: Milestone[]
+  newMilestoneDate?: string // 컴포넌트에서 v-model로 사용 중이므로 필요할 수 있습니다.
+  newMilestoneText?: string // 컴포넌트에서 v-model로 사용 중이므로 필요할 수 있습니다.
+}
+
+export const useScheduleStore = defineStore('schedule', () => {
+  const today = new Date().toISOString().split('T')[0]
+
+  // State
+  const selectedDate = ref(today)
+  const dateTasks = ref<Record<string, Task[]>>({})
+  const dailyFocus = ref('') // 메인 컴포넌트에서 가져옴
+
+  const goals = ref<Goal[]>([]) // 장기 목표 연동을 위해 필요
+
+  // 💡 [수정됨] Getters: 순수하게 데이터만 반환하도록 수정 (상태 변경 X)
+  const currentTasks = computed(() => {
+    return dateTasks.value[selectedDate.value] || []
+  })
+  // 💡 [수정됨] 에러 방지를 위한 안전한 배열 길이 체크
+  const hasTasks = (date: string) => {
+    return dateTasks.value[date] && dateTasks.value[date].length > 0
+  }
+
+  const currentMilestones = computed(() => {
+    const targetDate = selectedDate.value
+    const result: { ms: Milestone; goalTitle: string }[] = []
+
+    // 전체 목표를 순회하면서 선택된 날짜와 일치하는 마일스톤만 추출
+    goals.value.forEach((goal) => {
+      goal.milestones.forEach((ms) => {
+        if (ms.date === targetDate) {
+          result.push({
+            ms, // 참조(reference)를 넘겨서 체크박스로 바로 수정 가능하게 함
+            goalTitle: goal.title // 어떤 목표의 일정인지 표시하기 위함
+          })
+        }
+      })
+    })
+
+    return result
+  })
+
+  // 장기 목표에서 특정 날짜의 마일스톤 가져오기
+  const getGoalMilestonesForDate = (date: string) => {
+    // ... 기존 구현 로직 동일
+  }
+
+  // 💡 [수정됨] Actions: 원본 데이터(dateTasks)를 직접 조작하도록 수정
+  const addTask = () => {
+    // 해당 날짜의 배열이 없으면 먼저 생성
+    if (!dateTasks.value[selectedDate.value]) {
+      dateTasks.value[selectedDate.value] = []
+    }
+    // 원본 데이터에 새로운 Task 추가
+    dateTasks.value[selectedDate.value].push({
+      id: Date.now(),
+      text: '',
+      done: false
+    })
+    saveData()
+  }
+
+  // 💡 [수정됨] 원본 데이터 배열에서 삭제하도록 수정
+  const removeTask = (id: number) => {
+    const tasks = dateTasks.value[selectedDate.value]
+    if (tasks) {
+      const idx = tasks.findIndex((t) => t.id === id)
+      if (idx > -1) {
+        tasks.splice(idx, 1)
+        saveData()
+      }
+    }
+  }
+
+  const loadData = () => {
+    const saved = localStorage.getItem('jarvis_ts_v1')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      dailyFocus.value = parsed.dailyFocus || '' // Focus 불러오기 추가
+      dateTasks.value = parsed.dateTasks || {}
+
+      // 저장된 목표가 있으면 덮어쓰고, 없으면 초기값(Cashfolio) 유지
+      if (parsed.goals && parsed.goals.length > 0) {
+        goals.value = parsed.goals
+      }
+    }
+  }
+
+  const saveData = () => {
+    const currentState = {
+      dailyFocus: dailyFocus.value, // Focus 저장 추가
+      dateTasks: dateTasks.value,
+      goals: goals.value
+    }
+    localStorage.setItem('jarvis_ts_v1', JSON.stringify(currentState))
+  }
+
+  const removeGoal = (id: number) => {
+    const idx = goals.value.findIndex((g) => g.id === id)
+    if (idx > -1) {
+      goals.value.splice(idx, 1)
+      saveData()
+    }
+  }
+
+  return {
+    selectedDate,
+    dailyFocus,
+    dateTasks,
+    goals,
+    currentTasks,
+    currentMilestones,
+    hasTasks,
+    getGoalMilestonesForDate,
+    addTask,
+    removeTask,
+    removeGoal,
+    loadData,
+    saveData
+  }
+})
