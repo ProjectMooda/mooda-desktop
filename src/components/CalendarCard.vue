@@ -76,7 +76,7 @@ const calendarDates = computed<CalendarDate[]>(() => {
   for (let i = 0; i < firstDay; i++) {
     dates.push({
       day: '',
-      full: `empty-${i}`,
+      full: `empty-start-${i}`, // key 중복 방지를 위해 start 명시
       currentMonth: false,
       isToday: false
     })
@@ -92,6 +92,20 @@ const calendarDates = computed<CalendarDate[]>(() => {
       isToday: full === todayString // 오늘 날짜 여부 판단
     })
   }
+
+  // ⭐️ 핵심: 달력이 항상 6주(총 42칸)를 유지하도록 다음 달 빈 공간 채우기
+  const TOTAL_CELLS = 42; 
+  const remainingCells = TOTAL_CELLS - dates.length;
+  
+  for (let i = 0; i < remainingCells; i++) {
+    dates.push({
+      day: '',
+      full: `empty-end-${i}`, // key 중복 방지를 위해 end 명시
+      currentMonth: false,
+      isToday: false
+    })
+  }
+
   return dates
 })
 
@@ -135,15 +149,8 @@ const selectDate = (date: CalendarDate) => {
   margin: 0;
 }
 /* 3. 캘린더 & Task */
-.split-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  flex: 1;
-  min-height: 500px;
-}
-.cal-section,
-.task-section {
+
+.cal-section {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -229,7 +236,5 @@ const selectDate = (date: CalendarDate) => {
 .task-dot {
   background: #d4d4d8;
 }
-.goal-dot {
-  background: var(--color-danger);
-}
+
 </style>

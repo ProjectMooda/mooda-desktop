@@ -12,6 +12,10 @@ export interface Milestone {
   date: string
   text: string
   done: boolean
+  color?: string       // 마일스톤 고유 색상
+  category?: string    // 카테고리 (예: 기획, 디자인, 개발 등)
+  priority?: 'Low' | 'Medium' | 'High' // 중요도
+  description?: string // 상세 메모
 }
 
 export interface Goal {

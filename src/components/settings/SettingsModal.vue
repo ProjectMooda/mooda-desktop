@@ -4,7 +4,7 @@
       <h3 class="modal-title">시스템 설정</h3>
       <div class="setting-row">
         <label class="setting-label">데스크톱 앱 화면 사이즈</label>
-        <div class="select-wrapper">
+      
           <select
             v-model="settingsStore.appSize"
             @change="onSizeChange"
@@ -14,7 +14,7 @@
             <option value="middle">Middle (1440 x 900)</option>
             <option value="min">Min (1024 x 768)</option>
           </select>
-        </div>
+  
       </div>
       <div class="modal-actions">
         <button

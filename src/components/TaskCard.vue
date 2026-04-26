@@ -1,5 +1,5 @@
 <template>
-  <section class="studio-card task-section">
+  <section class="studio-card">
     <div class="card-head">
       <h3>{{ formattedDate }} Schedule</h3>
       <button @click="scheduleStore.addTask" class="btn-add">+</button>
@@ -16,7 +16,7 @@
         일정이 없습니다. 새로운 일정을 추가해보세요!
       </div>
 
-      <div class="task-group" v-else>
+      <div v-else>
         <div
           v-for="item in scheduleStore.currentMilestones"
           :key="'ms-' + item.ms.id"
@@ -194,8 +194,7 @@ const formattedDate = computed(() => {
   padding: 12px 0;
   border-bottom: 1px solid var(--bg-hover);
 }
-.task-input-container,
-.task-text-wrap {
+.task-input-container {
   position: relative;
   flex: 1;
   display: flex;
@@ -226,8 +225,7 @@ const formattedDate = computed(() => {
   min-height: 100%;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
-.task-display,
-.text-display {
+.task-display {
   font-size: 14px;
   color: #27272a;
   line-height: 1.5;
@@ -253,8 +251,7 @@ const formattedDate = computed(() => {
   transition: 0.2s;
   padding-top: 2px;
 }
-.task-item:hover .btn-del,
-.btn-del-sm {
+.task-item:hover .btn-del {
   opacity: 1;
 }
 .empty-msg {

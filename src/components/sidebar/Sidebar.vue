@@ -2,7 +2,7 @@
   <aside class="studio-sidebar shrink-0">
     <div class="brand-zone shrink-0">
       <div class="logo-dot"></div>
-      <h2>JARVIS</h2>
+      <h2>MOODA</h2>
     </div>
 
     <nav class="nav-menu">

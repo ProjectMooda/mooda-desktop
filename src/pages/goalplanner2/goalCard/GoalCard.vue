@@ -1,5 +1,5 @@
 <template>
-  <article class="studio-card goal-card">
+  <article class="studio-card goal-card" @click="$emit('open')">
     <div class="card-top shrink-0">
       <div class="goal-header">
         <div class="title-area min-w-0">
@@ -70,6 +70,8 @@
 
 <script setup lang="ts">
 import { useScheduleStore } from '@/store/useScheduleStore' // 스토어 경로 확인
+// 클릭시 detail page 이동
+const emit = defineEmits(['open'])
 
 // 부모(GoalPlanner)로부터 goal 데이터를 받습니다
 const props = defineProps<{
@@ -241,6 +243,7 @@ const deleteGoal = (id: number) => {
   color: #27272a;
   line-height: 1.4;
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
