@@ -24,7 +24,7 @@
       </div>
     </section>
 
-    <<div class="responsive-goal-grid">
+    <div class="responsive-goal-grid">
       <GoalCard 
         v-for="goal in store.goals" 
         :key="goal.id" 

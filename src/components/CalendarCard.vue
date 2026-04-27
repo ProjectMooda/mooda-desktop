@@ -28,11 +28,15 @@
       >
         <span class="date-num">{{ date.day }}</span>
 
-        <div
-          class="dot-wrap"
-          v-if="date.currentMonth && scheduleStore.hasTasks(date.full)"
-        >
-          <div class="dot task-dot"></div>
+        <div class="dot-wrap" v-if="date.currentMonth">
+          <div 
+            v-for="item in getDailyIndicators(date.full).slice(0, 6)" 
+            :key="item.color" 
+            class="dot-item"
+          >
+            <div class="dot" :style="{ backgroundColor: item.color }"></div>
+            <span class="dot-count">{{ item.count >= 10 ? '9+' : item.count }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -45,7 +49,6 @@ import { useScheduleStore } from '@/store/useScheduleStore'
 
 const scheduleStore = useScheduleStore()
 
-// 1. 타입 정의 추가 (에러 방지)
 interface CalendarDate {
   day: string | number
   full: string
@@ -53,63 +56,37 @@ interface CalendarDate {
   isToday: boolean
 }
 
-// 2. 누락된 상태값 선언
 const now = new Date()
 const currentYear = ref(now.getFullYear())
 const currentMonth = ref(now.getMonth())
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// 오늘 날짜 문자열 (YYYY-MM-DD 포맷, 한국 시간 기준)
 const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
-// 3. 달력 날짜 계산
 const calendarDates = computed<CalendarDate[]>(() => {
   const firstDay = new Date(currentYear.value, currentMonth.value, 1).getDay()
-  const lastDate = new Date(
-    currentYear.value,
-    currentMonth.value + 1,
-    0
-  ).getDate()
+  const lastDate = new Date(currentYear.value, currentMonth.value + 1, 0).getDate()
   const dates: CalendarDate[] = []
 
-  // 이전 달의 빈 공간 채우기
   for (let i = 0; i < firstDay; i++) {
-    dates.push({
-      day: '',
-      full: `empty-start-${i}`, // key 중복 방지를 위해 start 명시
-      currentMonth: false,
-      isToday: false
-    })
+    dates.push({ day: '', full: `empty-start-${i}`, currentMonth: false, isToday: false })
   }
 
-  // 이번 달 날짜 채우기
   for (let i = 1; i <= lastDate; i++) {
     const full = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`
-    dates.push({
-      day: i,
-      full,
-      currentMonth: true,
-      isToday: full === todayString // 오늘 날짜 여부 판단
-    })
+    dates.push({ day: i, full, currentMonth: true, isToday: full === todayString })
   }
 
-  // ⭐️ 핵심: 달력이 항상 6주(총 42칸)를 유지하도록 다음 달 빈 공간 채우기
   const TOTAL_CELLS = 42; 
   const remainingCells = TOTAL_CELLS - dates.length;
   
   for (let i = 0; i < remainingCells; i++) {
-    dates.push({
-      day: '',
-      full: `empty-end-${i}`, // key 중복 방지를 위해 end 명시
-      currentMonth: false,
-      isToday: false
-    })
+    dates.push({ day: '', full: `empty-end-${i}`, currentMonth: false, isToday: false })
   }
 
   return dates
 })
 
-// 4. 월 변경 함수
 const changeMonth = (diff: number) => {
   currentMonth.value += diff
   if (currentMonth.value > 11) {
@@ -121,11 +98,34 @@ const changeMonth = (diff: number) => {
   }
 }
 
-// 5. 날짜 선택 함수 (누락분 추가)
 const selectDate = (date: CalendarDate) => {
   if (date.currentMonth) {
     scheduleStore.selectedDate = date.full
   }
+}
+
+const getDailyIndicators = (dateStr: string) => {
+  const counts: Record<string, number> = {}
+
+  if (scheduleStore.goals) {
+    scheduleStore.goals.forEach(goal => {
+      const msCount = goal.milestones.filter(ms => ms.date === dateStr).length
+      if (msCount > 0) {
+        const color = goal.color || '#3b82f6'
+        counts[color] = (counts[color] || 0) + msCount
+      }
+    })
+  }
+
+  if (scheduleStore.dateTasks && scheduleStore.dateTasks[dateStr]) {
+    const taskCount = scheduleStore.dateTasks[dateStr].length
+    if (taskCount > 0) {
+      const color = '#71717a'
+      counts[color] = (counts[color] || 0) + taskCount
+    }
+  }
+
+  return Object.entries(counts).map(([color, count]) => ({ color, count }))
 }
 </script>
 
@@ -148,15 +148,12 @@ const selectDate = (date: CalendarDate) => {
   font-weight: 700;
   margin: 0;
 }
-/* 3. 캘린더 & Task */
-
 .cal-section {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
 }
-
 .icon-btn {
   background: var(--bg-hover);
   border: none;
@@ -174,7 +171,7 @@ const selectDate = (date: CalendarDate) => {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-auto-rows: 1fr;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
 }
 .cal-day {
@@ -192,10 +189,11 @@ const selectDate = (date: CalendarDate) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 10px;
+  padding: 6px 2px;
   cursor: pointer;
   transition: 0.2s;
   overflow: hidden;
+  min-height: 70px; /* 인디케이터 공간 확보를 위한 최소 높이 */
 }
 .cal-cell:hover:not(.dimmed) {
   background: var(--bg-card);
@@ -211,30 +209,53 @@ const selectDate = (date: CalendarDate) => {
   pointer-events: none;
 }
 .date-num {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #3f3f46;
+  margin-bottom: 4px;
 }
 .cal-cell.today .date-num {
   color: #4f46e5;
   font-weight: 800;
 }
+
+/* 💡 6개 이상을 위한 촘촘한 그리드 레이아웃 */
 .dot-wrap {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2열로 배치하여 6개를 3행으로 수용 */
   gap: 3px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 6px;
-  padding: 0 4px;
+  width: 90%;
+  margin-top: auto;
 }
+
+.dot-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 1px 4px;
+  border-radius: 4px;
+  justify-content: center;
+}
+
 .dot {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-.task-dot {
-  background: #d4d4d8;
+
+.dot-count {
+  font-size: 9px; /* 아주 좁은 공간이므로 폰트 크기 축소 */
+  font-weight: 700;
+  color: #52525b;
+  line-height: 1;
 }
 
+/* 셀 너비가 너무 좁아질 경우를 대비해 1열로 전환되는 방어 코드 (선택사항) */
+@media (max-width: 1200px) {
+  .dot-wrap {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

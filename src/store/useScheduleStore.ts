@@ -12,7 +12,8 @@ export interface Milestone {
   date: string
   text: string
   done: boolean
-  color?: string       // 마일스톤 고유 색상
+  startTime?: string;  // 추가: 시작 시간
+  endTime?: string;    // 추가: 종료 시간
   category?: string    // 카테고리 (예: 기획, 디자인, 개발 등)
   priority?: 'Low' | 'Medium' | 'High' // 중요도
   description?: string // 상세 메모
@@ -24,6 +25,7 @@ export interface Goal {
   startDate: string
   endDate: string
   milestones: Milestone[]
+  color?: string
   newMilestoneDate?: string // 컴포넌트에서 v-model로 사용 중이므로 필요할 수 있습니다.
   newMilestoneText?: string // 컴포넌트에서 v-model로 사용 중이므로 필요할 수 있습니다.
 }

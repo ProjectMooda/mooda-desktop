@@ -1,8 +1,8 @@
 <template>
-  <article class="studio-card goal-card" @click="$emit('open')">
+  <article class="studio-card goal-card">
     <div class="card-top shrink-0">
       <div class="goal-header">
-        <div class="title-area min-w-0">
+        <div class="title-area min-w-0" @click="$emit('open')">
           <h4>{{ goal.title }}</h4>
           <span class="date-range"
             >{{ goal.startDate }} ~ {{ goal.endDate }}</span
@@ -170,6 +170,7 @@ const deleteGoal = (id: number) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
 }
 .date-range {
   font-size: 12px;
