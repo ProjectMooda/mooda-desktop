@@ -7,18 +7,22 @@ interface Task {
   text: string
   done: boolean
 }
+
+// 일반 일정
 export interface Milestone {
   id: number
   date: string
   text: string
   done: boolean
   startTime?: string;  // 추가: 시작 시간
-  endTime?: string;    // 추가: 종료 시간
+  endTime?: string     // 추가: 종료 시간
   category?: string    // 카테고리 (예: 기획, 디자인, 개발 등)
   priority?: 'Low' | 'Medium' | 'High' // 중요도
+  summary?: string
   description?: string // 상세 메모
 }
 
+// 한달 일정
 export interface Goal {
   id: number
   title: string
@@ -74,7 +78,7 @@ export const useScheduleStore = defineStore('schedule', () => {
   }
 
   // 💡 [수정됨] Actions: 원본 데이터(dateTasks)를 직접 조작하도록 수정
-  const addTask = () => {
+  const addTask = (text: string = '') => {
     // 해당 날짜의 배열이 없으면 먼저 생성
     if (!dateTasks.value[selectedDate.value]) {
       dateTasks.value[selectedDate.value] = []
@@ -82,11 +86,39 @@ export const useScheduleStore = defineStore('schedule', () => {
     // 원본 데이터에 새로운 Task 추가
     dateTasks.value[selectedDate.value].push({
       id: Date.now(),
-      text: '',
+      text: text,
       done: false
     })
     saveData()
   }
+
+  const addMilestone = (goalId: number | string, msData: any) => {
+  // 1. 해당 ID의 목표를 찾습니다.
+  const goal = goals.value.find((g: any) => g.id === goalId)
+  
+  if (goal) {
+    // milestones 배열이 없으면 초기화
+    if (!goal.milestones) {
+      goal.milestones = []
+    }
+
+    // 2. 새로운 마일스톤 객체 추가
+    goal.milestones.push({
+      id: Date.now(),
+      done: false,
+      summary: '',
+      ...msData // text, date, startTime 등이 들어옵니다.
+    })
+
+    // 3. 날짜순 정렬
+    goal.milestones.sort((a: any, b: any) => a.date.localeCompare(b.date))
+    
+    // 4. 저장
+    saveData()
+  }
+}
+
+
 
   // 💡 [수정됨] 원본 데이터 배열에서 삭제하도록 수정
   const removeTask = (id: number) => {
@@ -138,6 +170,7 @@ export const useScheduleStore = defineStore('schedule', () => {
     goals,
     currentTasks,
     currentMilestones,
+    addMilestone,
     hasTasks,
     getGoalMilestonesForDate,
     addTask,

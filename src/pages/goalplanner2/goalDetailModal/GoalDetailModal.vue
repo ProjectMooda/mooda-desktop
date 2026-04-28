@@ -108,6 +108,36 @@
                   </div>
                 </div>
 
+                <div class="edit-group span-full">
+                  <div class="memo-header">
+                    <label>한줄 요약</label>
+                    <button v-if="editingSummaryId !== ms.id" @click="editingSummaryId = ms.id" class="btn-text-small">
+                      ✏️ 수정
+                    </button>
+                    <button v-else @click="saveSummary(ms)" class="btn-text-small active">
+                      ✅ 완료
+                    </button>
+                  </div>
+
+                  <div 
+                    v-if="editingSummaryId !== ms.id" 
+                    class="memo-display single-line" 
+                    :class="{ 'empty': !ms.summary }"
+                  >
+                    {{ ms.summary || '한줄 요약이 없습니다. 수정을 눌러 추가해보세요.' }}
+                  </div>
+
+                  <input 
+                    v-else
+                    type="text" 
+                    v-model="ms.summary" 
+                    class="s-input" 
+                    placeholder="핵심 요약을 한 줄로 적어주세요..."
+                    autofocus
+                    @keyup.enter="saveSummary(ms)"
+                  />
+                </div>
+
                 <div class="edit-group">
                   <label>카테고리</label>
                   <select v-model="ms.category" class="s-select" @change="store.saveData">
@@ -141,10 +171,9 @@
                 <div 
                   v-if="editingMemoId !== ms.id" 
                   class="memo-display" 
-                  @click="editingMemoId = ms.id"
                   :class="{ 'empty': !ms.description }"
                 >
-                  {{ ms.description || '작성된 메모가 없습니다. 클릭하여 내용을 추가해보세요.' }}
+                  {{ ms.description || '작성된 메모가 없습니다. 수정을 눌러 추가해보세요.' }}
                 </div>
 
                 <textarea 
@@ -179,7 +208,8 @@ const store = useScheduleStore()
 
 // --- UI 상태 및 옵션 ---
 const editingId = ref<number | null>(null)
-const editingMemoId = ref<number | null>(null) // 메모 수정 모드 추적용
+const editingMemoId = ref<number | null>(null)
+const editingSummaryId = ref<number | null>(null) // 한줄 요약 수정 모드 추적용
 
 const palette = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#71717a']
 const categories = ['기획', '디자인', '개발', '마케팅', '개인일정', '기타']
@@ -187,7 +217,8 @@ const categories = ['기획', '디자인', '개발', '마케팅', '개인일정'
 // 아코디언 토글
 const toggleEdit = (id: number) => {
   editingId.value = editingId.value === id ? null : id
-  editingMemoId.value = null // 창을 여닫을 때 메모 수정 모드 초기화
+  editingMemoId.value = null
+  editingSummaryId.value = null // 창을 여닫을 때 상태 초기화
 }
 
 // 진행률 계산
@@ -196,22 +227,25 @@ const calculateProgress = computed(() => {
   return Math.round((props.goal.milestones.filter((m: any) => m.done).length / props.goal.milestones.length) * 100)
 })
 
-// 마일스톤 추가 (개별 색상 제거)
+// 마일스톤 추가
 const addMilestone = () => {
   if (!props.goal.newMilestoneText) return
-  props.goal.milestones.push({
-    id: Date.now(),
+  
+  store.addMilestone(props.goal.id, {
     date: props.goal.newMilestoneDate || store.selectedDate,
     text: props.goal.newMilestoneText,
-    done: false
-    // color 속성 삭제
   })
-  props.goal.milestones.sort((a: any, b: any) => a.date.localeCompare(b.date))
+  
   props.goal.newMilestoneText = ''
+}
+
+// 한줄 요약 저장 완료
+const saveSummary = (ms: any) => {
+  editingSummaryId.value = null
   store.saveData()
 }
 
-// 메모 저장 완료
+// 상세 메모 저장 완료
 const saveMemo = (ms: any) => {
   editingMemoId.value = null
   store.saveData()
@@ -297,7 +331,6 @@ const removeMilestone = (msId: number) => {
 .cbx-wrap { position: relative; width: 20px; height: 20px; cursor: pointer; }
 .cbx-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
 .cbx-custom { position: absolute; inset: 0; border: 2px solid #d4d4d8; border-radius: 6px; transition: 0.2s; }
-/* 선택됐을때 색상은 inline style에서 제어 (목표 색상 연동) */
 .cbx-custom:after { content: ''; position: absolute; display: none; left: 5px; top: 2px; width: 4px; height: 8px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 .cbx-wrap input:checked ~ .cbx-custom:after { display: block; }
 
@@ -305,6 +338,7 @@ const removeMilestone = (msId: number) => {
 .ms-editor { padding: 20px 24px; background: #fafafa; border-top: 1px solid #e4e4e7; }
 .editor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
 .edit-group label { display: block; font-size: 12px; font-weight: 700; color: #71717a; margin-bottom: 8px; }
+.span-full { grid-column: 1 / -1; }
 
 /* 시간, 메모 뷰 */
 .time-row { display: flex; align-items: center; gap: 8px; }
@@ -317,9 +351,14 @@ const removeMilestone = (msId: number) => {
 .btn-text-small:hover { background: #e4e4e7; color: #27272a; }
 .btn-text-small.active { color: #22c55e; }
 
-.memo-display { background: #fff; border: 1px solid #e4e4e7; padding: 14px; border-radius: 10px; font-size: 14px; color: #3f3f46; min-height: 60px; cursor: pointer; white-space: pre-wrap; line-height: 1.5; transition: 0.2s; }
+/* 클릭 이벤트가 제거되었으므로 cursor 속성을 제거하여 일반 텍스트 뷰처럼 작동하게 함 */
+.memo-display { background: #fff; border: 1px solid #e4e4e7; padding: 14px; border-radius: 10px; font-size: 14px; color: #3f3f46; min-height: 60px; white-space: pre-wrap; line-height: 1.5; transition: 0.2s; }
 .memo-display:hover { border-color: #d4d4d8; background: #fefefe; }
 .memo-display.empty { color: #a1a1aa; font-style: italic; }
+
+/* 한줄 요약을 위한 뷰어 스타일 */
+.memo-display.single-line { min-height: auto; padding: 12px 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .memo-textarea { resize: vertical; min-height: 100px; }
 
 .editor-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px dashed #d4d4d8; }

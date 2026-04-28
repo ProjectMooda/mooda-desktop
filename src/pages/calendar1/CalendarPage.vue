@@ -1,13 +1,13 @@
 <template>
   <div class="split-layout">
     <CalendarCard class="large-calendar" />
-    <TaskCard class="task-board" />
+    <StudioCard class="task-board" />
   </div>
 </template>
 
 <script setup lang="ts">
 import CalendarCard from '@/components/CalendarCard.vue'
-import TaskCard from '@/components/TaskCard.vue'
+import StudioCard from './components/taskCard/StudioCard.vue';
 </script>
 
 <style scoped>
