@@ -33,14 +33,14 @@ import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 
 // 컴포넌트 임포트
-import Sidebar from './components/sidebar/Sidebar.vue'
-import SettingsModal from './components/settings/SettingsModal.vue'
+import Sidebar from './global-components/sidebar/Sidebar.vue'
+import SettingsModal from './global-components/settings/SettingsModal.vue'
 import CalendarPage from '@/pages/calendar1/CalendarPage.vue' // 신규 페이지
 import GoalPlanner from '@/pages/goalplanner2/GoalPlanner.vue'
 
 // 스토어 임포트
-import { useSidebarStore } from './components/sidebar/useSidebarStore'
-import { useSettingsStore } from './components/settings/useSettingsStore'
+import { useSidebarStore } from './global-components/sidebar/useSidebarStore'
+import { useSettingsStore } from './global-components/settings/useSettingsStore'
 import { useScheduleStore } from '@/store/useScheduleStore'
 
 const sidebarStore = useSidebarStore()

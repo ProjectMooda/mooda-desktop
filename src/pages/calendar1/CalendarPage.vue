@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import CalendarCard from '@/components/CalendarCard.vue'
+import CalendarCard from './components/calenderCard/CalendarCard.vue'
 import StudioCard from './components/taskCard/StudioCard.vue';
 </script>
 

@@ -200,7 +200,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useScheduleStore } from '@/store/useScheduleStore'
-import BaseModal from '@/components/modal/BaseModal.vue'
+import BaseModal from '@/global-components/modal/BaseModal.vue'
 
 const props = defineProps<{ goal: any }>()
 const emit = defineEmits(['close'])

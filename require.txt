@@ -1,2 +1,3 @@
 npm i sass
 npm install pinia
+npm install vuedraggable@next

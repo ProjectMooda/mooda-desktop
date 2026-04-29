@@ -6,6 +6,7 @@ interface Task {
   id: number
   text: string
   done: boolean
+  isPinned?: boolean
 }
 
 // 일반 일정
@@ -20,6 +21,7 @@ export interface Milestone {
   priority?: 'Low' | 'Medium' | 'High' // 중요도
   summary?: string
   description?: string // 상세 메모
+  isPinned?: boolean
 }
 
 // 한달 일정
