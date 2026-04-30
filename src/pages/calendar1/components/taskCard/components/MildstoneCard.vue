@@ -27,7 +27,12 @@
         <div class="action-wrapper" @click.stop>
           <button class="btn-pin" :class="{ 'is-pinned': item.ms.isPinned }" @click.stop="$emit('toggle-pin', item.ms)">📌</button>
           <button class="btn-del" @click.stop="$emit('delete', item.ms)">✕</button>
-          <input type="checkbox" class="custom-checkbox" v-model="item.ms.done" @change="$emit('update')" />
+<input 
+  type="checkbox" 
+  class="custom-checkbox" 
+  v-model="item.ms.done" 
+  @change="toggleMainTaskSafe" 
+/>
         </div>
       </div>
     </div>
@@ -74,6 +79,27 @@ const handleClose = () => {
 const handleDelete = () => {
   emit('delete', props.item.ms)
   isModalOpen.value = false
+}
+
+const toggleMainTaskSafe = () => {
+  // v-model 덕분에 props.item.ms.done은 이미 클릭한 상태로 반영되어 있습니다.
+  const isChecked = props.item.ms.done;
+
+  if (props.item.ms.subtasks && props.item.ms.subtasks.length > 0) {
+    if (isChecked) {
+      // 1. 메인 체크 시: 하위 할 일 모두 체크
+      props.item.ms.subtasks.forEach((sub: any) => sub.done = true);
+    } else {
+      // 2. 메인 체크 해제 시: 하위 할 일이 모두 100% 완료된 상태였을 때만 전체 해제
+      const allWereDone = props.item.ms.subtasks.every((sub: any) => sub.done);
+      if (allWereDone) {
+        props.item.ms.subtasks.forEach((sub: any) => sub.done = false);
+      }
+    }
+  }
+  
+  // 부모 컴포넌트에 변경 사항 저장 요청
+  emit('update');
 }
 </script>
 

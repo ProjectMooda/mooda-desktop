@@ -7,6 +7,7 @@ interface Task {
   text: string
   done: boolean
   isPinned?: boolean
+  orderIndex?: number
 }
 
 // 일반 일정
@@ -22,6 +23,7 @@ export interface Milestone {
   summary?: string
   description?: string // 상세 메모
   isPinned?: boolean
+  orderIndex?: number
 }
 
 // 한달 일정
