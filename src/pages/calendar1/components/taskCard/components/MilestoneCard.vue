@@ -6,100 +6,108 @@
       
       <div class="task-content">
         <div class="ms-meta-row">
-          <span class="meta-badge goal-badge">{{ truncateText(item.goalTitle, 10) }}</span>
-          <span v-if="item.ms.category && item.ms.category !== '선택 안함'" class="meta-badge category-badge">{{ item.ms.category }}</span>
-          <span v-if="item.ms.priority" class="meta-badge priority-badge" :class="'p-' + item.ms.priority.toLowerCase()">
-            {{ priorityLabel(item.ms.priority) }}
+          <!-- 🚨 1. item.goalTitle 대신 computed 속성인 goalTitle을 사용 -->
+          <span v-if="goalTitle" class="meta-badge goal-badge">{{ truncateText(goalTitle, 10) }}</span>
+          
+          <!-- 🚨 2. item.ms.category -> item.category -->
+          <span v-if="item.category && item.category !== '선택 안함'" class="meta-badge category-badge">{{ item.category }}</span>
+          
+          <span v-if="item.priority" class="meta-badge priority-badge" :class="'p-' + item.priority.toLowerCase()">
+            {{ priorityLabel(item.priority) }}
           </span>
         </div>
         
-        <div class="ms-main-text" :class="{ 'is-done': item.ms.done }">
-          <span class="ms-title">{{ truncateText(item.ms.text, 10) }}</span>
-          <span v-if="item.ms.summary" class="ms-summary">{{ truncateText(item.ms.summary, 10) }}</span>
+        <div class="ms-main-text" :class="{ 'is-done': item.done }">
+          <!-- 🚨 3. item.ms.text -> item.summary (새로운 인터페이스 기준 메인 제목) -->
+          <span class="ms-title">{{ truncateText(item.summary, 10) }}</span>
+          
+          <!-- 🚨 item.ms.summary -> item.memo (상세/서브 요약) -->
+          <span v-if="item.memo" class="ms-summary">{{ truncateText(item.memo, 10) }}</span>
         </div>
       </div>
 
       <div class="task-actions-right">
-        <span v-if="item.ms.startTime || item.ms.endTime" class="meta-time">
-          🕒 {{ item.ms.startTime || '미정' }} ~ {{ item.ms.endTime || '미정' }}
-        </span>
-        
         <div class="action-wrapper" @click.stop>
-          <button class="btn-pin" :class="{ 'is-pinned': item.ms.isPinned }" @click.stop="$emit('toggle-pin', item.ms)">📌</button>
-          <button class="btn-del" @click.stop="$emit('delete', item.ms)">✕</button>
-<input 
-  type="checkbox" 
-  class="custom-checkbox" 
-  v-model="item.ms.done" 
-  @change="toggleMainTaskSafe" 
-/>
+          <!-- 🚨 item.ms 파라미터 제거, 이벤트만 부모로 올림 -->
+          <button class="btn-pin" :class="{ 'is-pinned': item.isPinned }" @click.stop="$emit('toggle-pin')">📌</button>
+          <button class="btn-del" @click.stop="$emit('delete')">✕</button>
+          
+          <!-- 🚨 4. 제일 중요한 부분! v-model 대신 :checked와 @change 이벤트를 사용해 직접 수정을 방지함 -->
+          <input 
+            type="checkbox" 
+            class="custom-checkbox" 
+            :checked="item.done" 
+            @change="toggleDone" 
+          />
         </div>
       </div>
     </div>
 
+    <!-- 🚨 item.ms 대신 item 전체를 넘김 -->
     <ScheduleDetailModal 
+      v-if="isModalOpen"
       :is-open="isModalOpen" 
-      :data="item.ms" 
+      :data="item" 
       @close="handleClose" 
       @delete="handleDelete" 
     />
-  </div> </template>
+  </div> 
+</template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
+// 모달 컴포넌트는 전역이 아니라면 임포트가 필요합니다.
 import ScheduleDetailModal from '@/global-components/schedule-detail-modal/ScheduleDetailModal.vue'
 
-const props = defineProps<{ item: any }>()
-const emit = defineEmits(['open-detail', 'update', 'delete', 'toggle-pin'])
+// 🚨 타입 변경: any 대신 명확한 ScheduleItem 타입 지정
+const props = defineProps<{ item: ScheduleItem }>()
+
+// 부모에게 보낼 이벤트들 정의
+const emit = defineEmits(['update', 'toggle-pin', 'delete'])
+const store = useScheduleStore()
 
 const isModalOpen = ref(false)
 
-const priorityLabel = (p?: string) => {
-  if (p === 'High') return '🔥 높음'
-  if (p === 'Medium') return '⭐ 중간'
-  if (p === 'Low') return '💧 낮음'
-  return ''
-}
+// 🚨 Goal Title 가져오기: 이전의 item.goalTitle은 존재하지 않으므로, 스토어에서 id를 매칭해 가져옵니다.
+const goalTitle = computed(() => {
+  if (!props.item.goalId) return ''
+  const goal = store.goals.find(g => g.id === props.item.goalId)
+  return goal ? goal.title : ''
+})
 
-const truncateText = (text: string, maxLength: number = 10) => {
+// 유틸리티 함수들
+const truncateText = (text: string | undefined, length: number) => {
   if (!text) return ''
-  return text.length > maxLength ? text.slice(0, maxLength) + '...' : text
+  return text.length > length ? text.slice(0, length) + '...' : text
 }
 
+const priorityLabel = (priority: string) => {
+  if (priority === 'High') return '🔥 높음'
+  if (priority === 'Medium') return '⭐ 중간'
+  if (priority === 'Low') return '💧 낮음'
+  return priority
+}
+
+// 모달 제어
 const openModal = () => {
   isModalOpen.value = true
-  emit('open-detail', props.item.ms)
 }
 
 const handleClose = () => {
   isModalOpen.value = false
-  emit('update')
 }
 
 const handleDelete = () => {
-  emit('delete', props.item.ms)
   isModalOpen.value = false
+  emit('delete')
 }
 
-const toggleMainTaskSafe = () => {
-  // v-model 덕분에 props.item.ms.done은 이미 클릭한 상태로 반영되어 있습니다.
-  const isChecked = props.item.ms.done;
-
-  if (props.item.ms.subtasks && props.item.ms.subtasks.length > 0) {
-    if (isChecked) {
-      // 1. 메인 체크 시: 하위 할 일 모두 체크
-      props.item.ms.subtasks.forEach((sub: any) => sub.done = true);
-    } else {
-      // 2. 메인 체크 해제 시: 하위 할 일이 모두 100% 완료된 상태였을 때만 전체 해제
-      const allWereDone = props.item.ms.subtasks.every((sub: any) => sub.done);
-      if (allWereDone) {
-        props.item.ms.subtasks.forEach((sub: any) => sub.done = false);
-      }
-    }
-  }
-  
-  // 부모 컴포넌트에 변경 사항 저장 요청
-  emit('update');
+// 🚨 안전한 상태 업데이트: 프롭스를 직접 바꾸지 않고, 스토어/부모에게 바꿔달라고 요청(emit)
+const toggleDone = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  // 부모 컴포넌트의 @update="scheduleStore.updateSchedule"를 트리거합니다
+  emit('update', { done: target.checked })
 }
 </script>
 
@@ -134,7 +142,6 @@ const toggleMainTaskSafe = () => {
 .is-done .ms-title, .is-done .ms-summary { text-decoration: line-through; color: #a1a1aa !important; }
 
 .task-actions-right { display: flex; flex-direction: column; align-items: flex-end; min-width: 105px; }
-.meta-time { font-size: 11px; font-weight: 600; color: #71717a; font-variant-numeric: tabular-nums; }
 
 .action-wrapper { display: flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 4px; }
 .btn-del { background: #fee2e2; color: #ef4444; border: none; width: 24px; height: 24px; border-radius: 6px; font-size: 12px; cursor: pointer; opacity: 0; display: flex; align-items: center; justify-content: center; transition: 0.2s; }

@@ -21,6 +21,7 @@
       </div>
     </div>
 
+    <!-- 빠른 추가 폼 -->
     <div v-if="showAddForm" class="quick-add-area">
       <div v-if="openDropdown" class="dropdown-overlay" @click="openDropdown = null"></div>
 
@@ -109,6 +110,7 @@
       </div>
     </div>
 
+    <!-- 리스트 영역 -->
     <div class="task-scroll-area">
       <div v-if="totalItems === 0" class="empty-msg">
         일정이 없습니다. 상단의 + 버튼을 눌러 추가해보세요!
@@ -116,24 +118,31 @@
 
       <div v-else class="task-lists-container">
         
+        <!-- 고정된 항목 -->
         <div v-if="pinnedMilestones.length > 0 || pinnedTasks.length > 0" class="list-group">
           <div class="group-label"><span class="pin-icon">📌</span> 고정됨</div>
           <MilestoneCard 
-            v-for="item in pinnedMilestones" :key="'p-ms-' + item.ms.id" :item="item"
-            @open-detail="openDetailModal" @update="scheduleStore.saveData" @toggle-pin="togglePin"
-          />
+              v-for="item in pinnedMilestones" :key="'p-ms-' + item.id" :item="item"
+              @open-detail="openDetailModal" 
+              @update="scheduleStore.updateSchedule(item.id, $event)" 
+              @toggle-pin="scheduleStore.togglePin(item.id)"
+              @delete="scheduleStore.removeSchedule(item.id)"
+            />
           <TaskCard 
             v-for="task in pinnedTasks" :key="'p-task-' + task.id" :task="task"
-            @update="scheduleStore.saveData" @remove="scheduleStore.removeTask" @toggle-pin="togglePin"
+            @update="scheduleStore.updateSchedule(task.id, $event)" 
+            @remove="scheduleStore.removeSchedule(task.id)" 
+            @toggle-pin="scheduleStore.togglePin(task.id)"
           />
         </div>
 
+        <!-- 진행 중인 항목 (드래그 가능) -->
         <div v-if="localActiveMilestones.length > 0 || localActiveTasks.length > 0" class="list-group">
           <div class="group-label"><span class="run-icon">🏃</span> 할 일</div>
           
           <draggable 
             :list="localActiveMilestones" 
-            :item-key="getMilestoneKey"
+            item-key="id"
             ghost-class="ghost-card" 
             animation="200"
             handle=".drag-handle" 
@@ -141,15 +150,18 @@
           >
             <template #item="{ element }">
               <MilestoneCard 
-                :item="element" @open-detail="openDetailModal" 
-                @update="scheduleStore.saveData" @toggle-pin="togglePin"
+                :item="element" 
+                @open-detail="openDetailModal" 
+                @update="scheduleStore.updateSchedule(element.id, $event)" 
+                @toggle-pin="scheduleStore.togglePin(element.id)"
+                @delete="scheduleStore.removeSchedule(element.id)"
               />
             </template>
           </draggable>
 
           <draggable 
             :list="localActiveTasks" 
-            :item-key="getTaskKey"
+            item-key="id"
             ghost-class="ghost-card" 
             animation="200"
             handle=".drag-handle"
@@ -157,13 +169,16 @@
           >
             <template #item="{ element }">
               <TaskCard 
-                :task="element" @update="scheduleStore.saveData" 
-                @remove="scheduleStore.removeTask" @toggle-pin="togglePin"
+                :task="element" 
+                @update="scheduleStore.updateSchedule(element.id, $event)" 
+                @remove="scheduleStore.removeSchedule(element.id)" 
+                @toggle-pin="scheduleStore.togglePin(element.id)"
               />
             </template>
           </draggable>
         </div>
 
+        <!-- 완료된 항목 -->
         <div v-if="completedItemsCount > 0" class="completed-section">
           <button class="toggle-completed-btn" @click="showCompleted = !showCompleted">
             {{ showCompleted ? '▼' : '▶' }} 완료된 항목 ({{ completedItemsCount }})
@@ -171,12 +186,17 @@
           
           <div v-show="showCompleted" class="completed-tasks-group">
             <MilestoneCard 
-              v-for="item in completedMilestones" :key="'done-ms-' + item.ms.id" :item="item"
-              @open-detail="openDetailModal" @update="scheduleStore.saveData" @toggle-pin="togglePin"
+              v-for="item in completedMilestones" :key="'done-ms-' + item.id" :item="item"
+              @open-detail="openDetailModal" 
+              @update="scheduleStore.updateSchedule(item.id, $event)" 
+              @toggle-pin="scheduleStore.togglePin(item.id)"
+              @delete="scheduleStore.removeSchedule(item.id)" 
             />
             <TaskCard 
               v-for="task in completedTasks" :key="'done-task-' + task.id" :task="task"
-              @update="scheduleStore.saveData" @remove="scheduleStore.removeTask" @toggle-pin="togglePin"
+              @update="scheduleStore.updateSchedule(task.id, $event)" 
+              @remove="scheduleStore.removeSchedule(task.id)" 
+              @toggle-pin="scheduleStore.togglePin(task.id)"
             />
           </div>
         </div>
@@ -186,22 +206,21 @@
 </template>
 
 <script setup lang="ts">
-// 🚨 watch 임포트 추가
 import { ref, reactive, computed, watch } from 'vue' 
 import draggable from 'vuedraggable' 
-import { useScheduleStore } from '@/store/useScheduleStore'
-import MilestoneCard from './components/MildstoneCard.vue' 
+import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
+import MilestoneCard from './components/MilestoneCard.vue' // 오타 수정 (Mildstone -> Milestone)
 import TaskCard from './components/TaskCard.vue'
-const getMilestoneKey = (element: any) => element.ms.id
-const getTaskKey = (element: any) => element.id
+
 const scheduleStore = useScheduleStore()
 const emit = defineEmits(['open-detail'])
 
+// 상태 관리
 const showAddForm = ref(false)
 const showCompleted = ref(false)
 const addType = ref<'task' | 'event'>('task')
 const newTitle = ref('')
-const selectedGoalId = ref<number | string>('')
+const selectedGoalId = ref<number | ''>('')
 const newCategory = ref('')
 const newPriority = ref<'High' | 'Medium' | 'Low' | ''>('')
 const openDropdown = ref<string | null>(null)
@@ -213,6 +232,7 @@ const priorityOptions: Array<{ value: 'High' | 'Medium' | 'Low', label: string }
   { value: 'Low', label: '💧 낮음' }
 ]
 
+// Computed
 const selectedGoalName = computed(() => {
   const goal = scheduleStore.goals.find(g => g.id === selectedGoalId.value)
   return goal ? (goal.title.length > 8 ? goal.title.slice(0, 8) + '...' : goal.title) : '목표 선택'
@@ -223,6 +243,14 @@ const selectedPriorityLabel = computed(() => {
   return p ? p.label : '중요도'
 })
 
+const formattedDate = computed(() => {
+  const full = scheduleStore.selectedDate
+  if (!full) return ''
+  const parts = full.split('-')
+  return parts.length === 3 ? `${parts[1]}.${parts[2]}` : full
+})
+
+// 시간 로직
 const startTimeObj = reactive({ ampm: '오전', hour: 9, minute: 0 })
 const endTimeObj = reactive({ ampm: '오후', hour: 6, minute: 0 })
 
@@ -238,27 +266,31 @@ const formatTimeForStore = (timeObj: { ampm: string, hour: number, minute: numbe
   return `${String(h).padStart(2, '0')}:${String(timeObj.minute).padStart(2, '0')}`
 }
 
+// 📌 아이템 추가 (새로운 Store 구조에 맞춤)
 const handleQuickAdd = () => {
   if (!newTitle.value.trim()) return
 
   if (addType.value === 'task') {
-    scheduleStore.addTask(newTitle.value)
+    scheduleStore.addTask(newTitle.value, scheduleStore.selectedDate)
   } else {
     if (!selectedGoalId.value) {
       alert('연결할 목표를 선택해주세요.')
       return
     }
-    scheduleStore.addMilestone(selectedGoalId.value, {
-      text: newTitle.value,
-      date: scheduleStore.selectedDate,
+    scheduleStore.addSchedule({
+      type: 'event', // 혹은 milestone
+      summary: newTitle.value,
+      goalId: Number(selectedGoalId.value),
+      startDate: scheduleStore.selectedDate,
+      endDate: scheduleStore.selectedDate,
       startTime: formatTimeForStore(startTimeObj),
       endTime: formatTimeForStore(endTimeObj),
       category: newCategory.value,
-      priority: newPriority.value,
-      isPinned: false
+      priority: newPriority.value as 'High' | 'Medium' | 'Low' | undefined
     })
   }
   
+  // 폼 초기화
   newTitle.value = ''
   selectedGoalId.value = ''
   newCategory.value = ''
@@ -266,77 +298,59 @@ const handleQuickAdd = () => {
   showAddForm.value = false
 }
 
-const formattedDate = computed(() => {
-  const full = scheduleStore.selectedDate
-  if (!full) return ''
-  const parts = full.split('-')
-  return parts.length === 3 ? `${parts[1]}.${parts[2]}` : full
-})
 // ==========================================
-// 🚨 드래그 순서 영구 저장 완벽 해결 로직 🚨
+// 🚨 드래그 순서 영구 저장 완벽 해결 로직 (Store 구조 반영)
 // ==========================================
+const localActiveMilestones = ref<ScheduleItem[]>([])
+const localActiveTasks = ref<ScheduleItem[]>([])
 
-const localActiveMilestones = ref<any[]>([])
-const localActiveTasks = ref<any[]>([])
-
-// 1. 데이터를 불러올 때, 저장된 번호표(orderIndex)를 보고 순서대로 정렬!
 watch(
-  () => scheduleStore.currentMilestones,
+  () => scheduleStore.milestones, // Store의 getter로 직접 접근
   (newVal) => {
-    const filtered = newVal?.filter(m => !m.ms.done && !m.ms.isPinned) || []
-    // orderIndex 기준으로 오름차순 정렬 (값이 없으면 0으로 처리)
-    localActiveMilestones.value = filtered.sort((a, b) => (a.ms.orderIndex || 0) - (b.ms.orderIndex || 0))
+    const filtered = newVal.filter(m => !m.done && !m.isPinned)
+    localActiveMilestones.value = filtered.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
   },
   { immediate: true, deep: true }
 )
 
 watch(
-  () => scheduleStore.currentTasks,
+  () => scheduleStore.tasks, // Store의 getter로 직접 접근
   (newVal) => {
-    const filtered = newVal?.filter(t => !t.done && !t.isPinned) || []
-    // orderIndex 기준으로 오름차순 정렬 (값이 없으면 0으로 처리)
+    const filtered = newVal.filter(t => !t.done && !t.isPinned)
     localActiveTasks.value = filtered.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
   },
   { immediate: true, deep: true }
 )
 
-// 2. 드래그를 끝내고 마우스를 놓는 순간, 새로운 번호표(index)를 데이터에 도장 찍고 저장!
 const onMilestoneDragEnd = () => {
   localActiveMilestones.value.forEach((item, index) => {
-    item.ms.orderIndex = index // 0번, 1번, 2번... 순서 기록
+    scheduleStore.updateSchedule(item.id, { orderIndex: index })
   })
-  scheduleStore.saveData() // 변경된 번호표들을 통째로 로컬에 저장
 }
 
 const onTaskDragEnd = () => {
   localActiveTasks.value.forEach((item, index) => {
-    item.orderIndex = index // 0번, 1번, 2번... 순서 기록
+    scheduleStore.updateSchedule(item.id, { orderIndex: index })
   })
-  scheduleStore.saveData() // 변경된 번호표들을 통째로 로컬에 저장
 }
 
-// (이 아래 pinnedMilestones 등은 기존 그대로 유지!)
 // ==========================================
+// 파생 데이터 (Pinia Getter 활용)
+// ==========================================
+const pinnedMilestones = computed(() => scheduleStore.milestones.filter(m => !m.done && m.isPinned))
+const pinnedTasks = computed(() => scheduleStore.tasks.filter(t => !t.done && t.isPinned))
 
-const pinnedMilestones = computed(() => scheduleStore.currentMilestones?.filter(m => !m.ms.done && m.ms.isPinned) || [])
-const pinnedTasks = computed(() => scheduleStore.currentTasks?.filter(t => !t.done && t.isPinned) || [])
+const completedMilestones = computed(() => scheduleStore.milestones.filter(m => m.done))
+const completedTasks = computed(() => scheduleStore.tasks.filter(t => t.done))
 
-const completedMilestones = computed(() => scheduleStore.currentMilestones?.filter(m => m.ms.done) || [])
-const completedTasks = computed(() => scheduleStore.currentTasks?.filter(t => t.done) || [])
-
-const totalItems = computed(() => (scheduleStore.currentMilestones?.length || 0) + (scheduleStore.currentTasks?.length || 0))
+const totalItems = computed(() => scheduleStore.milestones.length + scheduleStore.tasks.length)
 const completedItemsCount = computed(() => completedMilestones.value.length + completedTasks.value.length)
 const progressPercent = computed(() => {
   if (totalItems.value === 0) return 0
   return Math.round((completedItemsCount.value / totalItems.value) * 100)
 })
 
-const openDetailModal = (ms: any) => emit('open-detail', ms)
-
-const togglePin = (itemData: any) => {
-  itemData.isPinned = !itemData.isPinned
-  scheduleStore.saveData()
-}
+const openDetailModal = (item: ScheduleItem) => emit('open-detail', item)
 </script>
 
 <style scoped>

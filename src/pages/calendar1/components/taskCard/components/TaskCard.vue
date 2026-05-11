@@ -5,15 +5,10 @@
       <div class="drag-handle" @click.stop>⠿</div>
       
       <div class="task-content">
-        <div class="task-display" :class="{ 'is-done': task.done }">{{ truncateText(task.text, 15) }}</div>
-        
-        <textarea
-          class="task-textarea"
-          v-model="task.text"
-          @change="$emit('update')"
-          @click.stop
-          placeholder="내용을 입력하세요..."
-        ></textarea>
+        <div class="task-display" :class="{ 'is-done': task.done }">
+          {{ truncateText(task.summary || task.text, 15) }}
+        </div>
+
       </div>
 
       <div class="task-actions-right">

@@ -6,6 +6,7 @@
     @close="$emit('close')"
   >
     <div class="modal-body">
+      <!-- 목표 기본 정보 -->
       <div class="info-section">
         <div class="form-group">
           <label>목표 타이틀</label>
@@ -45,17 +46,19 @@
         </div>
       </div>
 
+      <!-- 세부 일정 (마일스톤) -->
       <div class="ms-section">
         <div class="ms-header-row">
           <label>세부 일정 (Milestones)</label>
-          <span class="ms-count">총 {{ goal.milestones?.length || 0 }}개</span>
+          <span class="ms-count">총 {{ goalSchedules.length }}개</span>
         </div>
 
+        <!-- 🚨 로컬 상태(newMsDate, newMsSummary)를 사용하도록 변경 -->
         <div class="add-ms-row">
-          <input type="date" v-model="goal.newMilestoneDate" class="s-input date-input shrink-0" />
+          <input type="date" v-model="newMsDate" class="s-input date-input shrink-0" />
           <input 
             type="text" 
-            v-model="goal.newMilestoneText" 
+            v-model="newMsSummary" 
             placeholder="새로운 일정 추가 후 엔터..." 
             class="s-input flex-1"
             @keyup.enter="addMilestone" 
@@ -64,8 +67,9 @@
         </div>
 
         <div class="ms-list-container">
+          <!-- 🚨 스토어에서 필터링해온 goalSchedules를 순회 -->
           <div 
-            v-for="ms in goal.milestones" 
+            v-for="ms in goalSchedules" 
             :key="ms.id" 
             class="ms-card"
             :class="{ 'is-editing': editingId === ms.id }"
@@ -81,14 +85,16 @@
               
               <div class="ms-content min-w-0">
                 <div class="ms-meta">
-                  <span class="ms-date">{{ ms.date.slice(5).replace('-', '/') }}</span>
+                  <!-- 🚨 ms.startDate 로 변경 -->
+                  <span class="ms-date">{{ (ms.startDate || '').slice(5).replace('-', '/') }}</span>
                   <span v-if="ms.startTime || ms.endTime" class="ms-time">
                     🕒 {{ ms.startTime || '미정' }} ~ {{ ms.endTime || '미정' }}
                   </span>
                   <span v-if="ms.category" class="ms-badge category-badge">{{ ms.category }}</span>
                   <span v-if="ms.priority" class="ms-badge" :class="'priority-' + ms.priority">{{ ms.priority }}</span>
                 </div>
-                <div class="ms-title" :class="{ 'is-done': ms.done }">{{ ms.text }}</div>
+                <!-- 🚨 ms.summary 로 변경 -->
+                <div class="ms-title" :class="{ 'is-done': ms.done }">{{ ms.summary }}</div>
               </div>
 
               <div class="ms-actions shrink-0">
@@ -98,15 +104,6 @@
 
             <div class="ms-editor" v-if="editingId === ms.id" @click.stop>
               <div class="editor-grid">
-                
-                <div class="edit-group">
-                  <label>시간 설정</label>
-                  <div class="time-row">
-                    <input type="time" v-model="ms.startTime" class="s-input time-input" @change="store.saveData" />
-                    <span>~</span>
-                    <input type="time" v-model="ms.endTime" class="s-input time-input" @change="store.saveData" />
-                  </div>
-                </div>
 
                 <div class="edit-group span-full">
                   <div class="memo-header">
@@ -114,7 +111,7 @@
                     <button v-if="editingSummaryId !== ms.id" @click="editingSummaryId = ms.id" class="btn-text-small">
                       ✏️ 수정
                     </button>
-                    <button v-else @click="saveSummary(ms)" class="btn-text-small active">
+                    <button v-else @click="saveField()" class="btn-text-small active">
                       ✅ 완료
                     </button>
                   </div>
@@ -134,7 +131,7 @@
                     class="s-input" 
                     placeholder="핵심 요약을 한 줄로 적어주세요..."
                     autofocus
-                    @keyup.enter="saveSummary(ms)"
+                    @keyup.enter="saveField()"
                   />
                 </div>
 
@@ -163,7 +160,7 @@
                   <button v-if="editingMemoId !== ms.id" @click="editingMemoId = ms.id" class="btn-text-small">
                     ✏️ 수정
                   </button>
-                  <button v-else @click="saveMemo(ms)" class="btn-text-small active">
+                  <button v-else @click="saveField()" class="btn-text-small active">
                     ✅ 완료
                   </button>
                 </div>
@@ -171,14 +168,15 @@
                 <div 
                   v-if="editingMemoId !== ms.id" 
                   class="memo-display" 
-                  :class="{ 'empty': !ms.description }"
+                  :class="{ 'empty': !ms.memo }"
                 >
-                  {{ ms.description || '작성된 메모가 없습니다. 수정을 눌러 추가해보세요.' }}
+                  <!-- 🚨 ms.memo 로 변경 -->
+                  {{ ms.memo || '작성된 메모가 없습니다. 수정을 눌러 추가해보세요.' }}
                 </div>
 
                 <textarea 
                   v-else
-                  v-model="ms.description" 
+                  v-model="ms.memo" 
                   class="s-textarea memo-textarea" 
                   placeholder="세부적인 계획이나 참고사항을 적어주세요..."
                   autofocus
@@ -186,6 +184,7 @@
               </div>
 
               <div class="editor-actions">
+                <!-- 🚨 삭제 로직 변경 -->
                 <button @click="removeMilestone(ms.id)" class="btn-text-danger">이 일정 삭제</button>
                 <button @click="editingId = null" class="btn-secondary">닫기</button>
               </div>
@@ -199,65 +198,64 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useScheduleStore } from '@/store/useScheduleStore'
+import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
 import BaseModal from '@/global-components/modal/BaseModal.vue'
 
-const props = defineProps<{ goal: any }>()
+// 🚨 any 제거 및 Goal 타입 부여
+const props = defineProps<{ goal: Goal }>()
 const emit = defineEmits(['close'])
 const store = useScheduleStore()
 
-// --- UI 상태 및 옵션 ---
+// --- UI 상태 ---
 const editingId = ref<number | null>(null)
 const editingMemoId = ref<number | null>(null)
-const editingSummaryId = ref<number | null>(null) // 한줄 요약 수정 모드 추적용
+const editingSummaryId = ref<number | null>(null)
+
+// 새로운 마일스톤 입력을 위한 로컬 상태 (더 이상 goal 객체에 섞이지 않습니다)
+const newMsDate = ref(store.selectedDate)
+const newMsSummary = ref('')
 
 const palette = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#71717a']
 const categories = ['기획', '디자인', '개발', '마케팅', '개인일정', '기타']
 
-// 아코디언 토글
+// 🚨 핵심 포인트: 현재 목표에 해당하는 일정만 스토어에서 필터링해서 가져옴
+const goalSchedules = computed(() => {
+  return store.schedules.filter(s => s.goalId === props.goal.id)
+})
+
 const toggleEdit = (id: number) => {
   editingId.value = editingId.value === id ? null : id
   editingMemoId.value = null
-  editingSummaryId.value = null // 창을 여닫을 때 상태 초기화
+  editingSummaryId.value = null
 }
 
-// 진행률 계산
+// 진행률 계산 로직 변경
 const calculateProgress = computed(() => {
-  if (!props.goal.milestones || props.goal.milestones.length === 0) return 0
-  return Math.round((props.goal.milestones.filter((m: any) => m.done).length / props.goal.milestones.length) * 100)
+  if (goalSchedules.value.length === 0) return 0
+  const completed = goalSchedules.value.filter(m => m.done).length
+  return Math.round((completed / goalSchedules.value.length) * 100)
 })
 
-// 마일스톤 추가
+// 마일스톤 추가 방식 스토어에 맞게 변경
 const addMilestone = () => {
-  if (!props.goal.newMilestoneText) return
+  if (!newMsSummary.value.trim()) return
   
-  store.addMilestone(props.goal.id, {
-    date: props.goal.newMilestoneDate || store.selectedDate,
-    text: props.goal.newMilestoneText,
-  })
+  // ✨ 헬퍼 함수 호출 (객체 껍데기 없이 핵심 파라미터만 전달)
+  store.addMilestone(props.goal.id, newMsSummary.value, newMsDate.value)
   
-  props.goal.newMilestoneText = ''
+  newMsSummary.value = ''
 }
 
-// 한줄 요약 저장 완료
-const saveSummary = (ms: any) => {
+
+const saveField = () => {
   editingSummaryId.value = null
-  store.saveData()
-}
-
-// 상세 메모 저장 완료
-const saveMemo = (ms: any) => {
   editingMemoId.value = null
   store.saveData()
 }
 
-// 삭제
+// splice 대신 스토어의 remove 액션 사용
 const removeMilestone = (msId: number) => {
-  const idx = props.goal.milestones.findIndex((m: any) => m.id === msId)
-  if (idx > -1) {
-    props.goal.milestones.splice(idx, 1)
-    store.saveData()
-  }
+  store.removeSchedule(msId)
 }
 </script>
 
@@ -341,8 +339,6 @@ const removeMilestone = (msId: number) => {
 .span-full { grid-column: 1 / -1; }
 
 /* 시간, 메모 뷰 */
-.time-row { display: flex; align-items: center; gap: 8px; }
-.time-input { padding: 10px 12px; }
 .mt-16 { margin-top: 16px; }
 
 .memo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }

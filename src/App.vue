@@ -41,7 +41,7 @@ import GoalPlanner from '@/pages/goalplanner2/GoalPlanner.vue'
 // 스토어 임포트
 import { useSidebarStore } from './global-components/sidebar/useSidebarStore'
 import { useSettingsStore } from './global-components/settings/useSettingsStore'
-import { useScheduleStore } from '@/store/useScheduleStore'
+import { useScheduleStore } from '@/stores/useScheduleStore'
 
 const sidebarStore = useSidebarStore()
 const settingsStore = useSettingsStore()
@@ -53,6 +53,8 @@ onMounted(() => {
   settingsStore.loadSettings()
   scheduleStore.loadData()
 })
+
+
 </script>
 
 <style scoped>

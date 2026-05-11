@@ -4,12 +4,12 @@
       <div class="goal-header">
         <div class="title-area min-w-0" @click="$emit('open')">
           <h4>{{ goal.title }}</h4>
-          <span class="date-range"
-            >{{ goal.startDate }} ~ {{ goal.endDate }}</span
-          >
+          <span class="date-range">
+            {{ goal.startDate }} ~ {{ goal.endDate }}
+          </span>
         </div>
         <div class="header-actions">
-          <div class="pct-text shrink-0">{{ calculateProgress(goal) }}%</div>
+          <div class="pct-text shrink-0">{{ progressPercent }}%</div>
           <button
             class="btn-del-goal"
             @click.stop.prevent="deleteGoal(goal.id)"
@@ -22,43 +22,52 @@
       <div class="progress-track">
         <div
           class="progress-fill"
-          :style="{ width: calculateProgress(goal) + '%' }"
+          :style="{ width: progressPercent + '%' }"
         ></div>
       </div>
 
+      <!-- 🚨 로컬 상태(newMsDate, newMsSummary)를 사용하도록 변경 -->
       <div class="add-ms-row">
         <input
           type="date"
-          v-model="goal.newMilestoneDate"
+          v-model="newMsDate"
           class="s-input w-110 shrink-0"
           :min="goal.startDate"
           :max="goal.endDate"
         />
         <input
           type="text"
-          v-model="goal.newMilestoneText"
+          v-model="newMsSummary"
           placeholder="세부 일정..."
           class="s-input flex-1 min-w-0"
-          @keyup.enter="addMilestone(goal)"
+          @keyup.enter="addMilestone"
         />
-        <button @click="addMilestone(goal)" class="btn-outline shrink-0">
+        <button @click="addMilestone" class="btn-outline shrink-0">
           +
         </button>
       </div>
     </div>
 
     <div class="ms-list min-h-0">
-      <div v-for="ms in goal.milestones" :key="ms.id" class="ms-row">
+      <!-- 🚨 스토어에서 필터링해온 goalSchedules 순회 -->
+      <div v-for="ms in goalSchedules" :key="ms.id" class="ms-row">
         <label class="studio-cbx sm-cbx shrink-0">
-          <input type="checkbox" v-model="ms.done" @change="store.saveData" />
+          <input 
+            type="checkbox" 
+            v-model="ms.done" 
+            @change="store.updateSchedule(ms.id, { done: ms.done })" 
+          />
           <span class="cbx-box"></span>
         </label>
-        <span class="ms-date shrink-0">{{ ms.date.slice(5) }}</span>
-        <span :class="['ms-text flex-1 min-w-0', { 'is-done': ms.done }]">{{
-          ms.text
-        }}</span>
+        
+        <!-- 🚨 ms.startDate 및 ms.summary 로 변경 -->
+        <span class="ms-date shrink-0">{{ (ms.startDate || '').slice(5) }}</span>
+        <span :class="['ms-text flex-1 min-w-0', { 'is-done': ms.done }]">
+          {{ ms.summary }}
+        </span>
+        
         <button
-          @click="removeMilestone(goal, ms.id)"
+          @click="removeMilestone(ms.id)"
           class="btn-del-sm shrink-0"
         >
           ✕
@@ -69,52 +78,52 @@
 </template>
 
 <script setup lang="ts">
-import { useScheduleStore } from '@/store/useScheduleStore' // 스토어 경로 확인
-// 클릭시 detail page 이동
+import { ref, computed } from 'vue'
+import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
+
 const emit = defineEmits(['open'])
-
-// 부모(GoalPlanner)로부터 goal 데이터를 받습니다
-const props = defineProps<{
-  goal: any // (만약 Goal 타입을 분리해두셨다면 Goal로 적어주세요)
-}>()
-
+const props = defineProps<{ goal: Goal }>() // 🚨 any 대신 Goal 타입 지정
 const store = useScheduleStore()
 
+// --- UI / 입력 상태 ---
+// 🚨 Props(goal)를 직접 오염시키지 않고 로컬 컴포넌트 상태로 분리
+const newMsDate = ref(props.goal.startDate || store.selectedDate)
+const newMsSummary = ref('')
+
+// --- Computed ---
+// 🚨 핵심: 스토어의 전체 일정 중 이 목표(goal.id)에 속한 마일스톤만 추출 및 날짜순 정렬
+const goalSchedules = computed(() => {
+  return store.schedules
+    .filter(s => s.goalId === props.goal.id)
+    .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
+})
+
+// 🚨 함수 대신 computed로 변경하여 렌더링 최적화
+const progressPercent = computed(() => {
+  const total = goalSchedules.value.length
+  if (total === 0) return 0
+  
+  const doneCount = goalSchedules.value.filter(m => m.done).length
+  return Math.round((doneCount / total) * 100)
+})
+
 // --- Methods ---
-const calculateProgress = (goal: any) => {
-  if (!goal.milestones || goal.milestones.length === 0) return 0
-  return Math.round(
-    (goal.milestones.filter((m: any) => m.done).length /
-      goal.milestones.length) *
-      100
-  )
+const addMilestone = () => {
+  if (!newMsSummary.value.trim()) return
+  
+  // ✨ 헬퍼 함수 호출 (객체 껍데기 없이 핵심 파라미터만 전달)
+  store.addMilestone(props.goal.id, newMsSummary.value, newMsDate.value)
+  
+  newMsSummary.value = ''
 }
 
-const addMilestone = (goal: any) => {
-  const mDate = goal.newMilestoneDate || store.selectedDate
-  if (!goal.newMilestoneText) return
-
-  goal.milestones.push({
-    id: Date.now(),
-    date: mDate,
-    text: goal.newMilestoneText,
-    done: false
-  })
-  goal.milestones.sort((a: any, b: any) => a.date.localeCompare(b.date))
-  goal.newMilestoneText = ''
-  store.saveData()
+const removeMilestone = (msId: number) => {
+  // 🚨 배열 splice 대신 스토어의 액션 호출
+  store.removeSchedule(msId)
 }
 
-const removeMilestone = (goal: any, msId: number) => {
-  const idx = goal.milestones.findIndex((m: any) => m.id === msId)
-  if (idx > -1) {
-    goal.milestones.splice(idx, 1)
-    store.saveData()
-  }
-}
-
-// 스토어의 삭제 기능 호출
 const deleteGoal = (id: number) => {
+  // 목표 삭제. (스토어에 removeGoal 액션이 구현되어 있어야 합니다)
   store.removeGoal(id)
 }
 </script>

@@ -45,8 +45,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useScheduleStore } from '@/store/useScheduleStore'
-
+import { useScheduleStore } from '@/stores/useScheduleStore'
 const scheduleStore = useScheduleStore()
 
 interface CalendarDate {
@@ -103,29 +102,43 @@ const selectDate = (date: CalendarDate) => {
     scheduleStore.selectedDate = date.full
   }
 }
+// 스크립트(script setup) 영역의 함수를 이걸로 교체하세요!
 
 const getDailyIndicators = (dateStr: string) => {
-  const counts: Record<string, number> = {}
+  // 1. 단일 데이터 소스(스토어)에서 해당 날짜에 겹치는 일정 모두 찾기
+  const daySchedules = scheduleStore.schedules.filter(s => {
+    // startDate나 endDate가 비어있을 경우를 대비한 안전한 처리
+    const start = s.startDate || dateStr
+    const end = s.endDate || start
+    return start <= dateStr && end >= dateStr
+  })
 
-  if (scheduleStore.goals) {
-    scheduleStore.goals.forEach(goal => {
-      const msCount = goal.milestones.filter(ms => ms.date === dateStr).length
-      if (msCount > 0) {
-        const color = goal.color || '#3b82f6'
-        counts[color] = (counts[color] || 0) + msCount
+  // 2. 색상별로 몇 개의 일정이 있는지 카운트하기 위한 Map 객체 생성
+  const colorMap = new Map<string, number>()
+
+  daySchedules.forEach(s => {
+    let color = '#3b82f6' // 기본 색상 (할 일 등)
+
+    // 목표(Goal)에 속한 마일스톤/이벤트라면 목표의 테마 색상을 가져옴
+    if (s.goalId) {
+      const goal = scheduleStore.goals.find(g => g.id === s.goalId)
+      if (goal && goal.color) {
+        color = goal.color
       }
-    })
-  }
-
-  if (scheduleStore.dateTasks && scheduleStore.dateTasks[dateStr]) {
-    const taskCount = scheduleStore.dateTasks[dateStr].length
-    if (taskCount > 0) {
-      const color = '#71717a'
-      counts[color] = (counts[color] || 0) + taskCount
     }
-  }
 
-  return Object.entries(counts).map(([color, count]) => ({ color, count }))
+    // 해당 색상의 카운트를 1 증가
+    colorMap.set(color, (colorMap.get(color) || 0) + 1)
+  })
+
+  // 3. 템플릿(HTML)에서 요구하는 { color, count } 배열 형태로 변환
+  const indicators = Array.from(colorMap.entries()).map(([color, count]) => ({
+    color,
+    count
+  }))
+
+  // 4. 개수가 많은 색상부터 캘린더에 표시되도록 내림차순 정렬 (옵션)
+  return indicators.sort((a, b) => b.count - a.count)
 }
 </script>
 

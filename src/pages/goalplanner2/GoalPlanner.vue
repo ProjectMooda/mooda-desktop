@@ -45,9 +45,10 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useScheduleStore } from '@/store/useScheduleStore' // 스토어 경로를 상황에 맞게 수정하세요
+import { useScheduleStore } from '@/stores/useScheduleStore' // 스토어 경로를 상황에 맞게 수정하세요
 import GoalCard from './goalCard/GoalCard.vue'
 import GoalDetailModal from './goalDetailModal/GoalDetailModal.vue' // 추가!
+import type { Goal } from '@/stores/useScheduleStore'
 
 // 스토어 연동
 const store = useScheduleStore()
@@ -60,31 +61,29 @@ const newGoal = reactive({
 })
 
 // --- Methods ---
-
 const createGoal = () => {
   if (!newGoal.title) return
 
-  store.goals.unshift({
-    id: Date.now(),
+  // 스토어의 액션을 호출하여 깔끔하게 처리
+  store.addGoal({
     title: newGoal.title,
     startDate: newGoal.startDate,
     endDate: newGoal.endDate,
-    milestones: []
   })
 
   newGoal.title = ''
   newGoal.endDate = ''
-  store.saveData()
 }
 
 const isModalOpen = ref(false)
-const selectedGoal = ref(null)
+// 제네릭을 사용하여 null 또는 Goal 타입임을 명시
+const selectedGoal = ref<Goal | null>(null)
 
-const openDetailModal = (goal: any) => {
+// 파라미터 타입 명시
+const openDetailModal = (goal: Goal) => {
   selectedGoal.value = goal
   isModalOpen.value = true
 }
-
 </script>
 
 <style scoped>

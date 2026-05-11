@@ -142,23 +142,6 @@ watch(
   () => props.data.subtasks,
   (newSubtasks) => {
     if (!newSubtasks || newSubtasks.length === 0) return
-    
-    // (선택 사항) progressPercentage를 위해 냅둬도 되지만, 
-    // 사실 computed로 이미 progressPercentage를 계산하고 있어서 
-    // 여기서 상태를 강제로 바꾸지 않을 거라면 이 watch 자체를 지워도 무방합니다.
-
-    /* 아래 로직을 삭제하거나 주석 처리하세요
-    const total = newSubtasks.length
-    const completed = newSubtasks.filter((s: any) => s.done).length
-    
-    if (total === completed && !props.data.done) {
-      props.data.done = true
-      emit('update')
-    } else if (total !== completed && props.data.done) {
-      props.data.done = false
-      emit('update')
-    }
-    */
   },
   { deep: true }
 )
