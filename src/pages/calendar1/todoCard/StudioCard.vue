@@ -129,10 +129,10 @@
               @delete="scheduleStore.removeSchedule(item.id)"
             />
           <TaskCard 
-            v-for="task in pinnedTasks" :key="'p-task-' + task.id" :task="task"
-            @update="scheduleStore.updateSchedule(task.id, $event)" 
-            @remove="scheduleStore.removeSchedule(task.id)" 
-            @toggle-pin="scheduleStore.togglePin(task.id)"
+            v-for="item in pinnedTasks" :key="'p-task-' + item.id" :item="item"
+            @update="scheduleStore.updateSchedule(item.id, $event)" 
+            @delete="scheduleStore.removeSchedule(item.id)" 
+            @toggle-pin="scheduleStore.togglePin(item.id)"
           />
         </div>
 
@@ -169,9 +169,9 @@
           >
             <template #item="{ element }">
               <TaskCard 
-                :task="element" 
+                :item="element" 
                 @update="scheduleStore.updateSchedule(element.id, $event)" 
-                @remove="scheduleStore.removeSchedule(element.id)" 
+                @delete="scheduleStore.removeSchedule(element.id)" 
                 @toggle-pin="scheduleStore.togglePin(element.id)"
               />
             </template>
@@ -193,10 +193,10 @@
               @delete="scheduleStore.removeSchedule(item.id)" 
             />
             <TaskCard 
-              v-for="task in completedTasks" :key="'done-task-' + task.id" :task="task"
-              @update="scheduleStore.updateSchedule(task.id, $event)" 
-              @remove="scheduleStore.removeSchedule(task.id)" 
-              @toggle-pin="scheduleStore.togglePin(task.id)"
+              v-for="item in completedTasks" :key="'done-task-' + item.id" :item="item"
+              @update="scheduleStore.updateSchedule(item.id, $event)" 
+              @delete="scheduleStore.removeSchedule(item.id)" 
+              @toggle-pin="scheduleStore.togglePin(item.id)"
             />
           </div>
         </div>

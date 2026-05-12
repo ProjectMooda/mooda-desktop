@@ -1,6 +1,6 @@
 <template>
   <div v-if="isOpen" class="modal-overlay" @click.self="handleClose">
-    <div class="modal-content">
+    <div class="modal-content" @click.stop>
       
       <!-- 메인 타이틀 -->
       <div class="modal-header-title">
@@ -80,7 +80,7 @@
             <input 
               type="text" 
               class="add-subtask-input" 
-              v-model="newSubtaskText" 
+              v-model="newSubtaskText"
               @keyup.enter="addSubtask"
               placeholder="하위 할 일 추가 (Enter)" 
             />
@@ -112,16 +112,32 @@ import TimePicker from '../time-picker/TimePicker.vue'
 
 const props = defineProps<{
   isOpen: boolean
-  data: any
+  data: any // 특정 도메인에 종속되지 않게 유지
 }>()
 
 const emit = defineEmits(['close', 'delete', 'update'])
-
 const newSubtaskText = ref('')
+// 1. 하위 할 일 추가
+const addSubtask = () => {
+  const text = newSubtaskText.value.trim()
+  if (!text) return
 
+  // subtasks 배열이 없으면 빈 배열로 초기화
+  if (!props.data.subtasks) {
+    props.data.subtasks = []
+  }
+
+  // props.data 객체에 직접 push 하여 양방향 바인딩 효과 반영
+  props.data.subtasks.push({
+    id: Date.now(), // 고유 ID 부여
+    text: text,
+    done: false
+  })
+
+  newSubtaskText.value = '' // 인풋 비우기
+}
 const categories = ['선택 안함', '기획', '디자인', '개발', '마케팅', '개인일정', '기타']
 const priorities = [
-  { value: '', label: '보통' },
   { value: 'High', label: '🔥 높음' },
   { value: 'Medium', label: '⭐ 중간' },
   { value: 'Low', label: '💧 낮음' }
@@ -151,19 +167,6 @@ watch(() => props.isOpen, (newVal) => {
   }
 })
 
-const addSubtask = () => {
-  if (!newSubtaskText.value.trim()) return
-  if (!props.data.subtasks) props.data.subtasks = []
-
-  props.data.subtasks.push({
-    id: Date.now(),
-    text: newSubtaskText.value,
-    done: false
-  })
-  
-  newSubtaskText.value = ''
-  emit('update')
-}
 
 const removeSubtask = (index: number) => {
   props.data.subtasks.splice(index, 1)

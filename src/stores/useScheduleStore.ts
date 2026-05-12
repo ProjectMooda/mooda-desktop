@@ -2,12 +2,18 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export interface ScheduleItem {
+  // 일정 구분 id
   id: number
-
+  // 일정 차입 결정
   type: 'task' | 'milestone' | 'event'
 
+  // 목표에 대한 ID
   goalId?: number | null
-
+  
+  // 마일스톤 하위 Task를 위한 ID 추가
+  milestoneId?: number | null 
+  
+  // summary가 title로 사용중
   summary?: string
   memo?: string
 
@@ -38,6 +44,13 @@ export interface Goal {
   startDate: string
   endDate: string
   color?: string
+}
+
+export interface PriorityOption {
+  id: string;      // 내부 식별값 (예: 'p1', 'p2')
+  label: string;   // 사용자 입력 라벨 (예: '긴급', '나중에')
+  emoji: string;   // 선택한 이모지
+  color: string;   // 배지 색상 (선택 사항)
 }
 
 export const useScheduleStore = defineStore('schedule', () => {
@@ -82,6 +95,13 @@ export const useScheduleStore = defineStore('schedule', () => {
   const completedItems = computed(() =>
     currentSchedules.value.filter(s => s.done)
   )
+// 스토어 state 내부에 추가
+  const priorityOptions = ref<PriorityOption[]>([
+    { id: 'High', label: '높음', emoji: '🔥', color: '#fee2e2' },
+    { id: 'Medium', label: '중간', emoji: '⭐', color: '#fef3c7' },
+    { id: 'Low', label: '낮음', emoji: '💧', color: '#e0f2fe' },
+  ]);
+
 
   // =========================
   // ACTIONS
@@ -98,6 +118,7 @@ export const useScheduleStore = defineStore('schedule', () => {
       memo: '',
       done: false,
       startDate: item.startDate,
+      endDate: item.endDate,
       startTime: isMilestone ? undefined : item.startTime, 
       endTime: isMilestone ? undefined : item.endTime,
       category: item.category,
@@ -120,6 +141,24 @@ export const useScheduleStore = defineStore('schedule', () => {
   // 마일스톤 빠른 추가 함수 -> goal에 대한 기간 단위 일정
   const addMilestone = (goalId: number, summary: string, date: string) => {
     addSchedule({ type: 'milestone', goalId, summary, startDate: date, endDate: date })
+  }
+
+  // 하위 일정 추가 함수
+  const addSubtask = (scheduleId: number, text: string) => {
+    const schedule = schedules.value.find(s => s.id === scheduleId)
+    if (!schedule) return
+
+    if (!schedule.subtasks) {
+      schedule.subtasks = []
+    }
+
+    schedule.subtasks.push({
+      id: Date.now(),
+      text,
+      done: false
+    })
+
+    saveData()
   }
 
   const updateSchedule = (id: number, patch: Partial<ScheduleItem>) => {
@@ -166,6 +205,7 @@ export const useScheduleStore = defineStore('schedule', () => {
     )
   }
 
+  // 목표 추가 함수
   const addGoal = (goal: Omit<Goal, 'id'>) => {
     goals.value.unshift({
       id: Date.now(),
@@ -174,6 +214,7 @@ export const useScheduleStore = defineStore('schedule', () => {
     saveData()
   }
   
+  // 목표 제거 함수
   const removeGoal = (id: number) => {
     goals.value = goals.value.filter(g => g.id !== id)
     schedules.value = schedules.value.filter(s => s.goalId !== id)
@@ -181,6 +222,15 @@ export const useScheduleStore = defineStore('schedule', () => {
     saveData()
   }
   
+  // 옵션 추가 로직 (최대 8개 제한)
+  const addPriorityOption = (newOption: Omit<PriorityOption, 'id'>) => {
+    if (priorityOptions.value.length >= 8) {
+      alert('최대 8개까지만 설정 가능합니다.');
+      return;
+    }
+    const id = `p-${Date.now()}`;
+    priorityOptions.value.push({ ...newOption, id });
+  };
 
   return {
     // state
@@ -188,6 +238,7 @@ export const useScheduleStore = defineStore('schedule', () => {
     goals,
     selectedDate,
     dailyFocus,
+    priorityOptions,
 
     // getters
     currentSchedules,
@@ -197,16 +248,19 @@ export const useScheduleStore = defineStore('schedule', () => {
     pinnedItems,
     completedItems,
 
+
     // actions
     addSchedule,
     addTask,
     addMilestone,
+    addSubtask,
     updateSchedule,
     removeSchedule,
     togglePin,
     loadData,
     saveData,
     addGoal,
-    removeGoal
+    removeGoal,
+    addPriorityOption
   }
 })

@@ -49,7 +49,7 @@
     </div>
 
     <div class="ms-list min-h-0">
-      <!-- 🚨 스토어에서 필터링해온 goalSchedules 순회 -->
+      <!-- 스토어에서 필터링해온 goalSchedules 순회 -->
       <div v-for="ms in goalSchedules" :key="ms.id" class="ms-row">
         <label class="studio-cbx sm-cbx shrink-0">
           <input 
