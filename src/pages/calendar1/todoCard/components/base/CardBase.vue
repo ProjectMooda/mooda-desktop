@@ -19,8 +19,11 @@
           @click.stop="$emit('toggle-pin')"
         >📌</button>
         
-        <button class="btn-del" @click.stop="$emit('delete')">✕</button>
-        
+        <CloseButton 
+          variant="rounded" 
+          class="btn-del" 
+          @click.stop="$emit('delete')" 
+        />
         <input 
           type="checkbox" 
           class="custom-checkbox" 
@@ -46,7 +49,7 @@
 import { ref } from 'vue'
 import type { ScheduleItem } from '@/stores/useScheduleStore'
 import ScheduleDetailModal from '@/global-components/schedule-detail-modal/ScheduleDetailModal.vue'
-
+import CloseButton from '@/global-components/CloseButton.vue';
 const props = defineProps<{ 
   item: ScheduleItem,
   customClass?: string 
@@ -59,14 +62,19 @@ const openModal = () => { isModalOpen.value = true }
 </script>
 
 <style scoped>
-/* 기존의 공통 스타일 (compact-card, drag-handle, action-wrapper, btn-del, btn-pin 등)을 여기로 이동 */
+/* 기존의 공통 스타일 (compact-card, drag-handle, action-wrapper, btn-pin 등)을 여기로 이동 */
 .compact-card { display: flex; justify-content: space-between; align-items: stretch; gap: 12px; padding: 12px 16px; margin-bottom: 10px; border-radius: 12px; transition: all 0.2s ease; cursor: pointer; }
 .drag-handle { display: flex; align-items: center; color: #d4d4d8; font-size: 16px; cursor: grab; padding-right: 4px; }
 .task-content { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .task-actions-right { display: flex; flex-direction: column; align-items: flex-end; min-width: 105px; }
 .action-wrapper { display: flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 4px; }
-.btn-del { background: #fee2e2; color: #ef4444; border: none; width: 24px; height: 24px; border-radius: 6px; opacity: 0; transition: 0.2s; cursor: pointer; }
-.compact-card:hover .btn-del { opacity: 1; }
+.btn-del { 
+  opacity: 0; 
+}
+.compact-card:hover .btn-del { 
+  opacity: 1; 
+}
+
 .btn-pin { background: transparent; border: none; cursor: pointer; opacity: 0.3; filter: grayscale(1); transition: 0.2s; }
 .btn-pin.is-pinned { opacity: 1; filter: grayscale(0); }
 .compact-card:hover .btn-pin { opacity: 1; }

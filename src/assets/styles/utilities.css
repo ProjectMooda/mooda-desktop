@@ -1,6 +1,9 @@
+/* assets/styles/utilities.css */
+
 /* Layout & Flexbox */
 .shrink-0 { flex-shrink: 0; }
 .flex-1 { flex: 1; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
 
 /* Min/Max Sizing */
 .min-w-0 { min-width: 0; }
@@ -13,3 +16,11 @@
 
 /* Spacing */
 .mt-24 { margin-top: 24px; }
+.mb-16 { margin-bottom: 16px; }
+
+/* Apple Style Blur (모달 배경이나 네비게이션 바에 활용) */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}

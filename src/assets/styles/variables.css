@@ -1,27 +1,36 @@
+/* assets/styles/variables.css */
 :root {
-  /* Brand Colors */
-  --color-primary: #3b82f6; /* 메인 블루 (세련된 톤) */
-  --color-primary-light: #eff6ff; /* 아주 연한 블루 배경 */
-  --color-primary-pale: #e0f2fe; /* 마일스톤 카드 배경용 더 연한 블루 */
+  /* 🍎 Apple Signature Colors */
+  --color-primary: #0071e3;         /* 애플 스토어 및 시스템 기본 블루 */
+  --color-primary-light: #e8f2fc;   /* 아주 연한 블루 배경 (선택 상태 등) */
+  --color-primary-pale: #f5f9fd;    /* 은은한 마일스톤 카드 배경 */
 
-  --text-main: #111827; /* 더 진한 검정 (가독성 확보) */
-  --text-muted: #6b7280; /* 부드러운 회색 */
-  --border-color: #e5e7eb; /* 연한 테두리 */
-  --bg-card: #ffffff;
-  --color-danger: #f43f5e;
-  --color-danger-light: #fff1f2;
+  /* 🚨 System Danger */
+  --color-danger: #ff3b30;          /* iOS 시스템 레드 */
+  --color-danger-light: #ffeceb;    
 
-  /* Backgrounds & Borders */
-  --bg-app: #f6f6f9;
-  --bg-card: #ffffff;
-  --bg-hover: #f4f4f5;
-  --border-color: #e4e4e7;
+  /* 🖋 Typography Colors (완전 블랙이 아닌 애플 특유의 먹색) */
+  --text-main: #1d1d1f;             /* 애플 텍스트 메인 컬러 */
+  --text-sub: #86868b;              /* 애플 서브 텍스트 (System Gray) */
+  --text-muted: #aeaeb2;            /* 비활성 텍스트 */
 
-  /* Text Colors */
-  --text-main: #18181b;
-  --text-sub: #71717a;
-  --text-muted: #a1a1aa;
+  /* ⬜️ Backgrounds & Borders (극도로 깔끔한 그레이 톤) */
+  --bg-app: #f5f5f7;                /* 애플 웹사이트/설정 화면의 고유 배경색 */
+  --bg-card: #ffffff;               /* 카드 배경은 순백색으로 대비감 부여 */
+  --bg-hover: #f2f2f7;              /* 목록 호버 시 (System Gray 6) */
+  --border-color: #d2d2d7;          /* 선명하지만 튀지 않는 연한 테두리 */
 
-  /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* 폰트: 애플 기기에서는 SF Pro, 그 외는 맑은 고딕/프리텐다드 폴백 */
+  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Pretendard", "Segoe UI", sans-serif;
+  
+  /* 애플 특유의 부드러운 둥글기 (Squircle 느낌) */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* 애플 스타일의 은은하게 퍼지는 그림자 */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
