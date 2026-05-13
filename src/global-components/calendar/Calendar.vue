@@ -19,9 +19,11 @@
         :class="[
           'cal-cell',
           {
-            selected: scheduleStore.selectedDate === date.full,
+            selected: modelValue === date.full,
             dimmed: !date.currentMonth,
-            today: date.isToday
+            today: date.isToday,
+            'in-range': date.inRange,
+            'out-range': !date.inRange && date.currentMonth && props.restrictRange
           }
         ]"
         @click="selectDate(date)"
@@ -44,23 +46,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useScheduleStore } from '@/stores/useScheduleStore'
+
 const scheduleStore = useScheduleStore()
+
+const props = defineProps<{
+  modelValue?: string
+  rangeStart?: string
+  rangeEnd?: string
+  restrictRange?: boolean // 기간 밖 클릭 방지 여부
+}>()
+
+const emit = defineEmits(['update:modelValue'])
 
 interface CalendarDate {
   day: string | number
   full: string
   currentMonth: boolean
   isToday: boolean
+  inRange: boolean
 }
 
 const now = new Date()
 const currentYear = ref(now.getFullYear())
 const currentMonth = ref(now.getMonth())
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
 const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+// 부모 컴포넌트에서 선택한 날짜가 바뀌면 캘린더 월(Month)도 이동
+watch(() => props.modelValue, (newVal) => {
+  if (newVal) {
+    const d = new Date(newVal)
+    currentYear.value = d.getFullYear()
+    currentMonth.value = d.getMonth()
+  }
+}, { immediate: true })
+
+const isDateInRange = (dateStr: string) => {
+  if (!props.rangeStart && !props.rangeEnd) return false
+  const start = props.rangeStart || '1970-01-01'
+  const end = props.rangeEnd || '9999-12-31'
+  return dateStr >= start && dateStr <= end
+}
 
 const calendarDates = computed<CalendarDate[]>(() => {
   const firstDay = new Date(currentYear.value, currentMonth.value, 1).getDay()
@@ -68,19 +96,22 @@ const calendarDates = computed<CalendarDate[]>(() => {
   const dates: CalendarDate[] = []
 
   for (let i = 0; i < firstDay; i++) {
-    dates.push({ day: '', full: `empty-start-${i}`, currentMonth: false, isToday: false })
+    dates.push({ day: '', full: `empty-start-${i}`, currentMonth: false, isToday: false, inRange: false })
   }
 
   for (let i = 1; i <= lastDate; i++) {
     const full = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`
-    dates.push({ day: i, full, currentMonth: true, isToday: full === todayString })
+    dates.push({ 
+      day: i, full, currentMonth: true, 
+      isToday: full === todayString,
+      inRange: isDateInRange(full)
+    })
   }
 
-  const TOTAL_CELLS = 42; 
-  const remainingCells = TOTAL_CELLS - dates.length;
-  
+  const TOTAL_CELLS = 42
+  const remainingCells = TOTAL_CELLS - dates.length
   for (let i = 0; i < remainingCells; i++) {
-    dates.push({ day: '', full: `empty-end-${i}`, currentMonth: false, isToday: false })
+    dates.push({ day: '', full: `empty-end-${i}`, currentMonth: false, isToday: false, inRange: false })
   }
 
   return dates
@@ -98,54 +129,42 @@ const changeMonth = (diff: number) => {
 }
 
 const selectDate = (date: CalendarDate) => {
-  if (date.currentMonth) {
-    scheduleStore.selectedDate = date.full
-  }
+  if (!date.currentMonth) return
+  // restrictRange 옵션이 켜져있고, 마일스톤 기간 밖이면 클릭 차단
+  if (props.restrictRange && !date.inRange) return
+  
+  emit('update:modelValue', date.full)
 }
-// 스크립트(script setup) 영역의 함수를 이걸로 교체하세요!
 
 const getDailyIndicators = (dateStr: string) => {
-  // 1. 단일 데이터 소스(스토어)에서 해당 날짜에 겹치는 일정 모두 찾기
   const daySchedules = scheduleStore.schedules.filter(s => {
-    // startDate나 endDate가 비어있을 경우를 대비한 안전한 처리
     const start = s.startDate || dateStr
     const end = s.endDate || start
     return start <= dateStr && end >= dateStr
   })
 
-  // 2. 색상별로 몇 개의 일정이 있는지 카운트하기 위한 Map 객체 생성
   const colorMap = new Map<string, number>()
 
   daySchedules.forEach(s => {
-    let color = '#3b82f6' // 기본 색상 (할 일 등)
-
-    // 목표(Goal)에 속한 마일스톤/이벤트라면 목표의 테마 색상을 가져옴
+    let color = '#3b82f6'
     if (s.goalId) {
       const goal = scheduleStore.goals.find(g => g.id === s.goalId)
-      if (goal && goal.color) {
-        color = goal.color
-      }
+      if (goal && goal.color) color = goal.color
     }
-
-    // 해당 색상의 카운트를 1 증가
     colorMap.set(color, (colorMap.get(color) || 0) + 1)
   })
 
-  // 3. 템플릿(HTML)에서 요구하는 { color, count } 배열 형태로 변환
   const indicators = Array.from(colorMap.entries()).map(([color, count]) => ({
-    color,
-    count
+    color, count
   }))
 
-  // 4. 개수가 많은 색상부터 캘린더에 표시되도록 내림차순 정렬 (옵션)
   return indicators.sort((a, b) => b.count - a.count)
 }
 </script>
-
-<style lang="css" scoped>
+<style scoped>
 .studio-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, #e4e4e7);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
@@ -158,43 +177,74 @@ const getDailyIndicators = (dateStr: string) => {
 }
 .card-head h3 {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
+  color: #27272a;
   margin: 0;
 }
 .cal-section {
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 0;
+  min-height: 0; 
 }
 .icon-btn {
-  background: var(--bg-hover);
+  background: var(--bg-hover, #f4f4f5);
   border: none;
-  color: var(--text-sub);
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: 0.2s;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 18px;
   font-weight: bold;
+  color: #71717a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
 }
 .icon-btn:hover {
-  background: var(--border-color);
+  background: #e4e4e7;
+  color: #27272a;
 }
+
+/* =======================================
+   ✨ 빠져있던 핵심 그리드 레이아웃 ✨
+======================================= */
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-auto-rows: 1fr;
+  /* 첫 줄(요일)은 내용물 크기만큼, 나머지 6줄(날짜)은 최소 80px 보장, 공간 남으면 1fr씩 분배 */
+  grid-template-rows: auto repeat(6, minmax(80px, 1fr)); 
   gap: 4px;
   flex: 1;
+  min-height: 0; /* 부모 뚫고 나가는 것 방지 */
+  overflow-y: auto; /* 넘치면 스크롤 생성 */
+  padding-right: 4px; /* 스크롤바 여백 */
 }
+
+/* 스크롤바 커스텀 */
+.cal-grid::-webkit-scrollbar {
+  width: 4px;
+}
+.cal-grid::-webkit-scrollbar-thumb {
+  background: #e4e4e7;
+  border-radius: 4px;
+}
+
 .cal-day {
   text-align: center;
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-muted);
-  align-self: end;
-  padding-bottom: 4px;
+  color: #a1a1aa;
+  padding: 8px 0;
+  
+  /* ✨ 요일 상단 고정 (스크롤 시 안 넘어감) */
+  position: sticky; 
+  top: 0;
+  background: #fff; 
+  z-index: 10;
 }
+
 .cal-cell {
   background: #f8f8fa;
   border-radius: 8px;
@@ -206,21 +256,27 @@ const getDailyIndicators = (dateStr: string) => {
   cursor: pointer;
   transition: 0.2s;
   overflow: hidden;
-  min-height: 70px; /* 인디케이터 공간 확보를 위한 최소 높이 */
+  height: 100%; /* 부모 그리드가 정해준 높이(최소 80px)에 꽉 차게 */
 }
-.cal-cell:hover:not(.dimmed) {
-  background: var(--bg-card);
+.cal-cell:hover:not(.dimmed):not(.out-range) {
+  background: #fff;
   border-color: #d4d4d8;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 .cal-cell.selected {
-  background: var(--color-primary-light);
-  border-color: var(--color-primary);
+  background: #27272a !important;
+  border-color: #27272a !important;
+}
+.cal-cell.selected .date-num, .cal-cell.selected .dot-count {
+  color: #fff !important;
 }
 .cal-cell.dimmed {
   opacity: 0.3;
   pointer-events: none;
 }
+.cal-cell.in-range { background: #f8fafc; }
+.cal-cell.out-range { cursor: not-allowed; opacity: 0.4; background: #fafafa; }
+
 .date-num {
   font-size: 13px;
   font-weight: 600;
@@ -232,15 +288,13 @@ const getDailyIndicators = (dateStr: string) => {
   font-weight: 800;
 }
 
-/* 💡 6개 이상을 위한 촘촘한 그리드 레이아웃 */
 .dot-wrap {
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* 2열로 배치하여 6개를 3행으로 수용 */
+  grid-template-columns: repeat(2, 1fr);
   gap: 3px;
   width: 90%;
   margin-top: auto;
 }
-
 .dot-item {
   display: flex;
   align-items: center;
@@ -250,25 +304,19 @@ const getDailyIndicators = (dateStr: string) => {
   border-radius: 4px;
   justify-content: center;
 }
-
 .dot {
   width: 4px;
   height: 4px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-
 .dot-count {
-  font-size: 9px; /* 아주 좁은 공간이므로 폰트 크기 축소 */
+  font-size: 9px;
   font-weight: 700;
   color: #52525b;
   line-height: 1;
 }
-
-/* 셀 너비가 너무 좁아질 경우를 대비해 1열로 전환되는 방어 코드 (선택사항) */
 @media (max-width: 1200px) {
-  .dot-wrap {
-    grid-template-columns: 1fr;
-  }
+  .dot-wrap { grid-template-columns: 1fr; }
 }
 </style>

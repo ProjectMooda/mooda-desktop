@@ -15,6 +15,7 @@ export const useSidebarStore = defineStore('layout', () => {
     currentTab.value = tabIndex;
   };
 
+  // setting 열고 닫기
   const openSettings = () => {
     showSettings.value = true;
   };
