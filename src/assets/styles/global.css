@@ -1,3 +1,5 @@
+/* assets/styles/global.css */
+
 @import './variables.css';
 @import './utilities.css';
 
@@ -6,7 +8,7 @@ html, body, #app {
   padding: 0;
   width: 100%;
   height: 100%;
-  overflow: hidden; /* 창 전체 스크롤 완전 차단 */
+  overflow: hidden; 
   background-color: var(--bg-app);
 }
 
@@ -17,17 +19,21 @@ html, body, #app {
 body {
   color: var(--text-main); 
   font-family: var(--font-family);
+  /* 폰트를 더 얇고 또렷하게 렌더링 (macOS 스타일) */
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale; 
+  letter-spacing: -0.01em; /* 자간을 아주 살짝 좁혀 SF Pro 느낌 강화 */
 }
 
-/* Custom Scrollbar */
+/* =======================================
+   Mac OS 스타일 Custom Scrollbar
+======================================= */
 ::-webkit-scrollbar { 
-  width: 6px; 
+  width: 8px; 
 }
 ::-webkit-scrollbar-thumb { 
-  background: #D4D4D8; 
-  border-radius: 4px; 
-}
-::-webkit-scrollbar-track { 
-  background: transparent; 
+  background: rgba(0, 0, 0, 0.15); 
+  border-radius: 10px; /* 완전한 알약 모양 */
+  border: 2px solid var(--bg-app); /* 스크롤바 주변에 여백이 있는 것처럼 보이게 */
+  transition: background 0.2s ease;
 }

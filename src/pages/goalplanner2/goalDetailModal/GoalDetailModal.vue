@@ -3,7 +3,7 @@
   <BaseModal 
     title="목표 상세 설정" 
     width="1000px" 
-    height="760px" 
+    height="760px"
     @close="$emit('close')"
   >
     <!-- =======================================================
