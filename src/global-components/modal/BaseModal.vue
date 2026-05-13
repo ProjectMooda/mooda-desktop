@@ -10,9 +10,10 @@
           <slot name="header">
             <h2>{{ title }}</h2>
           </slot>
-          <button class="btn-close flex-center" @click="$emit('close')">
-            ✕
-          </button>
+          <CloseButton 
+              variant="circle" 
+              @click="$emit('close')" 
+          />
         </header>
 
         <div class="modal-body-container flex-1 min-h-0" :class="{ 'p-0': noPadding }">
@@ -24,6 +25,8 @@
 </template>
 
 <script setup lang="ts">
+import CloseButton from '../CloseButton.vue';
+
 defineProps({
   title: { type: String, default: '모달 창' },
   width: { type: String, default: '400px' },
@@ -82,23 +85,7 @@ defineEmits(['close'])
   color: var(--text-main); /* 먹색 텍스트 */
 }
 
-/* 닫기 버튼 (애플 스타일의 원형 배경 호버) */
-.btn-close { 
-  background: transparent; 
-  border: none; 
-  width: 32px; 
-  height: 32px; 
-  border-radius: 50%; /* 완전한 원형 */
-  font-size: 16px; 
-  cursor: pointer; 
-  color: var(--text-muted); 
-  transition: all 0.2s ease;
-}
 
-.btn-close:hover { 
-  color: var(--color-danger); 
-  background-color: var(--color-danger-light); /* 경고성 연한 배경 */
-}
 
 /* =======================================
    모달 바디
