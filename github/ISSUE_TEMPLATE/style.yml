@@ -1,0 +1,30 @@
+name: '🎨 Style'
+description: UI / 디자인 수정
+title: '[STYLE] '
+labels: ['style']
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎨 스타일 수정
+
+  - type: textarea
+    id: target
+    attributes:
+      label: 🖌 수정 대상
+      placeholder: 어떤 화면 또는 컴포넌트인가요?
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: ✨ 수정 내용
+      placeholder: 어떤 디자인을 변경하나요?
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: 📷 참고 이미지
+      placeholder: 스크린샷 또는 디자인 링크

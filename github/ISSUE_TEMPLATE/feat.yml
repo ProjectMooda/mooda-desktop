@@ -1,0 +1,43 @@
+name: '✨ Feature'
+description: 새로운 기능 추가
+title: '[FEAT] '
+labels: ['feat']
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ✨ 새로운 기능 추가
+        추가하려는 기능에 대해 작성해주세요.
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: 📌 기능 설명
+      description: 어떤 기능인지 자세히 설명해주세요.
+      placeholder: ex) 목표 생성 시 날짜 자동 추천 기능 추가
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: 🎯 필요한 이유
+      description: 왜 필요한 기능인가요?
+      placeholder: 사용자 편의성 향상
+
+  - type: textarea
+    id: todo
+    attributes:
+      label: ✅ 작업 목록
+      description: 해야 할 작업을 체크박스로 작성해주세요.
+      value: |
+        - [ ] UI 구현
+        - [ ] API 연결
+        - [ ] 테스트
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: 🔗 참고 자료
+      description: 관련 링크, 디자인 시안 등
