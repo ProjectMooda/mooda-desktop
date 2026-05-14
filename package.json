@@ -9,8 +9,8 @@
     "electron": "wait-on http://localhost:5173 && electron .",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .js,.vue",
-    "lint:fix": "eslint . --ext .js,.vue --fix"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "concurrently": "^9.2.1",
@@ -23,6 +23,7 @@
     "wait-on": "^9.0.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.2",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
     "@typescript-eslint/parser": "^8.59.0",
@@ -34,7 +35,9 @@
     "eslint-plugin-vue": "^10.9.0",
     "prettier": "^3.8.3",
     "typescript": "~6.0.2",
+    "typescript-eslint": "^8.59.3",
     "vite": "^8.0.9",
+    "vue-eslint-parser": "^10.4.0",
     "vue-tsc": "^3.2.7"
   }
 }
