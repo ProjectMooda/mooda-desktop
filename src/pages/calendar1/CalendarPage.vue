@@ -14,7 +14,7 @@
 // ✨ 스토어를 임포트합니다
 import { useScheduleStore } from '@/stores/useScheduleStore'
 import CalendarCard from '@/global-components/calendar/Calendar.vue'
-import StudioCard from './todoCard/StudioCard.vue';
+import StudioCard from './studio-card/StudioCard.vue';
 
 const scheduleStore = useScheduleStore()
 </script>

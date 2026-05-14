@@ -73,7 +73,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
-import XButton from '@/global-components/xButton.vue'
+import XButton from '@/global-components/x-button/Xbutton.vue'
 
 const emit = defineEmits(['open'])
 const props = defineProps<{ goal: Goal }>() // 🚨 any 대신 Goal 타입 지정
@@ -189,18 +189,6 @@ const deleteGoal = (id: number) => {
   font-weight: 800;
   color: var(--color-primary);
 }
-.btn-del-goal {
-  background: none;
-  border: none;
-  color: #a1a1aa;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 4px;
-  transition: color 0.2s;
-}
-.btn-del-goal:hover {
-  color: var(--color-danger, #ef4444);
-}
 .progress-track {
   height: 6px;
   background: var(--bg-hover);
@@ -257,17 +245,6 @@ const deleteGoal = (id: number) => {
   text-decoration: line-through;
   color: #a1a1aa;
 }
-.btn-del-sm {
-  background: none;
-  border: none;
-  color: #a1a1aa;
-  cursor: pointer;
-  font-size: 14px;
-}
-.btn-del-sm:hover {
-  color: #ef4444;
-}
-
 /* 체크박스 CSS */
 .studio-cbx {
   position: relative;

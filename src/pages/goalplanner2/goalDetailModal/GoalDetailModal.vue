@@ -4,12 +4,13 @@
       title="목표 상세 설정" 
       width="1000px" 
       height="760px" 
+      no-padding
       @close="$emit('close')"
     >
       <!-- =======================================================
-           VIEW 1: 목표 기본 정보 및 마일스톤 리스트 화면 
+            VIEW 1: 목표 기본 정보 및 마일스톤 리스트 화면 
       ======================================================== -->
-      <div v-if="!activeMilestone" key="view-list" class="modal-body relative">
+      <div v-if="!activeMilestone" key="view-list" class="goal-list-view relative">
         <!-- 좌측: 목표(Goal) 기본 정보 -->
         <div class="info-section">
           <div class="form-group">
@@ -103,9 +104,9 @@
       </div>
 
       <!-- =======================================================
-           VIEW 2: 마일스톤 상세 (캘린더 기반 풀스크린 워크스페이스)
+            VIEW 2: 마일스톤 상세 (캘린더 기반 풀스크린 워크스페이스)
       ======================================================== -->
-      <div v-else key="view-detail" class="modal-body-full">
+      <div v-else key="view-detail" class="goal-detail-view">
         
         <!-- 상단 마일스톤 설정 헤더 -->
         <div class="ms-workspace-header">
@@ -177,7 +178,7 @@
                   <div class="task-text-wrap flex-1 cursor-pointer" @click="openTaskModal(task)">
                     <span class="task-text">{{ task.summary }}</span>
                   </div>
-                  <button @click.stop="removeTask(task.id)" class="btn-delete-icon opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                  <Xbutton @click.stop="removeTask(task.id)"/>
                 </div>
                 
                 <div v-if="pendingTasks.length === 0" class="empty-task">
@@ -199,7 +200,7 @@
                     <div class="task-text-wrap flex-1 cursor-pointer" @click="openTaskModal(task)">
                       <span class="task-text is-done">{{ task.summary }}</span>
                     </div>
-                    <button @click.stop="removeTask(task.id)" class="btn-delete-icon opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                    <Xbutton @click.stop="removeTask(task.id)"/>
                   </div>
                 </div>
               </div>
@@ -210,7 +211,7 @@
       </div>
 
       <!-- =======================================================
-           모달: 마일스톤 생성 오버레이 (VIEW 1 에서만 접근)
+            모달: 마일스톤 생성 오버레이 (VIEW 1 에서만 접근)
       ======================================================== -->
       <div v-if="showCreateModal" class="ms-create-overlay">
         <div class="ms-create-box">
@@ -263,6 +264,7 @@ import ScheduleDetailModal from '@/global-components/schedule-detail-modal/Sched
 
 // ✨ 추출한 공통 캘린더 컴포넌트 추가
 import Calendar from '@/global-components/calendar/Calendar.vue' 
+import Xbutton from '@/global-components/x-button/Xbutton.vue'
 
 const props = defineProps<{ goal: Goal }>()
 const emit = defineEmits(['close'])
@@ -433,7 +435,8 @@ const handleTaskDelete = () => {
 /* =======================================
    VIEW 1 스타일 (기존 리스트 화면)
 ======================================= */
-.modal-body { display: flex; height: 100%; gap: 32px; background: #fafafa; overflow: hidden; border-radius: 0 0 16px 16px;}
+/* 💡 충돌 방지를 위해 클래스명을 goal-list-view로 변경 */
+.goal-list-view { display: flex; height: 100%; gap: 32px; background: #fafafa; overflow: hidden; border-radius: 0 0 16px 16px;}
 .info-section { flex: 0 0 320px; display: flex; flex-direction: column; gap: 28px; padding: 32px; background: #fff; border-right: 1px solid #f4f4f5; }
 .ms-section { flex: 1; padding: 32px 32px 32px 0; min-width: 0; min-height: 0;}
 .view-container { display: flex; flex-direction: column; height: 100%; min-height: 0; }
@@ -483,7 +486,8 @@ const handleTaskDelete = () => {
 /* =======================================
    VIEW 2 스타일 (풀스크린 워크스페이스)
 ======================================= */
-.modal-body-full { display: flex; flex-direction: column; height: 100%; background: #fafafa; border-radius: 0 0 16px 16px;}
+/* 💡 충돌 방지를 위해 클래스명을 goal-detail-view로 변경 */
+.goal-detail-view { display: flex; flex-direction: column; height: 100%; background: #fafafa; border-radius: 0 0 16px 16px;}
 
 .ms-workspace-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 32px; background: #fff; border-bottom: 1px solid #e4e4e7; }
 .header-left { display: flex; align-items: center; gap: 20px; flex: 1;}
@@ -522,8 +526,6 @@ const handleTaskDelete = () => {
 .task-text-wrap { overflow: hidden; }
 .task-text { font-size: 14px; font-weight: 500; color: #27272a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .task-text.is-done { text-decoration: line-through; color: #a1a1aa; }
-.btn-delete-icon { background: none; border: none; color: #a1a1aa; cursor: pointer; font-size: 14px; padding: 4px; border-radius: 4px; }
-.btn-delete-icon:hover { color: #ef4444; background: #fee2e2; }
 
 .empty-task { text-align: center; padding: 40px 0; color: #a1a1aa; font-size: 14px; border: 1px dashed #e4e4e7; border-radius: 10px; background: #fff;}
 .toggle-completed-btn { background: none; border: none; font-size: 13px; font-weight: 700; color: #71717a; cursor: pointer; padding: 4px 0; transition: color 0.2s; display: flex; align-items: center; margin-top: 16px;}
@@ -559,8 +561,6 @@ const handleTaskDelete = () => {
 
 .opacity-0 { opacity: 0; }
 .opacity-70 { opacity: 0.7; }
-.group:hover .group-hover\:opacity-100 { opacity: 1; }
-.transition-opacity { transition: opacity 0.2s; }
 .shrink-0 { flex-shrink: 0; }
 .flex-1 { flex: 1; }
 .cursor-pointer { cursor: pointer; }

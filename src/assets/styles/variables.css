@@ -23,6 +23,12 @@
   /* 폰트: 애플 기기에서는 SF Pro, 그 외는 맑은 고딕/프리텐다드 폴백 */
   --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Pretendard", "Segoe UI", sans-serif;
   
+  /* size */
+  --control-size-xs: 20px;
+  --control-size-sm: 24px;
+  --control-size-md: 32px;
+  --control-size-lg: 40px;
+
   /* 애플 특유의 부드러운 둥글기 (Squircle 느낌) */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -33,4 +39,5 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+
 }

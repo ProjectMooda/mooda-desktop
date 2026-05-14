@@ -27,55 +27,99 @@
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue'
 
 const props = defineProps<{
-  modelValue: string
+  modelValue?: string
 }>()
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string): void
+}>()
 
 const openDropdown = ref<'hour' | 'minute' | null>(null)
-const timeObj = reactive({ ampm: '오전', hour: 9, minute: 0 })
 
-const parseTime = (timeStr: string) => {
-  if (!timeStr) return { ampm: '오전', hour: 9, minute: 0 }
+const timeObj = reactive({
+  ampm: '오전',
+  hour: 9,
+  minute: 0
+})
+
+const parseTime = (timeStr?: string) => {
+  if (!timeStr) {
+    return {
+      ampm: '오전',
+      hour: 9,
+      minute: 0
+    }
+  }
+
   const [hStr, mStr] = timeStr.split(':')
+
   let h = parseInt(hStr, 10) || 9
   const minute = parseInt(mStr, 10) || 0
+
   let ampm = '오전'
-  
+
   if (h >= 12) {
     ampm = '오후'
-    if (h > 12) h -= 12
+
+    if (h > 12) {
+      h -= 12
+    }
   } else if (h === 0) {
     h = 12
   }
-  return { ampm, hour: h, minute }
+
+  return {
+    ampm,
+    hour: h,
+    minute
+  }
 }
 
 const emitTime = () => {
   let h = timeObj.hour
-  if (timeObj.ampm === '오후' && h !== 12) h += 12
-  if (timeObj.ampm === '오전' && h === 12) h = 0
-  const timeStr = `${String(h).padStart(2, '0')}:${String(timeObj.minute).padStart(2, '0')}`
+
+  if (timeObj.ampm === '오후' && h !== 12) {
+    h += 12
+  }
+
+  if (timeObj.ampm === '오전' && h === 12) {
+    h = 0
+  }
+
+  const timeStr =
+    `${String(h).padStart(2, '0')}:` +
+    `${String(timeObj.minute).padStart(2, '0')}`
+
   emit('update:modelValue', timeStr)
 }
 
-watch(() => props.modelValue, (newVal) => {
-  Object.assign(timeObj, parseTime(newVal))
-}, { immediate: true })
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    Object.assign(timeObj, parseTime(newVal))
+  },
+  { immediate: true }
+)
 
 const toggleAmPm = () => {
-  timeObj.ampm = timeObj.ampm === '오전' ? '오후' : '오전'
+  timeObj.ampm = timeObj.ampm === '오전'
+    ? '오후'
+    : '오전'
+
   emitTime()
 }
 
-const setTime = (type: 'hour' | 'minute', val: number) => {
+const setTime = (
+  type: 'hour' | 'minute',
+  val: number
+) => {
   timeObj[type] = val
   openDropdown.value = null
+
   emitTime()
 }
 </script>

@@ -51,7 +51,8 @@
 import { ref } from 'vue'
 import type { ScheduleItem } from '@/stores/useScheduleStore'
 import ScheduleDetailModal from '@/global-components/schedule-detail-modal/ScheduleDetailModal.vue'
-import xButton from '@/global-components/xButton.vue'
+import xButton from '@/global-components/x-button/Xbutton.vue';
+
 const props = defineProps<{
   item: ScheduleItem
   customClass?: string
