@@ -1,8 +1,8 @@
 <template>
   <transition name="modal-fade">
     <div class="modal-overlay flex-center" @click.self="$emit('close')">
-      <div 
-        class="modal-content" 
+      <div
+        class="modal-content"
         :style="{ width: width, height: height, padding: noPadding ? '0' : '' }"
       >
         <!-- showHeader가 true일 때만 헤더 렌더링 -->
@@ -10,13 +10,13 @@
           <slot name="header">
             <h2>{{ title }}</h2>
           </slot>
-          <CloseButton 
-              variant="circle" 
-              @click="$emit('close')" 
-          />
+          <xButton variant="circle" @click="$emit('close')" />
         </header>
 
-        <div class="modal-body-container flex-1 min-h-0" :class="{ 'p-0': noPadding }">
+        <div
+          class="modal-body-container flex-1 min-h-0"
+          :class="{ 'p-0': noPadding }"
+        >
           <slot></slot>
         </div>
       </div>
@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import CloseButton from '../CloseButton.vue';
+import xButton from '../xButton.vue'
 
 defineProps({
   title: { type: String, default: '모달 창' },
@@ -33,7 +33,7 @@ defineProps({
   height: { type: String, default: 'auto' },
   // 유연성을 위한 Props 추가
   showHeader: { type: Boolean, default: true }, // 헤더 숨김 여부
-  noPadding: { type: Boolean, default: false }  // 바디 여백 제거 여부 (필요시)
+  noPadding: { type: Boolean, default: false } // 바디 여백 제거 여부 (필요시)
 })
 
 defineEmits(['close'])
@@ -78,20 +78,18 @@ defineEmits(['close'])
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-color); /* 변수 사용 */
 }
-.modal-header h2 { 
-  margin: 0; 
-  font-size: 18px; 
-  font-weight: 700; 
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--text-main); /* 먹색 텍스트 */
 }
-
-
 
 /* =======================================
    모달 바디
 ======================================= */
 .modal-body-container {
-  overflow-y: auto; 
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }

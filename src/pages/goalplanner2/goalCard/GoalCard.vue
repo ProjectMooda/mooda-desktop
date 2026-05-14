@@ -10,12 +10,10 @@
         </div>
         <div class="header-actions">
           <div class="pct-text shrink-0">{{ progressPercent }}%</div>
-          <button
-            class="btn-del-goal"
+          <xButton
+            variant="rounded"
             @click.stop.prevent="deleteGoal(goal.id)"
-          >
-            ✕
-          </button>
+          />
         </div>
       </div>
 
@@ -42,9 +40,7 @@
           class="s-input flex-1 min-w-0"
           @keyup.enter="addMilestone"
         />
-        <button @click="addMilestone" class="btn-outline shrink-0">
-          +
-        </button>
+        <button @click="addMilestone" class="btn-outline shrink-0">+</button>
       </div>
     </div>
 
@@ -52,26 +48,23 @@
       <!-- 스토어에서 필터링해온 goalSchedules 순회 -->
       <div v-for="ms in goalSchedules" :key="ms.id" class="ms-row">
         <label class="studio-cbx sm-cbx shrink-0">
-          <input 
-            type="checkbox" 
-            v-model="ms.done" 
-            @change="store.updateSchedule(ms.id, { done: ms.done })" 
+          <input
+            type="checkbox"
+            v-model="ms.done"
+            @change="store.updateSchedule(ms.id, { done: ms.done })"
           />
           <span class="cbx-box"></span>
         </label>
-        
+
         <!-- 🚨 ms.startDate 및 ms.summary 로 변경 -->
-        <span class="ms-date shrink-0">{{ (ms.startDate || '').slice(5) }}</span>
+        <span class="ms-date shrink-0">{{
+          (ms.startDate || '').slice(5)
+        }}</span>
         <span :class="['ms-text flex-1 min-w-0', { 'is-done': ms.done }]">
           {{ ms.summary }}
         </span>
-        
-        <button
-          @click="removeMilestone(ms.id)"
-          class="btn-del-sm shrink-0"
-        >
-          ✕
-        </button>
+
+        <xButton variant="rounded" @click="removeMilestone(ms.id)" />
       </div>
     </div>
   </article>
@@ -80,6 +73,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
+import XButton from '@/global-components/xButton.vue'
 
 const emit = defineEmits(['open'])
 const props = defineProps<{ goal: Goal }>() // 🚨 any 대신 Goal 타입 지정
@@ -94,7 +88,7 @@ const newMsSummary = ref('')
 // 🚨 핵심: 스토어의 전체 일정 중 이 목표(goal.id)에 속한 마일스톤만 추출 및 날짜순 정렬
 const goalSchedules = computed(() => {
   return store.schedules
-    .filter(s => s.goalId === props.goal.id)
+    .filter((s) => s.goalId === props.goal.id)
     .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
 })
 
@@ -102,18 +96,18 @@ const goalSchedules = computed(() => {
 const progressPercent = computed(() => {
   const total = goalSchedules.value.length
   if (total === 0) return 0
-  
-  const doneCount = goalSchedules.value.filter(m => m.done).length
+
+  const doneCount = goalSchedules.value.filter((m) => m.done).length
   return Math.round((doneCount / total) * 100)
 })
 
 // --- Methods ---
 const addMilestone = () => {
   if (!newMsSummary.value.trim()) return
-  
+
   // ✨ 헬퍼 함수 호출 (객체 껍데기 없이 핵심 파라미터만 전달)
   store.addMilestone(props.goal.id, newMsSummary.value, newMsDate.value)
-  
+
   newMsSummary.value = ''
 }
 
