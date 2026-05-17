@@ -13,24 +13,18 @@
       <slot name="meta"></slot>
 
       <div class="action-wrapper" @click.stop>
-        <button
-          class="btn-pin"
-          :class="{ 'is-pinned': item.isPinned }"
-          @click.stop="$emit('toggle-pin')"
-        >
-          📌
-        </button>
+        <PinButton
+          class="card-pin"
+          :is-pinned="item.isPinned"
+          @toggle="$emit('toggle-pin')"
+        />
 
         <xButton variant="rounded" @click.stop="$emit('delete')" />
 
-        <input
-          type="checkbox"
-          class="custom-checkbox"
-          :checked="item.done"
-          @change="
-            (e) =>
-              $emit('update', { done: (e.target as HTMLInputElement).checked })
-          "
+        <!-- 변경된 체크박스 컴포넌트 적용 -->
+        <CheckBox
+          :model-value="item.done"
+          @update:model-value="(val) => $emit('update', { done: val })"
         />
       </div>
     </div>
@@ -42,7 +36,7 @@
       :data="item"
       @close="isModalOpen = false"
       @delete="$emit('delete')"
-      @update="(payload) => $emit('update', payload)"
+      @update="$emit('update', $event)"
     />
   </div>
 </template>
@@ -50,8 +44,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { ScheduleItem } from '@/stores/useScheduleStore'
-import ScheduleDetailModal from '@/global-components/schedule-detail-modal/ScheduleDetailModal.vue'
-import xButton from '@/global-components/x-button/Xbutton.vue';
+import ScheduleDetailModal from '@/global-components/modal/schedule-detail-modal/ScheduleDetailModal.vue'
+import xButton from '@/global-components/ui//Xbutton.vue'
+import PinButton from '@/global-components/ui/PinButton.vue'
+// 새로 만든 체크박스 컴포넌트 임포트 (경로는 프로젝트에 맞게 수정하세요)
+import CheckBox from '@/global-components/ui/CheckBox.vue'
 
 const props = defineProps<{
   item: ScheduleItem
@@ -65,70 +62,83 @@ const openModal = () => {
   isModalOpen.value = true
 }
 </script>
-
 <style scoped>
-/* 기존의 공통 스타일 (compact-card, drag-handle, action-wrapper, btn-pin 등)을 여기로 이동 */
+/* =======================================
+   📋 Compact Task Card (List Item)
+======================================= */
 .compact-card {
   display: flex;
   justify-content: space-between;
   align-items: stretch;
-  gap: 12px;
-  padding: 12px 16px;
-  margin-bottom: 10px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
+  gap: var(--space-3); /* 12px */
+  padding: var(--space-3) var(--space-4); /* 12px 16px */
+  margin-bottom: var(--space-2); /* 10px -> 8px (4px 그리드 시스템에 맞춤) */
+
+  /* 카드 기본 배경 및 얇고 단정한 테두리 */
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04); /* 리스트가 겹칠 때 자연스러운 구분선 역할 */
+  border-radius: var(--radius-sm); /* 8px (단정하고 프로페셔널한 느낌) */
+
+  transition: all var(--transition-fast);
   cursor: pointer;
 }
+
+/* 호버 시 세련된 반응 (캘린더 셀과 동일한 로직) */
+.compact-card:hover {
+  background: rgba(
+    0,
+    0,
+    0,
+    0.02
+  ); /* 기존 opacity: 1 대신 배경색으로 호버 피드백 */
+  border-color: rgba(0, 0, 0, 0.05);
+}
+
+/* =======================================
+   🤏 Drag Handle
+======================================= */
 .drag-handle {
   display: flex;
   align-items: center;
-  color: #d4d4d8;
-  font-size: 16px;
+  color: var(--text-muted); /* #d4d4d8 대응 */
+  font-size: var(--text-base); /* 16px */
   cursor: grab;
-  padding-right: 4px;
+  padding-right: var(--space-1); /* 4px */
+  transition: color var(--transition-fast);
 }
+
+/* 드래그 중이거나, 카드에 마우스를 올렸을 때 핸들 색상 진하게 */
+.drag-handle:active {
+  cursor: grabbing;
+}
+.compact-card:hover .drag-handle {
+  color: var(--text-sub);
+}
+
+/* =======================================
+   📝 Content & Actions
+======================================= */
 .task-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2); /* 6px -> 8px (타이포그래피 간격 최적화) */
   min-width: 0;
 }
+
 .task-actions-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  min-width: 105px;
+  min-width: 105px; /* 액션 버튼들을 위한 고정 최소 너비 유지 */
 }
+
 .action-wrapper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3); /* 12px */
   margin-top: auto;
-  padding-top: 4px;
-}
-.compact-card:hover {
-  opacity: 1;
-}
-.btn-pin {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  opacity: 0.3;
-  filter: grayscale(1);
-  transition: 0.2s;
-}
-.btn-pin.is-pinned {
-  opacity: 1;
-  filter: grayscale(0);
-}
-.compact-card:hover .btn-pin {
-  opacity: 1;
-}
-.custom-checkbox {
-  width: 20px;
-  height: 20px;
-  accent-color: #3b82f6;
-  cursor: pointer;
+  padding-top: var(--space-1); /* 4px */
 }
 </style>

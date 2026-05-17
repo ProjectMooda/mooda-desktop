@@ -1,17 +1,32 @@
 <template>
   <div class="quick-add-area">
-    <div v-if="openDropdown" class="dropdown-overlay" @click="openDropdown = null"></div>
+    <div
+      v-if="openDropdown"
+      class="dropdown-overlay"
+      @click="openDropdown = null"
+    ></div>
 
     <div class="type-selector">
-      <button @click="addType = 'task'" :class="{ active: addType === 'task' }">할 일</button>
-      <button @click="addType = 'event'" :class="{ active: addType === 'event' }">이벤트</button>
+      <button @click="addType = 'task'" :class="{ active: addType === 'task' }">
+        할 일
+      </button>
+      <button
+        @click="addType = 'event'"
+        :class="{ active: addType === 'event' }"
+      >
+        이벤트
+      </button>
     </div>
 
     <div class="input-row">
       <input
         v-model="newTitle"
         type="text"
-        :placeholder="addType === 'task' ? '할 일을 입력하세요...' : '이벤트 제목을 입력하세요...'"
+        :placeholder="
+          addType === 'task'
+            ? '할 일을 입력하세요...'
+            : '이벤트 제목을 입력하세요...'
+        "
         @keyup.enter="handleQuickAdd"
         class="s-input flex-1"
       />
@@ -19,33 +34,48 @@
     </div>
 
     <div v-if="addType === 'event'" class="event-options-grid">
-      
       <!-- 목표 -->
-      <div class="custom-select-box" :class="{ 'is-active': openDropdown === 'goal' }" @click="openDropdown = 'goal'">
-        <span :class="{ 'placeholder-text': !selectedGoalId }">{{ selectedGoalName }}</span>
+      <div
+        class="custom-select-box"
+        :class="{ 'is-active': openDropdown === 'goal' }"
+        @click="openDropdown = 'goal'"
+      >
+        <span :class="{ 'placeholder-text': !selectedGoalId }">{{
+          selectedGoalName
+        }}</span>
         <span class="chevron">▾</span>
         <ul v-if="openDropdown === 'goal'" class="dropdown-menu">
           <li
             v-for="goal in scheduleStore.goals"
             :key="goal.id"
             :class="{ selected: selectedGoalId === goal.id }"
-            @click.stop="selectedGoalId = goal.id; openDropdown = null"
+            @click.stop="selectGoal(goal.id)"
           >
-            {{ goal.title.length > 10 ? goal.title.slice(0, 10) + '...' : goal.title }}
+            {{
+              goal.title.length > 10
+                ? goal.title.slice(0, 10) + '...'
+                : goal.title
+            }}
           </li>
         </ul>
       </div>
 
       <!-- 카테고리 -->
-      <div class="custom-select-box" :class="{ 'is-active': openDropdown === 'category' }" @click="openDropdown = 'category'">
-        <span :class="{ 'placeholder-text': !newCategory }">{{ newCategory || '카테고리' }}</span>
+      <div
+        class="custom-select-box"
+        :class="{ 'is-active': openDropdown === 'category' }"
+        @click="openDropdown = 'category'"
+      >
+        <span :class="{ 'placeholder-text': !newCategory }">{{
+          newCategory || '카테고리'
+        }}</span>
         <span class="chevron">▾</span>
         <ul v-if="openDropdown === 'category'" class="dropdown-menu">
           <li
             v-for="cat in scheduleStore.categories"
             :key="cat"
             :class="{ selected: newCategory === cat }"
-            @click.stop="newCategory = cat; openDropdown = null"
+            @click.stop="selectCategory(cat)"
           >
             {{ cat }}
           </li>
@@ -53,15 +83,21 @@
       </div>
 
       <!-- 우선순위 -->
-      <div class="custom-select-box" :class="{ 'is-active': openDropdown === 'priority' }" @click="openDropdown = 'priority'">
-        <span :class="{ 'placeholder-text': !newPriority }">{{ selectedPriorityLabel }}</span>
+      <div
+        class="custom-select-box"
+        :class="{ 'is-active': openDropdown === 'priority' }"
+        @click="openDropdown = 'priority'"
+      >
+        <span :class="{ 'placeholder-text': !newPriority }">{{
+          selectedPriorityLabel
+        }}</span>
         <span class="chevron">▾</span>
         <ul v-if="openDropdown === 'priority'" class="dropdown-menu">
           <li
             v-for="p in scheduleStore.priorityOptions"
             :key="p.id"
             :class="{ selected: newPriority === p.id }"
-            @click.stop="newPriority = p.id; openDropdown = null"
+            @click.stop="selectPriority(p.id)"
           >
             {{ p.emoji }} {{ p.label }}
           </li>
@@ -70,15 +106,12 @@
 
       <!-- 시간 -->
       <div class="time-range">
-
         <TimePicker v-model="startTime" />
 
         <span class="range-dash">~</span>
 
         <TimePicker v-model="endTime" />
-
       </div>
-
     </div>
   </div>
 </template>
@@ -100,19 +133,38 @@ const newPriority = ref<string | ''>('')
 
 const openDropdown = ref<string | null>(null)
 
+const selectGoal = (id: number) => {
+  selectedGoalId.value = id
+  openDropdown.value = null
+}
+
+const selectCategory = (category: string) => {
+  newCategory.value = category
+  openDropdown.value = null
+}
+
+const selectPriority = (priority: string) => {
+  newPriority.value = priority
+  openDropdown.value = null
+}
+
 /** TimePicker v-model */
 const startTime = ref('09:00')
 const endTime = ref('18:00')
 
 const selectedGoalName = computed(() => {
-  const goal = scheduleStore.goals.find(g => g.id === selectedGoalId.value)
+  const goal = scheduleStore.goals.find((g) => g.id === selectedGoalId.value)
   return goal
-    ? (goal.title.length > 8 ? goal.title.slice(0, 8) + '...' : goal.title)
+    ? goal.title.length > 8
+      ? goal.title.slice(0, 8) + '...'
+      : goal.title
     : '목표 선택'
 })
 
 const selectedPriorityLabel = computed(() => {
-  const p = scheduleStore.priorityOptions.find(opt => opt.id === newPriority.value)
+  const p = scheduleStore.priorityOptions.find(
+    (opt) => opt.id === newPriority.value
+  )
   return p ? `${p.emoji} ${p.label}` : '중요도'
 })
 
@@ -154,7 +206,11 @@ const handleQuickAdd = () => {
 </script>
 
 <style scoped>
-.dropdown-overlay { position: fixed; inset: 0; z-index: 90; }
+.dropdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
 
 .custom-select-box {
   position: relative;
@@ -173,11 +229,17 @@ const handleQuickAdd = () => {
 
 .custom-select-box.is-active {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.placeholder-text { color: #a1a1aa; }
-.chevron { font-size: 12px; color: #a1a1aa; margin-left: 8px; }
+.placeholder-text {
+  color: #a1a1aa;
+}
+.chevron {
+  font-size: 12px;
+  color: #a1a1aa;
+  margin-left: 8px;
+}
 
 .dropdown-menu {
   position: absolute;
@@ -187,7 +249,7 @@ const handleQuickAdd = () => {
   background: #fff;
   border: 1px solid #e4e4e7;
   border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
   max-height: 180px;
   overflow-y: auto;
   list-style: none;
@@ -203,8 +265,14 @@ const handleQuickAdd = () => {
   cursor: pointer;
 }
 
-.dropdown-menu li:hover { background: #f4f4f5; }
-.dropdown-menu li.selected { background: #eff6ff; color: #2563eb; font-weight: 700; }
+.dropdown-menu li:hover {
+  background: #f4f4f5;
+}
+.dropdown-menu li.selected {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 700;
+}
 
 .quick-add-area {
   background: #f4f4f5;

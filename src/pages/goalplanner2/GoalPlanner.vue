@@ -25,19 +25,19 @@
     </section>
 
     <div class="responsive-goal-grid">
-      <GoalCard 
-        v-for="goal in store.goals" 
-        :key="goal.id" 
-        :goal="goal" 
-        @open="openDetailModal(goal)" 
+      <GoalCard
+        v-for="goal in store.goals"
+        :key="goal.id"
+        :goal="goal"
+        @open="openDetailModal(goal)"
       />
     </div>
 
     <transition name="modal-fade">
-      <GoalDetailModal 
-        v-if="isModalOpen && selectedGoal" 
-        :goal="selectedGoal" 
-        @close="isModalOpen = false" 
+      <GoalDetailModal
+        v-if="isModalOpen && selectedGoal"
+        :goal="selectedGoal"
+        @close="isModalOpen = false"
       />
     </transition>
   </div>
@@ -68,7 +68,7 @@ const createGoal = () => {
   store.addGoal({
     title: newGoal.title,
     startDate: newGoal.startDate,
-    endDate: newGoal.endDate,
+    endDate: newGoal.endDate
   })
 
   newGoal.title = ''

@@ -10,7 +10,7 @@
         </div>
         <div class="header-actions">
           <div class="pct-text shrink-0">{{ progressPercent }}%</div>
-          <xButton
+          <XButton
             variant="rounded"
             @click.stop.prevent="deleteGoal(goal.id)"
           />
@@ -47,14 +47,12 @@
     <div class="ms-list min-h-0">
       <!-- 스토어에서 필터링해온 goalSchedules 순회 -->
       <div v-for="ms in goalSchedules" :key="ms.id" class="ms-row">
-        <label class="studio-cbx sm-cbx shrink-0">
-          <input
-            type="checkbox"
-            v-model="ms.done"
-            @change="store.updateSchedule(ms.id, { done: ms.done })"
-          />
-          <span class="cbx-box"></span>
-        </label>
+        <!-- ✅ (val) 대신 $event를 사용하여 TS any 에러 해결 -->
+        <CheckBox
+          class="shrink-0"
+          v-model="ms.done"
+          @update:model-value="store.updateSchedule(ms.id, { done: $event })"
+        />
 
         <!-- 🚨 ms.startDate 및 ms.summary 로 변경 -->
         <span class="ms-date shrink-0">{{
@@ -64,7 +62,7 @@
           {{ ms.summary }}
         </span>
 
-        <xButton variant="rounded" @click="removeMilestone(ms.id)" />
+        <XButton variant="rounded" @click="removeMilestone(ms.id)" />
       </div>
     </div>
   </article>
@@ -73,7 +71,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
-import XButton from '@/global-components/x-button/Xbutton.vue'
+import XButton from '@/global-components/ui/Xbutton.vue'
+// ✅ CheckBox 컴포넌트 임포트 추가! (경로는 실제 프로젝트 구조에 맞게 확인해주세요)
+import CheckBox from '@/global-components/ui/CheckBox.vue'
 
 const emit = defineEmits(['open'])
 const props = defineProps<{ goal: Goal }>() // 🚨 any 대신 Goal 타입 지정
@@ -244,56 +244,5 @@ const deleteGoal = (id: number) => {
 .is-done {
   text-decoration: line-through;
   color: #a1a1aa;
-}
-/* 체크박스 CSS */
-.studio-cbx {
-  position: relative;
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  display: inline-block;
-  margin-top: 3px;
-}
-.sm-cbx {
-  width: 16px;
-  height: 16px;
-  margin-top: 1px;
-}
-.studio-cbx input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-  position: absolute;
-}
-.cbx-box {
-  position: absolute;
-  inset: 0;
-  border: 2px solid #d4d4d8;
-  border-radius: 5px;
-  background: var(--bg-card);
-  transition: 0.2s;
-}
-.studio-cbx input:checked ~ .cbx-box {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-.cbx-box:after {
-  content: '';
-  position: absolute;
-  display: none;
-  left: 4px;
-  top: 1px;
-  width: 4px;
-  height: 8px;
-  border: solid var(--bg-card);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-.sm-cbx .cbx-box:after {
-  left: 3px;
-  top: 0px;
-}
-.studio-cbx input:checked ~ .cbx-box:after {
-  display: block;
 }
 </style>
