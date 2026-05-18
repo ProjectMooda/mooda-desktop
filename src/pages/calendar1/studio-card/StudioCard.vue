@@ -223,87 +223,108 @@ const progressPercent = computed(() => {
   return Math.round((completedItemsCount.value / totalItems.value) * 100)
 })
 </script>
-
 <style scoped>
+/* =======================================
+   CARD BASE
+======================================= */
 .studio-card {
-  background: var(--bg-card, #ffffff);
-  border: 1px solid var(--border-color, #e4e4e7);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg); /* 16px */
+  padding: var(--space-6); /* 24px */
+  box-shadow: var(--shadow-md); /* 애플 스타일의 은은한 그림자 */
   display: flex;
   flex-direction: column;
   height: 100%;
 }
+
+/* =======================================
+   SCROLL AREA
+======================================= */
 .task-scroll-area {
   flex: 1;
   overflow-y: auto;
-  padding-right: 8px;
+  /* global.css의 scrollbar-gutter: stable 대응 및 우측 여백 최적화 */
+  padding-right: var(--space-2);
   display: flex;
   flex-direction: column;
 }
 
+/* =======================================
+   EMPTY STATE (디자인 톤 다운 및 변수화)
+======================================= */
 .empty-msg {
-  font-size: 14px;
-  color: #a1a1aa;
+  font-size: var(--text-sm); /* 14px */
+  color: var(--text-muted);
   text-align: center;
-  padding: 40px 20px;
-  background: #fafafa;
-  border-radius: 12px;
-  border: 1px dashed #e4e4e7;
-  margin-top: 10px;
+  padding: var(--space-10) var(--space-5); /* 40px 20px */
+  background-color: var(--bg-app); /* 앱 공통 배경색과 통일 */
+  border-radius: var(--radius-md); /* 12px */
+  border: 1px dashed var(--border-color);
+  margin-top: var(--space-2); /* 8px 부근으로 정돈 */
 }
 
+/* =======================================
+   LIST GROUP & LABEL
+======================================= */
 .list-group {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6); /* 24px */
 }
+
 .group-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #a1a1aa;
-  margin-bottom: 8px;
+  font-size: var(--text-xs); /* 12px */
+  font-weight: var(--font-bold);
+  color: var(--text-sub); /* 시스템 서브 텍스트 컬러 */
+  margin-bottom: var(--space-2); /* 8px */
   display: flex;
   align-items: center;
-  gap: 4px;
-}
-.run-icon {
-  color: #3b82f6;
+  gap: var(--space-1); /* 4px */
 }
 
-.completed-section {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px dashed #e4e4e7;
+.run-icon {
+  color: var(--color-primary); /* 하드코딩 블루를 애플 시그니처 블루로 변경 */
 }
+
+/* =======================================
+   TOGGLE BUTTON & COMPLETED GROUP
+======================================= */
 .toggle-completed-btn {
   background: transparent;
   border: none;
-  font-size: 13px;
-  font-weight: 700;
-  color: #a1a1aa;
+  font-size: var(--text-sm); /* 13px 대용으로 14px 권장 혹은 유지 */
+  font-weight: var(--font-bold);
+  color: var(--text-sub);
   cursor: pointer;
   padding: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: color 0.2s;
+  gap: var(--space-2); /* 6px 대용으로 8px 혹은 변수 결합 */
+  transition: color var(--transition-fast);
 }
+
 .toggle-completed-btn:hover {
-  color: #52525b;
+  color: var(--text-main); /* 호버 시 메인 먹색으로 선명해지도록 처리 */
 }
+
 .completed-tasks-group {
-  margin-top: 12px;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
+  margin-top: var(--space-3); /* 12px */
+  opacity: 0.6; /* 완료된 작업은 확실히 흐리게 처리 */
+  transition: opacity var(--transition-fast);
 }
+
 .completed-tasks-group:hover {
   opacity: 1;
 }
 
+/* =======================================
+   DRAG & DROP GHOST CARD
+======================================= */
 .ghost-card {
   opacity: 0.4;
-  background: #f8fafc;
-  border: 2px dashed #94a3b8 !important;
+  background-color: var(--bg-hover); /* 시스템 6번 그레이와 매핑 */
+  border: 2px dashed var(--text-muted) !important;
   transform: scale(0.98);
+  /* 트랜지션 추가로 드래그 위치 바뀔 때 부드럽게 안착 */
+  transition: transform var(--transition-fast);
 }
 </style>

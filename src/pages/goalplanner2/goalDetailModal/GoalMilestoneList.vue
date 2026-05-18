@@ -5,29 +5,81 @@
       <div class="form-group">
         <label>목표 타이틀</label>
         <input
+          :value="goal?.title || ''"
           type="text"
-          v-model="goal.title"
           class="s-input title-input"
-          @change="store.saveData"
+          @change="
+            (e) =>
+              updateGoalField('title', (e.target as HTMLInputElement).value)
+          "
         />
       </div>
 
-      <div class="form-group">
+      <!-- 🌟 트렌디한 통합형 목표 기간 설정 레이아웃 -->
+      <div class="form-group relative">
         <label>목표 기간</label>
-        <div class="date-row">
-          <input
-            type="date"
-            v-model="goal.startDate"
-            class="s-input flex-1"
-            @change="store.saveData"
-          />
-          <span class="date-dash">~</span>
-          <input
-            type="date"
-            v-model="goal.endDate"
-            class="s-input flex-1"
-            @change="store.saveData"
-          />
+        <div class="date-range-picker" :class="{ 'is-active': activeCalendar }">
+          <button
+            class="date-btn"
+            :class="{ 'active-tab': activeCalendar === 'start' }"
+            @click="activeCalendar = 'start'"
+          >
+            {{ goal?.startDate || '시작일 선택' }}
+          </button>
+          <span class="date-divider">→</span>
+          <button
+            class="date-btn"
+            :class="{ 'active-tab': activeCalendar === 'end' }"
+            @click="activeCalendar = 'end'"
+          >
+            {{ goal?.endDate || '종료일 선택' }}
+          </button>
+        </div>
+
+        <div
+          v-if="activeCalendar"
+          class="overlay-backdrop"
+          @click="activeCalendar = null"
+        ></div>
+
+        <div v-if="activeCalendar" class="compact-calendar-dropdown">
+          <div class="dropdown-tabs">
+            <button
+              :class="{ 'is-selected': activeCalendar === 'start' }"
+              @click="activeCalendar = 'start'"
+            >
+              시작일
+            </button>
+            <button
+              :class="{ 'is-selected': activeCalendar === 'end' }"
+              @click="activeCalendar = 'end'"
+            >
+              종료일
+            </button>
+          </div>
+
+          <div class="calendar-render-area">
+            <PopupCalendar
+              v-if="activeCalendar === 'start'"
+              :model-value="goal?.startDate || ''"
+              @update:model-value="
+                (val) => {
+                  updateGoalField('startDate', val)
+                  activeCalendar = 'end'
+                }
+              "
+            />
+            <PopupCalendar
+              v-if="activeCalendar === 'end'"
+              :model-value="goal?.endDate || ''"
+              @update:model-value="
+                (val) => {
+                  updateGoalField('endDate', val)
+                  activeCalendar = null
+                }
+              "
+            />
+          </div>
         </div>
       </div>
 
@@ -39,8 +91,8 @@
             :key="color"
             class="color-swatch"
             :style="{ backgroundColor: color }"
-            :class="{ active: (goal.color || '#3b82f6') === color }"
-            @click="changeGoalColor(color)"
+            :class="{ active: (goal?.color || '#3b82f6') === color }"
+            @click="updateGoalField('color', color)"
           ></button>
         </div>
       </div>
@@ -48,7 +100,7 @@
       <div class="progress-section mt-auto">
         <div class="progress-header">
           <label>전체 Task 진행률</label>
-          <span class="pct-text" :style="{ color: goal.color || '#4f46e5' }"
+          <span class="pct-text" :style="{ color: goal?.color || '#4f46e5' }"
             >{{ calculateProgress }}%</span
           >
         </div>
@@ -57,7 +109,7 @@
             class="progress-fill"
             :style="{
               width: calculateProgress + '%',
-              backgroundColor: goal.color || '#4f46e5'
+              backgroundColor: goal?.color || '#4f46e5'
             }"
           ></div>
         </div>
@@ -72,7 +124,7 @@
             <label>마일스톤 (기간별 목표)</label>
             <span class="ms-count">총 {{ goalMilestones.length }}개</span>
           </div>
-          <button @click="$emit('open-create')" class="btn-primary">
+          <button class="btn-primary" @click="$emit('open-create')">
             마일스톤 추가
           </button>
         </div>
@@ -80,8 +132,8 @@
         <div class="search-row">
           <span class="search-icon">🔍</span>
           <input
-            type="text"
             v-model="searchQuery"
+            type="text"
             placeholder="마일스톤 타이틀 검색..."
             class="s-input search-input"
           />
@@ -97,21 +149,19 @@
             <div class="ms-summary">
               <div
                 class="ms-color-bar"
-                :style="{ backgroundColor: goal.color || '#3b82f6' }"
+                :style="{ backgroundColor: goal?.color || '#3b82f6' }"
               ></div>
               <div class="ms-content min-w-0">
                 <div class="ms-meta">
                   <span class="ms-badge bg-gray">마일스톤</span>
-                  <span class="ms-date"
-                    >{{ (ms.startDate || '').slice(5).replace('-', '/') }} ~
-                    {{
-                      (ms.endDate || '미정').slice(5).replace('-', '/')
-                    }}</span
-                  >
-                  <span class="ms-task-count"
-                    >완료 {{ getCompletedCount(ms.id) }} /
-                    {{ getTotalTaskCount(ms.id) }}</span
-                  >
+                  <span class="ms-date">
+                    {{ (ms.startDate || '').slice(5).replace('-', '/') }} ~
+                    {{ (ms.endDate || '미정').slice(5).replace('-', '/') }}
+                  </span>
+                  <span class="ms-task-count">
+                    완료 {{ getCompletedCount(ms.id) }} /
+                    {{ getTotalTaskCount(ms.id) }}
+                  </span>
                 </div>
                 <div class="ms-title">{{ ms.summary }}</div>
               </div>
@@ -130,10 +180,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
+import PopupCalendar from '@/global-components/calendar/PopupCalendar.vue'
 
 const props = defineProps<{ goal: Goal }>()
 defineEmits(['open-detail', 'open-create'])
 const store = useScheduleStore()
+
+const activeCalendar = ref<'start' | 'end' | null>(null)
+const searchQuery = ref('')
 
 const palette = [
   '#ef4444',
@@ -145,25 +199,33 @@ const palette = [
   '#ec4899',
   '#71717a'
 ]
-const changeGoalColor = (color: string) => {
-  props.goal.color = color
-  store.saveData()
+
+// 🌟 Props 직접 수정 에러 원천 차단 핸들러
+const updateGoalField = (field: keyof Goal, value: any) => {
+  if (!props.goal || !store.goals) return
+  const targetGoal = store.goals.find((g) => g.id === props.goal.id)
+  if (targetGoal) {
+    ;(targetGoal as any)[field] = value
+    store.saveData()
+  }
 }
 
+// 🌟 스토어 안전핀 확보 및 필터 안정화
 const calculateProgress = computed(() => {
-  const tasks = store.schedules.filter(
-    (s) => s.goalId === props.goal.id && s.type === 'task'
+  const schedules = store.schedules || []
+  const tasks = schedules.filter(
+    (s) => s && s.goalId === props.goal?.id && s.type === 'task'
   )
   if (!tasks.length) return 0
   return Math.round((tasks.filter((t) => t.done).length / tasks.length) * 100)
 })
 
-const searchQuery = ref('')
-const goalMilestones = computed(() =>
-  store.schedules.filter(
-    (s) => s.goalId === props.goal.id && s.type === 'milestone'
+const goalMilestones = computed(() => {
+  const schedules = store.schedules || []
+  return schedules.filter(
+    (s) => s && s.goalId === props.goal?.id && s.type === 'milestone'
   )
-)
+})
 
 const filteredMilestones = computed(() => {
   if (!searchQuery.value.trim()) return goalMilestones.value
@@ -172,13 +234,19 @@ const filteredMilestones = computed(() => {
   )
 })
 
-const getTotalTaskCount = (msId: number) =>
-  store.schedules.filter((s) => s.type === 'task' && s.milestoneId === msId)
-    .length
-const getCompletedCount = (msId: number) =>
-  store.schedules.filter(
-    (s) => s.type === 'task' && s.milestoneId === msId && s.done
+const getTotalTaskCount = (msId: number) => {
+  const schedules = store.schedules || []
+  return schedules.filter(
+    (s) => s && s.type === 'task' && s.milestoneId === msId
   ).length
+}
+
+const getCompletedCount = (msId: number) => {
+  const schedules = store.schedules || []
+  return schedules.filter(
+    (s) => s && s.type === 'task' && s.milestoneId === msId && s.done
+  ).length
+}
 </script>
 
 <style scoped>
@@ -207,8 +275,11 @@ const getCompletedCount = (msId: number) =>
 .flex-row {
   display: flex;
 }
+.relative {
+  position: relative;
+}
 
-/* 레이아웃 & 폼 */
+/* 레이아웃 */
 .goal-list-view {
   display: flex;
   height: 100%;
@@ -218,7 +289,7 @@ const getCompletedCount = (msId: number) =>
   border-radius: 0 0 16px 16px;
 }
 .info-section {
-  flex: 0 0 320px;
+  flex: 0 0 380px;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -238,7 +309,6 @@ const getCompletedCount = (msId: number) =>
   height: 100%;
   min-height: 0;
 }
-
 .form-group label {
   display: block;
   font-size: 13px;
@@ -246,6 +316,116 @@ const getCompletedCount = (msId: number) =>
   color: #52525b;
   margin-bottom: 8px;
 }
+
+/* =======================================
+   🌟 트렌디한 통합형 날짜 선택 버튼 그룹
+======================================= */
+.date-range-picker {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  padding: 4px;
+  transition: all 0.2s;
+}
+.date-range-picker.is-active {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+.date-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #27272a;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.date-btn:hover {
+  background: #f4f4f5;
+}
+.date-btn.active-tab {
+  background: #eef2ff;
+  color: #4f46e5;
+  font-weight: 700;
+}
+.date-divider {
+  color: #a1a1aa;
+  padding: 0 8px;
+  font-weight: bold;
+}
+
+/* =======================================
+   🌟 1:1 비율의 콤팩트 캘린더 드롭다운
+======================================= */
+.overlay-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 90;
+  cursor: default;
+}
+.compact-calendar-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column; /* 탭과 캘린더 영역을 위아래로 분리 */
+}
+
+/* 팝업 내부 탭 */
+.dropdown-tabs {
+  display: flex;
+  border-bottom: 1px solid #e4e4e7;
+  background: #fafafa;
+}
+.dropdown-tabs button {
+  flex: 1;
+  padding: 12px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a1a1aa;
+  cursor: pointer;
+}
+.dropdown-tabs button.is-selected {
+  color: #4f46e5;
+  background: #fff;
+  border-bottom: 2px solid #4f46e5;
+}
+
+/* 달력이 렌더링되는 영역 (스크롤 추가) */
+.calendar-render-area {
+  padding: 16px;
+
+  /* 🌟 핵심: 최대 높이를 지정하고, 달력이 이보다 길어지면 내부 스크롤 생성 */
+  max-height: 300px; /* 노트북 등 작은 화면에서도 안 잘리도록 제한 (필요시 조절) */
+  overflow-y: auto;
+  scrollbar-gutter: stable; /* 스크롤바 생성 시 가로 덜컹거림 방지 */
+}
+
+/* 내부 달력 컴포넌트가 정사각형 영역을 꽉 채우도록 설정 */
+:deep(.calendar-render-area > *) {
+  width: 100%;
+  height: 100%;
+}
+
+/* =======================================
+   나머지 폼 요소 & 마일스톤 리스트
+======================================= */
 .s-input {
   width: 100%;
   padding: 12px 14px;
@@ -266,15 +446,6 @@ const getCompletedCount = (msId: number) =>
   font-weight: 700;
   padding: 14px 16px;
 }
-.date-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.date-dash {
-  color: #a1a1aa;
-  font-weight: 600;
-}
 
 .btn-primary {
   background: #27272a;
@@ -290,8 +461,6 @@ const getCompletedCount = (msId: number) =>
 .btn-primary:hover {
   background: #3f3f46;
 }
-
-/* 마일스톤 목록 영역 */
 .search-row {
   position: relative;
   margin-bottom: 16px;
@@ -309,7 +478,6 @@ const getCompletedCount = (msId: number) =>
   border-radius: 20px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
-
 .ms-header-row {
   display: flex;
   justify-content: space-between;
@@ -329,10 +497,10 @@ const getCompletedCount = (msId: number) =>
   padding: 4px 10px;
   border-radius: 20px;
 }
-
 .ms-list-container {
   flex: 1;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding-right: 8px;
   display: flex;
   flex-direction: column;
@@ -412,8 +580,6 @@ const getCompletedCount = (msId: number) =>
   border-radius: 12px;
   border: 1px dashed #e4e4e7;
 }
-
-/* 색상 & 진행률 */
 .color-picker {
   display: flex;
   gap: 10px;

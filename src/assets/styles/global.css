@@ -33,6 +33,7 @@ body {
 ::-webkit-scrollbar {
   width: 4px;
   height: 6px;
+  scrollbar-gutter: stable; /* 스크롤바가 생기든 안 생기든 4px 공간 고정 */
 }
 
 /* 2. 스크롤바 손잡이 (Thumb) */

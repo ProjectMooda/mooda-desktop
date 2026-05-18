@@ -19,7 +19,7 @@
           @toggle="$emit('toggle-pin')"
         />
 
-        <xButton variant="rounded" @click.stop="$emit('delete')" />
+        <Xbutton variant="rounded" @click.stop="$emit('delete')" />
 
         <!-- 변경된 체크박스 컴포넌트 적용 -->
         <CheckBox
@@ -45,7 +45,7 @@
 import { ref } from 'vue'
 import type { ScheduleItem } from '@/stores/useScheduleStore'
 import ScheduleDetailModal from '@/global-components/modal/schedule-detail-modal/ScheduleDetailModal.vue'
-import xButton from '@/global-components/ui//Xbutton.vue'
+import Xbutton from '@/global-components/ui//Xbutton.vue'
 import PinButton from '@/global-components/ui/PinButton.vue'
 // 새로 만든 체크박스 컴포넌트 임포트 (경로는 프로젝트에 맞게 수정하세요)
 import CheckBox from '@/global-components/ui/CheckBox.vue'
@@ -62,6 +62,7 @@ const openModal = () => {
   isModalOpen.value = true
 }
 </script>
+
 <style scoped>
 /* =======================================
    📋 Compact Task Card (List Item)

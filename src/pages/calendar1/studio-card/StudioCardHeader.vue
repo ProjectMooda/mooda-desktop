@@ -2,7 +2,7 @@
   <div class="card-head">
     <div class="head-title-group">
       <h3>{{ formattedDate }} Schedule</h3>
-      <div class="progress-container" v-if="totalItems > 0">
+      <div v-if="totalItems > 0" class="progress-container">
         <div class="progress-text">
           달성률 <span>{{ progressPercent }}%</span>
         </div>
@@ -45,99 +45,141 @@ defineProps<{
 
 defineEmits(['toggle-completed', 'toggle-add-form'])
 </script>
-
 <style scoped>
+/* =======================================
+   HEADER LAYOUT
+======================================= */
 .card-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6); /* 24px */
 }
+
 .head-title-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2); /* 8px */
   flex: 1;
 }
+
 .card-head h3 {
-  font-size: 20px;
-  font-weight: 800;
-  color: #27272a;
+  font-size: var(--text-xl); /* 20px */
+  font-weight: var(--font-bold); /* 700 혹은 800 대용 */
+  color: var(--text-main); /* 애플 메인 텍스트 먹색 */
   margin: 0;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.01em; /* 전역 body 자간 스타일과 통일 */
 }
+
+/* =======================================
+   PROGRESS BAR (애플 스타일 정돈)
+======================================= */
 .progress-container {
   width: 100%;
   max-width: 240px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1); /* 4px */
 }
+
 .progress-text {
-  font-size: 12px;
-  font-weight: 600;
-  color: #71717a;
+  font-size: var(--text-xs); /* 12px */
+  font-weight: var(--font-semibold);
+  color: var(--text-sub); /* 서브 그레이 텍스트 */
   display: flex;
   justify-content: space-between;
 }
+
 .progress-text span {
-  color: #3b82f6;
-  font-weight: 800;
+  color: var(--color-primary); /* 애플 시그니처 블루 */
+  font-weight: var(--font-bold);
 }
+
 .progress-track {
   width: 100%;
   height: 6px;
-  background: #f4f4f5;
-  border-radius: 4px;
+  background-color: var(--bg-hover); /* 가벼운 트랙 배경색 */
+  border-radius: var(--radius-sm); /* 알약 모양 */
   overflow: hidden;
 }
+
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #60a5fa);
-  border-radius: 4px;
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 지나치게 화려한 그라디언트 대신 단색 처리로 깔끔함 극대화 */
+  background-color: var(--color-primary);
+  border-radius: var(--radius-sm);
+  /* 부드러운 쿠빅 베지어 애니메이션 속도 동기화 */
+  transition: width var(--transition-base);
 }
+
+/* =======================================
+   ACTIONS & BUTTONS
+======================================= */
 .head-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2); /* 8px */
 }
+
+/* 아이콘 버튼 공통 (기존 선언 규칙 준수) */
 .btn-icon {
-  background: #f4f4f5;
+  background-color: var(--bg-hover);
   border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: var(--control-size-md); /* 32px */
+  height: var(--control-size-md);
+  border-radius: var(--radius-sm); /* 애플 표준 둥글기 감성 */
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  transition: 0.2s;
+  font-size: var(--text-sm); /* 14px */
+  color: var(--text-main);
+  outline: none;
+  transition: background-color var(--transition-fast);
 }
+
 .btn-icon:hover {
-  background: #e4e4e7;
+  background-color: var(--border-color); /* 호버 시 조금 더 짙어지게 */
 }
+
+/* 추가 버튼 (기본형) */
 .btn-add {
-  background: #27272a;
-  color: #fff;
+  background-color: var(--text-main); /* 메인 먹색을 배경으로 활용 */
+  color: #ffffff;
   border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: var(--control-size-md); /* 32px */
+  height: var(--control-size-md);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 18px;
-  font-weight: 600;
-  display: flex;
+  font-size: var(--text-lg); /* 18px '+' 기호용 크기 */
+  font-weight: var(--font-medium);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  outline: none;
+
+  /* 과한 트랜스폼(scale)을 제거하고 쫀득한 active-scale 유틸 연동 준비 */
+  transition:
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
 }
+
 .btn-add:hover {
-  background: #3f3f46;
-  transform: scale(1.05);
+  background-color: #3a3a3c; /* 애플 시스템 그레이 호버 톤 */
 }
+
+/* 유저가 클릭하는 순간 미세하게 눌리는 효과 제공 (선택사항) */
+.btn-add:active {
+  transform: scale(0.96);
+}
+
+/* 활성화 / 취소 상태 (is-active 혹은 active) */
 .btn-add.active {
-  background: #ef4444;
+  background-color: var(--color-danger); /* iOS 시스템 레드 */
+  transform: rotate(45deg); /* '+' 기호를 'x' 모양으로 센스 있게 회전 */
+}
+
+.btn-add.active:hover {
+  background-color: #e0352b; /* 대인저 호버용 딥 레드 */
 }
 </style>

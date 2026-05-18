@@ -14,7 +14,7 @@
                 {{ title }}
               </h2>
 
-              <XButton
+              <Xbutton
                 variant="circle"
                 size="md"
                 intent="close"
@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
-
+import Xbutton from '@/global-components/ui/Xbutton.vue'
 const props = withDefaults(
   defineProps<{
     modelValue?: boolean

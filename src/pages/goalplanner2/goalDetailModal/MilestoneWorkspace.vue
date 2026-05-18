@@ -2,13 +2,13 @@
   <div class="goal-detail-view">
     <div class="ms-workspace-header">
       <div class="header-left">
-        <button @click="$emit('back')" class="btn-back">〈 목록으로</button>
+        <button class="btn-back" @click="$emit('back')">〈 목록으로</button>
         <input
           type="text"
           :value="activeMilestone?.summary"
           class="workspace-title-input"
-          @change="onSummaryChange"
           placeholder="마일스톤 타이틀"
+          @change="onSummaryChange"
         />
       </div>
       <div class="header-right">
@@ -16,18 +16,18 @@
           <input
             type="date"
             :value="activeMilestone?.startDate"
-            @change="(e) => updateMilestoneDate('startDate', e)"
             class="s-input-sm"
+            @change="(e) => updateMilestoneDate('startDate', e)"
           />
           <span>~</span>
           <input
             type="date"
             :value="activeMilestone?.endDate"
-            @change="(e) => updateMilestoneDate('endDate', e)"
             class="s-input-sm"
+            @change="(e) => updateMilestoneDate('endDate', e)"
           />
         </div>
-        <button @click="removeMilestone" class="btn-text-danger ml-4">
+        <button class="btn-text-danger ml-4" @click="removeMilestone">
           마일스톤 삭제
         </button>
       </div>
@@ -52,51 +52,33 @@
           <span class="ms-count">{{ pendingTasks.length }}개 남음</span>
         </div>
 
-        <div class="add-task-row mb-4">
-          <span class="add-icon">↳</span>
-          <input
-            type="text"
-            v-model="newTaskText"
-            class="s-input task-add-input"
-            :placeholder="`${selectedMsDate.slice(8)}일에 수행할 일정 추가...`"
-            @keyup.enter="addTaskToSelectedDate"
-          />
-          <button
-            @click="addTaskToSelectedDate"
-            class="btn-secondary btn-small shrink-0"
-          >
-            추가
-          </button>
-        </div>
-
         <div class="task-list-scroll">
-          <div class="task-list">
-            <div
-              v-for="task in pendingTasks"
-              :key="task.id"
-              class="task-item group"
-            >
-              <label class="cbx-wrap shrink-0">
-                <CheckBox
-                  v-model="task.done"
-                  @update:model-value="store.saveData"
+          <!-- 진행 중인 항목 (할 일 추가 영역 포함) -->
+          <BaseTaskList
+            :items="pendingTasks"
+            text-key="summary"
+            empty-message="해당 날짜에 진행 중인 일정이 없습니다."
+            @delete="removeTask"
+            @update="store.saveData"
+            @item-click="openTaskModal"
+          >
+            <!-- 🟢 header 슬롯을 사용하여 리스트 위에 입력창 배치 -->
+            <template #header>
+              <div class="add-subtask-wrapper mb-2">
+                <span class="add-icon">↳</span>
+                <input
+                  v-model="newTaskText"
+                  type="text"
+                  class="add-subtask-input"
+                  :placeholder="`${selectedMsDate.slice(8)}일에 수행할 일정 추가...`"
+                  @keyup.enter="handleAddTask"
                 />
-                <span class="cbx-custom"></span>
-              </label>
-              <div
-                class="task-text-wrap flex-1 cursor-pointer"
-                @click="openTaskModal(task)"
-              >
-                <span class="task-text">{{ task.summary }}</span>
               </div>
-              <Xbutton @click.stop="removeTask(task.id)" />
-            </div>
-            <div v-if="pendingTasks.length === 0" class="empty-task">
-              해당 날짜에 진행 중인 일정이 없습니다.
-            </div>
-          </div>
+            </template>
+          </BaseTaskList>
 
-          <div class="completed-section mt-4" v-if="completedTasks.length > 0">
+          <!-- 완료된 항목 -->
+          <div v-if="completedTasks.length > 0" class="completed-section mt-4">
             <button
               class="toggle-completed-btn"
               @click="showCompleted = !showCompleted"
@@ -105,34 +87,17 @@
                 completedTasks.length
               }})
             </button>
-            <div v-if="showCompleted" class="task-list mt-2 opacity-70">
-              <div
-                v-for="task in completedTasks"
-                :key="task.id"
-                class="task-item group bg-gray-50"
-              >
-                <label class="cbx-wrap shrink-0">
-                  <CheckBox
-                    v-model="task.done"
-                    @update:model-value="store.saveData"
-                  />
-                  <span
-                    class="cbx-custom"
-                    :style="{
-                      backgroundColor: goal.color || '#4f46e5',
-                      borderColor: goal.color || '#4f46e5'
-                    }"
-                  ></span>
-                </label>
-                <div
-                  class="task-text-wrap flex-1 cursor-pointer"
-                  @click="openTaskModal(task)"
-                >
-                  <span class="task-text is-done">{{ task.summary }}</span>
-                </div>
-                <Xbutton @click.stop="removeTask(task.id)" />
-              </div>
-            </div>
+            <BaseTaskList
+              v-if="showCompleted"
+              class="mt-2 opacity-70"
+              :items="completedTasks"
+              text-key="summary"
+              :is-completed-style="true"
+              :theme-color="goal.color || '#4f46e5'"
+              @delete="removeTask"
+              @update="store.saveData"
+              @item-click="openTaskModal"
+            />
           </div>
         </div>
       </div>
@@ -158,7 +123,7 @@ import {
   type ScheduleItem
 } from '@/stores/useScheduleStore'
 import Calendar from '@/global-components/calendar/Calendar.vue'
-import Xbutton from '@/global-components/ui//Xbutton.vue'
+import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
 import ScheduleDetailModal from '@/global-components/modal/schedule-detail-modal/ScheduleDetailModal.vue'
 
 const props = defineProps<{ goal: Goal; milestoneId: number }>()
@@ -225,8 +190,8 @@ const updateMilestoneDate = (field: 'startDate' | 'endDate', event: Event) => {
 }
 
 // Task 관리 로직
-const newTaskText = ref('')
 const showCompleted = ref(false)
+const newTaskText = ref('') // 🌟 입력창 상태 추가
 
 const tasksForSelectedDate = computed(() => {
   if (!activeMilestone.value || !selectedMsDate.value) return []
@@ -244,25 +209,31 @@ const completedTasks = computed(() =>
   tasksForSelectedDate.value.filter((t) => t.done)
 )
 
-const addTaskToSelectedDate = () => {
-  if (
-    !newTaskText.value.trim() ||
-    !activeMilestone.value ||
-    !selectedMsDate.value
-  )
-    return
-  store.schedules.push({
+// 🌟 입력 처리 함수 추가
+const handleAddTask = () => {
+  const text = newTaskText.value.trim()
+  if (!text) return
+
+  addTaskToSelectedDate(text)
+  newTaskText.value = '' // 입력창 초기화
+}
+
+const addTaskToSelectedDate = (text: string) => {
+  if (!activeMilestone.value || !selectedMsDate.value) return
+
+  // 🌟 항목이 위로 쌓이도록 unshift 사용
+  store.schedules.unshift({
     id: Date.now(),
     type: 'task',
     goalId: props.goal.id,
     milestoneId: activeMilestone.value.id,
-    summary: newTaskText.value,
+    summary: text,
     done: false,
     startDate: selectedMsDate.value,
     endDate: selectedMsDate.value
   } as ScheduleItem)
+
   store.saveData()
-  newTaskText.value = ''
 }
 const removeTask = (taskId: number) => store.removeSchedule(taskId)
 
@@ -292,26 +263,23 @@ const handleTaskDelete = () => {
 .opacity-70 {
   opacity: 0.7;
 }
-.shrink-0 {
-  flex-shrink: 0;
-}
-.flex-1 {
-  flex: 1;
-}
-.cursor-pointer {
-  cursor: pointer;
-}
-.mb-4 {
-  margin-bottom: 16px;
+.ml-4 {
+  margin-left: 16px;
 }
 .mt-4 {
   margin-top: 16px;
+}
+.mt-2 {
+  margin-top: 8px;
+}
+.mb-2 {
+  margin-bottom: 8px;
 }
 .h-full {
   height: 100%;
 }
 
-/* 버튼 및 인풋 */
+/* 상단 버튼 및 인풋 */
 .s-input-sm {
   border: none;
   background: transparent;
@@ -319,25 +287,6 @@ const handleTaskDelete = () => {
   color: #3f3f46;
   outline: none;
   width: 110px;
-}
-.btn-secondary {
-  background: #f4f4f5;
-  color: #3f3f46;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: 0.2s;
-  font-size: 13px;
-}
-.btn-secondary:hover {
-  background: #e4e4e7;
-}
-.btn-small {
-  padding: 10px 16px;
-  font-size: 14px;
-  border-radius: 10px;
 }
 .btn-text-danger {
   background: transparent;
@@ -418,10 +367,8 @@ const handleTaskDelete = () => {
   padding: 6px 12px;
   border-radius: 8px;
 }
-.ml-4 {
-  margin-left: 16px;
-}
 
+/* 바디 레이아웃 (달력 & 테스크 영역) */
 .ms-workspace-body {
   display: flex;
   flex: 1;
@@ -463,61 +410,17 @@ const handleTaskDelete = () => {
   border-radius: 20px;
 }
 
-/* 세부 일정 리스트 */
+/* 리스트 영역 래퍼 */
 .task-list-scroll {
   flex: 1;
   overflow-y: auto;
   padding-right: 8px;
   margin-right: -8px;
+  scrollbar-gutter: stable;
+  padding-right: 4px; /* 기존의 margin-right 음수 값을 지우고 패딩만 살짝 줍니다 */
 }
-.task-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.task-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #fff;
-  padding: 12px 16px;
-  border: 1px solid #e4e4e7;
-  border-radius: 10px;
-  transition: border-color 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-}
-.task-item:hover {
-  border-color: #a1a1aa;
-}
-.bg-gray-50 {
-  background: #fafafa;
-  border-style: dashed;
-}
-.task-text-wrap {
-  overflow: hidden;
-}
-.task-text {
-  font-size: 14px;
-  font-weight: 500;
-  color: #27272a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-}
-.task-text.is-done {
-  text-decoration: line-through;
-  color: #a1a1aa;
-}
-.empty-task {
-  text-align: center;
-  padding: 40px 0;
-  color: #a1a1aa;
-  font-size: 14px;
-  border: 1px dashed #e4e4e7;
-  border-radius: 10px;
-  background: #fff;
-}
+
+/* 완료된 항목 토글 버튼 */
 .toggle-completed-btn {
   background: none;
   border: none;
@@ -530,64 +433,44 @@ const handleTaskDelete = () => {
   display: flex;
   align-items: center;
   margin-top: 16px;
+  margin-bottom: 8px;
 }
 .toggle-completed-btn:hover {
   color: #27272a;
 }
 
-.add-task-row {
+/* 🌟 하위 할 일 추가 입력창 (이관된 스타일) */
+.add-subtask-wrapper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px dashed #d4d4d8;
+  transition: border-color 0.2s;
+}
+.add-subtask-wrapper:focus-within {
+  border-color: #6366f1;
+  border-style: solid;
 }
 .add-icon {
   color: #a1a1aa;
   font-weight: bold;
-  font-size: 18px;
-}
-.task-add-input {
-  padding: 12px 16px;
   font-size: 14px;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-  border: 1px solid #d4d4d8;
-  width: 100%;
+  width: 16px;
+  text-align: center;
 }
-
-/* 체크박스 커스텀 */
-.cbx-wrap {
-  position: relative;
-  width: 22px;
-  height: 22px;
-  cursor: pointer;
+.add-subtask-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  color: #27272a;
+  outline: none;
+  min-width: 0;
 }
-.cbx-wrap input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-  position: absolute;
-}
-.cbx-custom {
-  position: absolute;
-  inset: 0;
-  border: 2px solid #d4d4d8;
-  border-radius: 6px;
-  transition: 0.2s;
-}
-.cbx-custom:after {
-  content: '';
-  position: absolute;
-  display: none;
-  left: 6px;
-  top: 3px;
-  width: 5px;
-  height: 10px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-.cbx-wrap input:checked ~ .cbx-custom:after {
-  display: block;
+.add-subtask-input::placeholder {
+  color: #a1a1aa;
 }
 </style>

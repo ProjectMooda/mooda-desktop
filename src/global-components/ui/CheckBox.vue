@@ -1,4 +1,4 @@
-<!-- src/components/ui/CustomCheckbox.vue -->
+<!-- src/components/ui/Checkbox.vue -->
 <template>
   <input
     type="checkbox"
@@ -25,9 +25,16 @@ const handleChange = (event: Event) => {
 
 <style scoped>
 .custom-checkbox {
-  width: 20px;
-  height: 20px;
-  accent-color: #3b82f6;
+  /* variables.css의 컨트롤 크기 활용 (20px) */
+  width: var(--control-size-xs);
+  height: var(--control-size-xs);
+
+  /* 애플 시그니처 블루로 체크 색상 변경 */
+  accent-color: var(--color-primary);
+
+  /* 마우스 커서 및 기본 정렬 정돈 */
   cursor: pointer;
+  vertical-align: middle;
+  margin: 0; /* 브라우저 기본 마진 제거로 정렬 꼬임 방지 */
 }
 </style>

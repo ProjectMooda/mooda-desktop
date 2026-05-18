@@ -1,13 +1,11 @@
 <template>
-  <!-- 기존 CSS 오버레이 대신 BaseModal 사용 -->
   <BaseModal title="새로운 마일스톤 추가" width="420px" @close="$emit('close')">
-    <!-- BODY 영역 (BaseModal의 기본 슬롯) -->
     <div class="form-container">
       <div class="form-group">
         <label>타이틀</label>
         <input
-          type="text"
           v-model="newMsSummary"
+          type="text"
           class="s-input"
           placeholder="마일스톤 타이틀 입력"
           @keyup.enter="submitNewMilestone"
@@ -17,21 +15,20 @@
       <div class="form-group">
         <label>기간 설정</label>
         <div class="date-row">
-          <input type="date" v-model="newMsStartDate" class="s-input flex-1" />
+          <input v-model="newMsStartDate" type="date" class="s-input flex-1" />
           <span class="date-dash">~</span>
-          <input type="date" v-model="newMsEndDate" class="s-input flex-1" />
+          <input v-model="newMsEndDate" type="date" class="s-input flex-1" />
         </div>
       </div>
     </div>
 
-    <!-- FOOTER 영역 (BaseModal의 footer 슬롯 활용) -->
     <template #footer>
       <div class="footer-actions">
-        <button @click="$emit('close')" class="btn-secondary">취소</button>
+        <button class="btn-secondary" @click="$emit('close')">취소</button>
         <button
-          @click="submitNewMilestone"
           class="btn-primary"
-          :style="{ backgroundColor: goal.color || '#27272a' }"
+          :style="{ backgroundColor: goal?.color || '#27272a' }"
+          @click="submitNewMilestone"
         >
           등록하기
         </button>
@@ -53,11 +50,12 @@ const props = defineProps<{ goal: Goal }>()
 const emit = defineEmits(['close'])
 const store = useScheduleStore()
 
-const newMsStartDate = ref(store.selectedDate)
-const newMsEndDate = ref(store.selectedDate)
+const newMsStartDate = ref(store?.selectedDate || '')
+const newMsEndDate = ref(store?.selectedDate || '')
 const newMsSummary = ref('')
 
 const validateMilestoneDates = (msStart: string, msEnd: string) => {
+  if (!props.goal) return false
   const { startDate: gStart, endDate: gEnd } = props.goal
   if (msStart && gStart && msStart < gStart)
     return (alert(`목표 시작일(${gStart})보다 빠를 수 없습니다.`), false)
@@ -78,6 +76,9 @@ const submitNewMilestone = () => {
     !validateMilestoneDates(newMsStartDate.value, newMsEndDate.value)
   )
     return
+
+  // 🌟 스토어 배열 부재 시 초기화 예외 처리 및 추가
+  if (!store.schedules) store.schedules = []
 
   store.schedules.push({
     id: Date.now(),

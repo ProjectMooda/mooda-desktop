@@ -2,9 +2,23 @@
   <section class="studio-card cal-section">
     <div class="card-head">
       <button class="icon-btn" @click="changeMonth(-1)">‹</button>
-      <h3>
-        {{ currentYear }}. {{ String(currentMonth + 1).padStart(2, '0') }}
-      </h3>
+
+      <!-- 🌟 분리된 MonthPicker 컴포넌트 적용 -->
+      <div class="title-wrapper">
+        <button class="title-btn" @click="showMonthPicker = true">
+          {{ currentYear }}. {{ String(currentMonth + 1).padStart(2, '0') }}
+          <span class="arrow">▾</span>
+        </button>
+
+        <MonthPicker
+          v-if="showMonthPicker"
+          :current-year="currentYear"
+          :current-month="currentMonth"
+          @select="handleMonthSelect"
+          @close="showMonthPicker = false"
+        />
+      </div>
+
       <button class="icon-btn" @click="changeMonth(1)">›</button>
     </div>
 
@@ -31,7 +45,7 @@
       >
         <span class="date-num">{{ date.day }}</span>
 
-        <div class="dot-wrap" v-if="date.currentMonth">
+        <div v-if="date.currentMonth" class="dot-wrap">
           <div
             v-for="item in getDailyIndicators(date.full).slice(0, 6)"
             :key="item.color"
@@ -51,6 +65,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useScheduleStore } from '@/stores/useScheduleStore'
+import MonthPicker from './MonthPicker.vue' // ✅ 공통 컴포넌트 불러오기
 
 const scheduleStore = useScheduleStore()
 
@@ -58,7 +73,7 @@ const props = defineProps<{
   modelValue?: string
   rangeStart?: string
   rangeEnd?: string
-  restrictRange?: boolean // 기간 밖 클릭 방지 여부
+  restrictRange?: boolean
 }>()
 
 const emit = defineEmits(['update:modelValue'])
@@ -77,7 +92,21 @@ const currentMonth = ref(now.getMonth())
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
-// 부모 컴포넌트에서 선택한 날짜가 바뀌면 캘린더 월(Month)도 이동
+// 🌟 월/년도 선택기 상태 및 핸들러
+const showMonthPicker = ref(false)
+
+const handleMonthSelect = ({
+  year,
+  month
+}: {
+  year: number
+  month: number
+}) => {
+  currentYear.value = year
+  currentMonth.value = month
+  showMonthPicker.value = false
+}
+
 watch(
   () => props.modelValue,
   (newVal) => {
@@ -155,9 +184,7 @@ const changeMonth = (diff: number) => {
 
 const selectDate = (date: CalendarDate) => {
   if (!date.currentMonth) return
-  // restrictRange 옵션이 켜져있고, 마일스톤 기간 밖이면 클릭 차단
   if (props.restrictRange && !date.inRange) return
-
   emit('update:modelValue', date.full)
 }
 
@@ -189,13 +216,13 @@ const getDailyIndicators = (dateStr: string) => {
 </script>
 
 <style scoped>
-/* 카드 및 캘린더 전체 래퍼 (기존 cal-section 내용 병합) */
+/* 카드 및 캘린더 전체 래퍼 */
 .studio-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg); /* 16px */
-  padding: var(--space-6); /* 24px */
-  box-shadow: var(--shadow-md); /* 기존 0 4px 16px 느낌의 변수 */
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -206,24 +233,53 @@ const getDailyIndicators = (dateStr: string) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-5); /* 20px */
-}
-.card-head h3 {
-  font-size: var(--text-lg); /* 18px */
-  font-weight: var(--font-bold); /* 800 */
-  color: var(--text-main); /* #27272a 대응 */
-  margin: 0;
+  margin-bottom: var(--space-5);
+  position: relative;
 }
 
-.icon-btn {
-  background: var(--bg-hover); /* #f4f4f5 대응 */
+/* 🌟 타이틀 및 팝업 앵커 */
+.title-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title-btn {
+  background: transparent;
   border: none;
-  width: var(--control-size-md); /* 32px */
-  height: var(--control-size-md);
-  border-radius: var(--radius-sm); /* 8px */
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
-  color: var(--text-sub); /* #71717a 대응 */
+  color: var(--text-main);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.title-btn:hover {
+  background: var(--bg-hover);
+}
+
+.title-btn .arrow {
+  font-size: 12px;
+  color: var(--text-muted);
+  transform: translateY(1px);
+}
+
+/* 좌우 이동 버튼 */
+.icon-btn {
+  background: var(--bg-hover);
+  border: none;
+  width: var(--control-size-md);
+  height: var(--control-size-md);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  color: var(--text-sub);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -233,88 +289,83 @@ const getDailyIndicators = (dateStr: string) => {
     color var(--transition-fast);
 }
 .icon-btn:hover {
-  background: var(--border-color); /* #e4e4e7 대응 */
-  color: var(--text-main); /* #27272a 대응 */
+  background: var(--border-color);
+  color: var(--text-main);
 }
 
 /* =======================================
-   ✨ 핵심 그리드 레이아웃 (유지)
+   ✨ 핵심 그리드 레이아웃
 ======================================= */
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: auto repeat(6, minmax(80px, 1fr));
-  gap: var(--space-1); /* 4px */
+  grid-template-rows: auto repeat(6, minmax(0, 1fr));
+  gap: var(--space-1);
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
   padding-right: var(--space-1);
 }
 
 .cal-day {
   text-align: center;
-  font-size: var(--text-xs); /* 12px */
+  font-size: var(--text-xs);
   font-weight: var(--font-bold);
-  color: var(--text-muted); /* #a1a1aa 대응 */
-  padding: var(--space-2) 0; /* 8px 0 */
+  color: var(--text-muted);
+  padding: var(--space-2) 0;
   position: sticky;
   top: 0;
-  background: var(--bg-card); /* #fff 대응 */
-  z-index: var(--z-sticky); /* 10 대응 */
+  background: var(--bg-card);
 }
 
 .cal-cell {
-  background: var(--bg-app); /* #f8f8fa 에 가장 가까운 시스템 앱 배경 */
-  border-radius: var(--radius-sm); /* 8px */
+  background: var(--bg-app);
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 2px; /* 셀 내부 미세 패딩은 픽셀 유지 */
+  padding: 6px 2px;
   cursor: pointer;
   transition: all var(--transition-fast);
   overflow: hidden;
   height: 100%;
 }
 .cal-cell:hover:not(.dimmed):not(.out-range) {
-  background: var(--bg-card); /* #fff */
-  border-color: var(--border-color); /* #d4d4d8 대응 */
-  box-shadow: var(--shadow-sm); /* 0 2px 8px 대응 */
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-sm);
 }
 
-/* 선택, 범위 등 상태값 */
 .cal-cell.selected {
-  background: var(--text-main) !important; /* #27272a (진한 먹색) 대응 */
+  background: var(--text-main) !important;
   border-color: var(--text-main) !important;
 }
 .cal-cell.selected .date-num,
 .cal-cell.selected .dot-count {
-  color: var(--bg-card) !important; /* #fff 대응 */
+  color: var(--bg-card) !important;
 }
 .cal-cell.dimmed {
   opacity: 0.3;
   pointer-events: none;
 }
 .cal-cell.in-range {
-  background: var(
-    --color-primary-pale
-  ); /* #f8fafc (아주 연한 푸른빛 배경) 대응 */
+  background: var(--color-primary-pale);
 }
 .cal-cell.out-range {
   cursor: not-allowed;
   opacity: 0.4;
-  background: var(--bg-hover); /* #fafafa 대응 */
+  background: var(--bg-hover);
 }
 
 .date-num {
-  font-size: var(--text-sm); /* 13px (14px 스케일 사용) */
-  font-weight: var(--font-semibold); /* 600 */
-  color: var(--text-main); /* #3f3f46 대응 */
-  margin-bottom: var(--space-1); /* 4px */
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-main);
+  margin-bottom: var(--space-1);
 }
 .cal-cell.today .date-num {
-  color: var(--color-primary); /* #4f46e5 (포인트 컬러) 대응 */
-  font-weight: var(--font-bold); /* 800 */
+  color: var(--color-primary);
+  font-weight: var(--font-bold);
 }
 
 /* =======================================
@@ -331,7 +382,7 @@ const getDailyIndicators = (dateStr: string) => {
   display: flex;
   align-items: center;
   gap: 2px;
-  background: rgba(0, 0, 0, 0.03); /* 아주 미세한 명암은 픽셀 유지 */
+  background: rgba(0, 0, 0, 0.03);
   padding: 1px var(--space-1);
   border-radius: 4px;
   justify-content: center;
@@ -344,8 +395,8 @@ const getDailyIndicators = (dateStr: string) => {
 }
 .dot-count {
   font-size: 9px;
-  font-weight: var(--font-bold); /* 700 */
-  color: var(--text-sub); /* #52525b 대응 */
+  font-weight: var(--font-bold);
+  color: var(--text-sub);
   line-height: 1;
 }
 @media (max-width: 1200px) {

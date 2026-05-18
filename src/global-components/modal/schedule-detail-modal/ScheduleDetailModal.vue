@@ -1,21 +1,21 @@
 <template>
   <BaseModal
     :model-value="isOpen"
-    @close="handleClose"
     width="460px"
     :show-header="false"
+    @close="handleClose"
   >
     <!-- BODY 컨텐츠 래퍼 (스크롤을 위해 클래스 스타일 추가됨) -->
     <div class="detail-content-wrapper">
       <!-- 메인 타이틀 -->
       <div class="modal-header-title">
         <input
+          v-model="localData.summary"
           type="text"
           class="title-input"
-          v-model="localData.summary"
           placeholder="할 일의 제목(한줄 요약)을 입력하세요"
         />
-        <span class="edit-hint title-edit-hint">✏️</span>
+        <span class="title-edit-hint">✏️</span>
       </div>
 
       <!-- 시간 설정 -->
@@ -57,43 +57,28 @@
           ></div>
         </div>
 
-        <div class="subtask-list-container">
-          <ul class="subtask-list" v-if="hasSubtasks">
-            <li
-              v-for="sub in localData.subtasks"
-              :key="sub.id"
-              class="subtask-item"
-            >
-              <CheckBox v-model="sub.done" />
-
-              <div class="subtask-input-wrapper">
-                <input
-                  type="text"
-                  class="subtask-input"
-                  v-model="sub.text"
-                  :class="{ 'is-done': sub.done }"
-                />
-                <span class="edit-hint">✏️</span>
-              </div>
-              <Xbutton
-                size="sm"
-                @click.stop="removeSubtask(sub.id)"
-                title="삭제"
+        <!-- 🌟 공통 컴포넌트 적용 (슬롯 사용) -->
+        <BaseTaskList
+          :items="localData.subtasks || []"
+          text-key="text"
+          :editable="true"
+          @delete="removeSubtask"
+          @update="updateSubtaskProgress"
+        >
+          <!-- 🔴 footer 슬롯을 사용하여 리스트 아래에 입력창 배치 -->
+          <template #footer>
+            <div class="add-subtask-wrapper" style="margin-top: 4px">
+              <span class="add-icon">＋</span>
+              <input
+                v-model="newSubtaskText"
+                type="text"
+                class="add-subtask-input"
+                placeholder="하위 할 일 추가 (Enter)"
+                @keyup.enter="handleAddSubtask"
               />
-            </li>
-          </ul>
-
-          <div class="add-subtask-wrapper">
-            <span class="add-icon">＋</span>
-            <input
-              type="text"
-              class="add-subtask-input"
-              v-model="newSubtaskText"
-              @keyup.enter="addSubtask"
-              placeholder="하위 할 일 추가 (Enter)"
-            />
-          </div>
-        </div>
+            </div>
+          </template>
+        </BaseTaskList>
       </div>
 
       <!-- 상세 메모 -->
@@ -102,8 +87,8 @@
           <label>상세 메모</label>
         </div>
         <textarea
-          class="modal-textarea"
           v-model="localData.memo"
+          class="modal-textarea"
           placeholder="상세 메모를 입력하세요 (선택)"
         ></textarea>
       </div>
@@ -126,10 +111,9 @@ import { ref, computed, watch } from 'vue'
 import BaseModal from '@/global-components/modal/base/BaseModal.vue'
 import TimePicker from '@/global-components//time-picker/TimePicker.vue'
 import { useScheduleStore } from '@/stores/useScheduleStore'
-import Xbutton from '@/global-components/ui//Xbutton.vue'
-import CheckBox from '@/global-components/ui/CheckBox.vue'
-import SelectList from '@/global-components/ui/SelectList.vue' // ✅ 새로 만든 공통 컴포넌트 추가
+import SelectList from '@/global-components/ui/SelectList.vue'
 import type { ScheduleItem } from '@/stores/useScheduleStore'
+import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
 
 const store = useScheduleStore()
 
@@ -185,19 +169,29 @@ const progressPercentage = computed(() => {
   return Math.round((completed / total) * 100)
 })
 
-// 하위 할 일 추가 (로컬 상태에 추가)
-const addSubtask = () => {
+// 🌟 엔터 입력 처리 함수
+const handleAddSubtask = () => {
   const text = newSubtaskText.value.trim()
+  if (!text) return
+
+  addSubtask(text)
+  newSubtaskText.value = '' // 완료 후 입력창 비우기
+}
+
+// 하위 할 일 추가 (로컬 상태의 배열 맨 뒤에 추가됨)
+const addSubtask = (text: string) => {
   if (!text) return
   localData.value.subtasks?.push({
     id: Date.now(),
     text,
     done: false
   })
-  newSubtaskText.value = ''
 }
 
-// 하위 할 일 삭제 (로컬 상태에서 삭제)
+const updateSubtaskProgress = (updatedItem: any) => {
+  // 별도로 할 게 없다면 비워두셔도 되지만 프로그레스 바 갱신 시 유용합니다.
+}
+
 const removeSubtask = (subtaskId: number) => {
   if (localData.value.subtasks) {
     localData.value.subtasks = localData.value.subtasks.filter(
@@ -224,6 +218,7 @@ const handleClose = () => {
   emit('close')
 }
 </script>
+
 <style scoped>
 /* =======================================
    📜 Scrollable Wrapper
@@ -231,7 +226,7 @@ const handleClose = () => {
 .detail-content-wrapper {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4); /* 16px (기존 18px에서 4px 그리드로 최적화) */
+  gap: var(--space-4); /* 16px */
   height: 65vh;
   overflow-y: scroll;
   scrollbar-gutter: stable;
@@ -257,13 +252,13 @@ const handleClose = () => {
   border: none;
   border-bottom: 2px solid transparent;
   padding: var(--space-1) 0;
-  padding-right: var(--space-8); /* 30px -> 32px 그리드 매핑 */
+  padding-right: var(--space-8); /* 32px */
   outline: none;
   transition: border-color var(--transition-fast);
   background: transparent;
 }
 .title-input:focus {
-  border-bottom-color: var(--color-primary); /* #3b82f6 -> 시스템 프라이머리 */
+  border-bottom-color: var(--color-primary);
 }
 .title-input::placeholder {
   color: var(--text-muted);
@@ -289,10 +284,10 @@ const handleClose = () => {
 .modal-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2); /* 6px -> 8px */
+  gap: var(--space-2); /* 8px */
 }
 .modal-section label {
-  font-size: var(--text-sm); /* 13px -> 시스템 스케일 14px */
+  font-size: var(--text-sm); /* 14px */
   font-weight: var(--font-semibold);
   color: var(--text-sub);
 }
@@ -318,32 +313,28 @@ const handleClose = () => {
   outline: none;
   box-sizing: border-box;
   transition: all var(--transition-fast);
-  background: var(--bg-app); /* 입력 전에는 시스템 배경색으로 자연스럽게 */
-}
-
-.modal-textarea {
+  background: var(--bg-app);
   height: 90px;
   padding: var(--space-3); /* 12px */
   resize: none;
 }
-/* 포커스 시 배경이 하얘지면서 프라이머리 컬러 강조 */
 .modal-textarea:focus {
   border-color: var(--color-primary);
   background: var(--bg-card);
-  box-shadow: 0 0 0 3px var(--color-primary-light); /* 애플 스타일의 얇은 포커스 링 */
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 /* =======================================
    🗂 Subtasks (하위 할 일)
 ======================================= */
 .subtasks-section {
-  background: var(--bg-hover); /* #f4f4f5 대응 */
-  padding: var(--space-3); /* 14px -> 12px */
-  border-radius: var(--radius-md); /* 10px -> 12px */
+  background: var(--bg-hover);
+  padding: var(--space-3); /* 12px */
+  border-radius: var(--radius-md); /* 12px */
   margin-top: var(--space-1);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2); /* 10px -> 8px */
+  gap: var(--space-2); /* 8px */
 }
 .subtask-header {
   display: flex;
@@ -368,47 +359,30 @@ const handleClose = () => {
   height: 100%;
   background: var(--color-primary);
   border-radius: var(--radius-sm);
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* 진행도 바는 고유 텐션 유지 */
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Subtask List Items */
-.subtask-list-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-.subtask-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--space-2) 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.subtask-item {
+/* 🌟 하위 할 일 추가 입력창 스타일 복구 */
+.add-subtask-wrapper {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  background: var(--bg-card);
-  padding: 6px var(--space-2); /* 6px 10px -> 6px 8px */
+  padding: 6px var(--space-2);
+  background: transparent;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  transition: all var(--transition-fast);
+  border: 1px dashed var(--border-color);
+  transition: border-color var(--transition-fast);
 }
-.subtask-item:hover {
-  border-color: #d4d4d8;
-  box-shadow: var(--shadow-sm);
+.add-subtask-wrapper:focus-within {
+  border-color: var(--color-primary);
 }
-
-/* Subtask Inputs */
-.subtask-input-wrapper {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  position: relative;
-  min-width: 0;
+.add-icon {
+  color: var(--text-muted);
+  font-weight: var(--font-bold);
+  font-size: var(--text-sm);
+  width: 16px;
+  text-align: center;
 }
-.subtask-input,
 .add-subtask-input {
   flex: 1;
   border: none;
@@ -418,51 +392,10 @@ const handleClose = () => {
   outline: none;
   min-width: 0;
   width: 100%;
-}
-.subtask-input {
-  padding: var(--space-1) 0;
-  padding-right: var(--space-6);
-}
-.subtask-input.is-done {
-  text-decoration: line-through;
-  color: var(--text-muted);
-}
-.add-subtask-input {
   padding: var(--space-1) 0;
 }
 .add-subtask-input::placeholder {
   color: var(--text-muted);
-}
-
-.edit-hint {
-  position: absolute;
-  right: 0;
-  font-size: var(--text-xs);
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-  pointer-events: none;
-  filter: grayscale(1);
-}
-.subtask-item:hover .edit-hint,
-.subtask-input:focus + .edit-hint {
-  opacity: 0.6;
-}
-
-.add-subtask-wrapper {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 6px var(--space-2);
-  background: transparent;
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--border-color);
-}
-.add-icon {
-  color: var(--text-muted);
-  font-weight: var(--font-bold);
-  font-size: var(--text-sm);
-  width: 16px;
-  text-align: center;
 }
 
 /* =======================================
@@ -491,7 +424,7 @@ const handleClose = () => {
 .btn-delete,
 .btn-close {
   border: none;
-  padding: var(--space-2) var(--space-4); /* 10px 16px -> 8px 16px */
+  padding: var(--space-2) var(--space-4); /* 8px 16px */
   border-radius: var(--radius-sm);
   font-weight: var(--font-semibold);
   cursor: pointer;
@@ -500,21 +433,21 @@ const handleClose = () => {
   font-size: var(--text-sm);
 }
 
-/* 빨간색 삭제 버튼 (Danger 색상 맵핑) */
+/* 빨간색 삭제 버튼 */
 .btn-delete {
-  background: var(--color-danger-light); /* #fee2e2 대응 */
-  color: var(--color-danger); /* #ef4444 대응 */
+  background: var(--color-danger-light);
+  color: var(--color-danger);
 }
 .btn-delete:hover {
-  background: #fca5a5; /* 기존 하버 유지 혹은 위험 느낌 강조 */
+  background: #fca5a5;
 }
 
-/* 검은색 닫기/저장 버튼 (시스템 텍스트 메인 컬러 활용) */
+/* 검은색 닫기/저장 버튼 */
 .btn-close {
-  background: var(--text-main); /* #3f3f46 -> 먹색 계열로 애플스러운 대비 */
-  color: var(--bg-card); /* 흰색 글씨 */
+  background: var(--text-main);
+  color: var(--bg-card);
 }
 .btn-close:hover {
-  opacity: 0.85; /* 명도를 약간 낮춰 누르는 느낌 제공 */
+  opacity: 0.85;
 }
 </style>
