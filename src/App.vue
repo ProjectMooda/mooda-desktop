@@ -27,7 +27,7 @@
             v-if="menuItems[currentTab - 1]?.label === 'Calendar'"
           />
           <GoalPlanner
-            v-else-if="menuItems[currentTab - 1]?.label === 'Goal Planner'"
+            v-else-if="menuItems[currentTab - 1]?.label === 'GoalPlanner'"
           />
         </transition>
       </div>

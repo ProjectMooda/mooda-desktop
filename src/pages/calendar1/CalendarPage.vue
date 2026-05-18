@@ -1,5 +1,4 @@
 <template>
-  <!-- utilities.css의 w-full, h-full 유틸리티 클래스를 적용하여 중복을 제거합니다 -->
   <div class="split-layout w-full h-full">
     <!-- 캘린더 카드 -->
     <CalendarCard v-model="scheduleStore.selectedDate" class="large-calendar" />
