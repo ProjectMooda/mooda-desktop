@@ -1,25 +1,34 @@
+<!-- src/App.vue 템플릿 수정 -->
 <template>
   <div class="jarvis-wrapper">
     <Sidebar />
 
     <main class="main-workspace min-w-0">
       <header class="studio-header shrink-0">
-        <h1 class="page-title">{{ menuItems[currentTab - 1].label }}</h1>
+        <!-- 안전장치를 추가하여 menuItems가 로드되기 전 에러 방지 -->
+        <h1 class="page-title">
+          {{ menuItems[currentTab - 1]?.label || 'Loading...' }}
+        </h1>
         <div class="focus-container">
           <span class="focus-badge">FOCUS</span>
           <input
-            type="text"
             v-model="scheduleStore.dailyFocus"
-            @change="scheduleStore.saveData"
+            type="text"
             placeholder="오늘의 핵심 목표..."
+            @change="scheduleStore.saveData"
           />
         </div>
       </header>
 
       <div class="scroll-content">
         <transition name="fade" mode="out-in">
-          <CalendarPage v-if="currentTab === 1" />
-          <GoalPlanner v-else-if="currentTab === 2" />
+          <!-- 🌟 숫자가 아니라 탭의 '이름(label)'으로 컴포넌트를 스위칭합니다 -->
+          <CalendarPage
+            v-if="menuItems[currentTab - 1]?.label === 'Calendar'"
+          />
+          <GoalPlanner
+            v-else-if="menuItems[currentTab - 1]?.label === 'GoalPlanner'"
+          />
         </transition>
       </div>
     </main>
@@ -53,8 +62,6 @@ onMounted(() => {
   settingsStore.loadSettings()
   scheduleStore.loadData()
 })
-
-
 </script>
 
 <style scoped>

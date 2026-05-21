@@ -1,7 +1,9 @@
 <template>
   <article class="studio-card goal-card">
     <div class="card-top shrink-0">
+      <!-- 목표 헤더 (제목, 기간, 진행률, 삭제 버튼) -->
       <div class="goal-header">
+        <!-- 제목 클릭 시 상세 모달(MilestoneWorkspace) 오픈 -->
         <div class="title-area min-w-0" @click="$emit('open')">
           <h4>{{ goal.title }}</h4>
           <span class="date-range">
@@ -10,319 +12,178 @@
         </div>
         <div class="header-actions">
           <div class="pct-text shrink-0">{{ progressPercent }}%</div>
-          <button
-            class="btn-del-goal"
+          <Xbutton
+            variant="rounded"
             @click.stop.prevent="deleteGoal(goal.id)"
-          >
-            ✕
-          </button>
+          />
         </div>
       </div>
 
+      <!-- 진행률 프로그레스 바 -->
       <div class="progress-track">
         <div
           class="progress-fill"
           :style="{ width: progressPercent + '%' }"
         ></div>
       </div>
-
-      <!-- 🚨 로컬 상태(newMsDate, newMsSummary)를 사용하도록 변경 -->
-      <div class="add-ms-row">
-        <input
-          type="date"
-          v-model="newMsDate"
-          class="s-input w-110 shrink-0"
-          :min="goal.startDate"
-          :max="goal.endDate"
-        />
-        <input
-          type="text"
-          v-model="newMsSummary"
-          placeholder="세부 일정..."
-          class="s-input flex-1 min-w-0"
-          @keyup.enter="addMilestone"
-        />
-        <button @click="addMilestone" class="btn-outline shrink-0">
-          +
-        </button>
-      </div>
     </div>
 
+    <!-- 하위 세부 일정 리스트 -->
     <div class="ms-list min-h-0">
-      <!-- 스토어에서 필터링해온 goalSchedules 순회 -->
-      <div v-for="ms in goalSchedules" :key="ms.id" class="ms-row">
-        <label class="studio-cbx sm-cbx shrink-0">
-          <input 
-            type="checkbox" 
-            v-model="ms.done" 
-            @change="store.updateSchedule(ms.id, { done: ms.done })" 
-          />
-          <span class="cbx-box"></span>
-        </label>
-        
-        <!-- 🚨 ms.startDate 및 ms.summary 로 변경 -->
-        <span class="ms-date shrink-0">{{ (ms.startDate || '').slice(5) }}</span>
-        <span :class="['ms-text flex-1 min-w-0', { 'is-done': ms.done }]">
-          {{ ms.summary }}
-        </span>
-        
-        <button
-          @click="removeMilestone(ms.id)"
-          class="btn-del-sm shrink-0"
-        >
-          ✕
-        </button>
-      </div>
+      <BaseTaskList
+        :items="goalSchedules"
+        text-key="summary"
+        empty-message="등록된 세부 일정이 없습니다."
+        @update="(item) => store.updateSchedule(item.id, { done: item.done })"
+        @delete="removeMilestone"
+      />
     </div>
   </article>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
+import Xbutton from '@/global-components/ui/Xbutton.vue'
+import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
 
 const emit = defineEmits(['open'])
-const props = defineProps<{ goal: Goal }>() // 🚨 any 대신 Goal 타입 지정
+const props = defineProps<{ goal: Goal }>()
 const store = useScheduleStore()
 
-// --- UI / 입력 상태 ---
-// 🚨 Props(goal)를 직접 오염시키지 않고 로컬 컴포넌트 상태로 분리
-const newMsDate = ref(props.goal.startDate || store.selectedDate)
-const newMsSummary = ref('')
-
 // --- Computed ---
-// 🚨 핵심: 스토어의 전체 일정 중 이 목표(goal.id)에 속한 마일스톤만 추출 및 날짜순 정렬
 const goalSchedules = computed(() => {
   return store.schedules
-    .filter(s => s.goalId === props.goal.id)
+    .filter((s) => s.goalId === props.goal.id)
     .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
+  // 💡 날짜 표시 로직 제거: BaseTaskList에 text-key="summary"로 원본 텍스트만 전달
 })
 
-// 🚨 함수 대신 computed로 변경하여 렌더링 최적화
 const progressPercent = computed(() => {
   const total = goalSchedules.value.length
   if (total === 0) return 0
-  
-  const doneCount = goalSchedules.value.filter(m => m.done).length
+
+  const doneCount = goalSchedules.value.filter((m) => m.done).length
   return Math.round((doneCount / total) * 100)
 })
 
 // --- Methods ---
-const addMilestone = () => {
-  if (!newMsSummary.value.trim()) return
-  
-  // ✨ 헬퍼 함수 호출 (객체 껍데기 없이 핵심 파라미터만 전달)
-  store.addMilestone(props.goal.id, newMsSummary.value, newMsDate.value)
-  
-  newMsSummary.value = ''
-}
-
 const removeMilestone = (msId: number) => {
-  // 🚨 배열 splice 대신 스토어의 액션 호출
   store.removeSchedule(msId)
 }
 
 const deleteGoal = (id: number) => {
-  // 목표 삭제. (스토어에 removeGoal 액션이 구현되어 있어야 합니다)
   store.removeGoal(id)
 }
 </script>
-
 <style scoped>
-/* 카드와 세부 일정 관련 CSS만 남김 */
-.s-input {
-  background: #f8f8fa;
-  border: 1px solid var(--border-color);
-  padding: 10px 12px;
-  border-radius: 8px;
-  color: var(--text-main);
-  font-size: 14px;
-  outline: none;
-  transition: 0.2s;
-}
-.s-input:focus {
-  border-color: var(--color-primary);
-  background: var(--bg-card);
-}
-.btn-outline {
-  background: transparent;
-  border: 1px solid var(--color-primary);
-  color: var(--color-primary);
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-}
+/* =======================================
+   목표 카드 레이아웃
+======================================= */
 .goal-card {
   display: flex;
   flex-direction: column;
-  height: 380px;
-  padding: 24px;
-  background: var(--bg-card);
+  height: 380px; /* 고정 높이 유지 */
+  padding: var(--space-6); /* 24px */
+  background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-lg); /* 16px */
+  box-shadow: var(--shadow-sm); /* 은은한 기본 그림자 */
+
+  /* 전역 변수 transition-base (cubic-bezier) 매핑으로 애플 특유의 쫀득한 모션 구현 */
+  transition:
+    box-shadow var(--transition-base),
+    transform var(--transition-base);
 }
+
+.goal-card:hover {
+  box-shadow: var(--shadow-lg); /* 호버 시 깊이감 있는 그림자로 변경 */
+  transform: translateY(-2px);
+}
+
+/* =======================================
+   상단 헤더 영역 (제목 & 진행률)
+======================================= */
 .card-top {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-5); /* 20px */
 }
+
 .goal-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4); /* 16px */
 }
+
+.title-area {
+  cursor: pointer;
+  border-radius: var(--radius-sm); /* 8px */
+  padding: var(--space-1); /* 4px */
+  margin: calc(var(--space-1) * -1); /* 네거티브 마진 변수화 */
+  transition: background-color var(--transition-fast);
+}
+
+.title-area:hover {
+  background-color: var(--bg-hover);
+}
+
 .title-area h4 {
-  font-size: 18px;
+  font-size: var(--text-lg); /* 18px */
+  font-weight: var(--font-bold);
   color: var(--text-main);
-  margin: 0 0 4px 0;
+  margin: 0 0 var(--space-1) 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
 }
+
 .date-range {
-  font-size: 12px;
+  font-size: var(--text-xs); /* 12px */
+  font-weight: var(--font-medium);
   color: var(--text-sub);
 }
+
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3); /* 12px */
 }
+
 .pct-text {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--color-primary);
+  font-size: var(--text-2xl); /* 24px 대제목 급 스케일 매핑 */
+  font-weight: var(--font-bold); /* 700 또는 800 */
+  color: var(--color-primary); /* 애플 시그니처 블루 */
+  letter-spacing: -0.01em;
 }
-.btn-del-goal {
-  background: none;
-  border: none;
-  color: #a1a1aa;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 4px;
-  transition: color 0.2s;
-}
-.btn-del-goal:hover {
-  color: var(--color-danger, #ef4444);
-}
+
+/* =======================================
+   프로그레스 바 (진행률)
+======================================= */
 .progress-track {
   height: 6px;
-  background: var(--bg-hover);
-  border-radius: 3px;
-  margin-bottom: 20px;
+  background-color: var(--bg-hover);
+  border-radius: var(--radius-sm); /* 4px 부근 알약 모양 */
   overflow: hidden;
 }
+
 .progress-fill {
   height: 100%;
-  background: var(--color-primary);
-  transition: width 0.3s ease;
+  background-color: var(--color-primary);
+  border-radius: var(--radius-sm);
+  /* 가득 차오르는 애니메이션의 이징을 시스템 기본 쿠빅-베지어로 동기화 */
+  transition: width var(--transition-base);
 }
-.add-ms-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
+
+/* =======================================
+   하위 리스트 영역
+======================================= */
 .ms-list {
   flex: 1;
   overflow-y: auto;
-  padding-right: 4px;
+  scrollbar-gutter: stable; /* global.css 구조와 연동 */
+  padding-right: var(--space-1); /* 4px */
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-.ms-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px;
-  background: #f8f8fa;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-.ms-date {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-danger);
-  width: 45px;
-  padding-top: 2px;
-}
-.ms-text {
-  font-size: 13px;
-  color: #27272a;
-  line-height: 1.4;
-  display: -webkit-box;
-  line-clamp: 2;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-all;
-}
-.is-done {
-  text-decoration: line-through;
-  color: #a1a1aa;
-}
-.btn-del-sm {
-  background: none;
-  border: none;
-  color: #a1a1aa;
-  cursor: pointer;
-  font-size: 14px;
-}
-.btn-del-sm:hover {
-  color: #ef4444;
-}
-
-/* 체크박스 CSS */
-.studio-cbx {
-  position: relative;
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  display: inline-block;
-  margin-top: 3px;
-}
-.sm-cbx {
-  width: 16px;
-  height: 16px;
-  margin-top: 1px;
-}
-.studio-cbx input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-  position: absolute;
-}
-.cbx-box {
-  position: absolute;
-  inset: 0;
-  border: 2px solid #d4d4d8;
-  border-radius: 5px;
-  background: var(--bg-card);
-  transition: 0.2s;
-}
-.studio-cbx input:checked ~ .cbx-box {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-.cbx-box:after {
-  content: '';
-  position: absolute;
-  display: none;
-  left: 4px;
-  top: 1px;
-  width: 4px;
-  height: 8px;
-  border: solid var(--bg-card);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-.sm-cbx .cbx-box:after {
-  left: 3px;
-  top: 0px;
-}
-.studio-cbx input:checked ~ .cbx-box:after {
-  display: block;
+  gap: var(--space-2); /* 8px */
 }
 </style>

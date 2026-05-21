@@ -4,40 +4,40 @@
       <h3>새로운 장기 목표 설정</h3>
       <div class="input-row flex-wrap">
         <input
-          type="text"
           v-model="newGoal.title"
+          type="text"
           placeholder="목표 타이틀..."
           class="s-input flex-1 min-w-200"
         />
         <input
-          type="date"
           v-model="newGoal.startDate"
+          type="date"
           class="s-input w-130 shrink-0"
         />
         <span class="dash shrink-0">-</span>
         <input
-          type="date"
           v-model="newGoal.endDate"
+          type="date"
           class="s-input w-130 shrink-0"
         />
-        <button @click="createGoal" class="btn-primary shrink-0">생성</button>
+        <button class="btn-primary shrink-0" @click="createGoal">생성</button>
       </div>
     </section>
 
     <div class="responsive-goal-grid">
-      <GoalCard 
-        v-for="goal in store.goals" 
-        :key="goal.id" 
-        :goal="goal" 
-        @open="openDetailModal(goal)" 
+      <GoalCard
+        v-for="goal in store.goals"
+        :key="goal.id"
+        :goal="goal"
+        @open="openDetailModal(goal)"
       />
     </div>
 
     <transition name="modal-fade">
-      <GoalDetailModal 
-        v-if="isModalOpen && selectedGoal" 
-        :goal="selectedGoal" 
-        @close="isModalOpen = false" 
+      <GoalDetailModal
+        v-if="isModalOpen && selectedGoal"
+        :goal="selectedGoal"
+        @close="isModalOpen = false"
       />
     </transition>
   </div>
@@ -68,7 +68,7 @@ const createGoal = () => {
   store.addGoal({
     title: newGoal.title,
     startDate: newGoal.startDate,
-    endDate: newGoal.endDate,
+    endDate: newGoal.endDate
   })
 
   newGoal.title = ''

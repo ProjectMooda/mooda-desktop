@@ -1,26 +1,254 @@
 /* assets/styles/utilities.css */
 
-/* Layout & Flexbox */
-.shrink-0 { flex-shrink: 0; }
-.flex-1 { flex: 1; }
-.flex-center { display: flex; align-items: center; justify-content: center; }
+/* =======================================
+   Layout, Flexbox & Display
+======================================= */
+.d-block {
+  display: block;
+}
+.d-inline-block {
+  display: inline-block;
+}
+.shrink-0 {
+  flex-shrink: 0;
+}
+.flex-1 {
+  flex: 1;
+}
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+.items-center {
+  display: flex;
+  align-items: center;
+}
+.justify-between {
+  display: flex;
+  justify-content: space-between;
+}
 
-/* Min/Max Sizing */
-.min-w-0 { min-width: 0; }
-.min-h-0 { min-height: 0; }
-.min-w-200 { min-width: 200px; }
+/* Min/Max/Fixed Sizing */
+.min-w-0 {
+  min-width: 0;
+}
+.min-h-0 {
+  min-height: 0;
+}
+.min-w-200 {
+  min-width: 200px;
+}
+.w-110 {
+  width: 110px;
+}
+.w-130 {
+  width: 130px;
+}
+.w-full {
+  width: 100%;
+}
+.h-full {
+  height: 100%;
+}
 
-/* Fixed Sizing */
-.w-130 { width: 130px; }
-.w-110 { width: 110px; }
+/* =======================================
+   🔤 Typography Utilities (추가)
+======================================= */
+/* Sizes */
+.text-xs {
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+}
+.text-sm {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.text-base {
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+.text-lg {
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+}
+.text-xl {
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+}
+.text-2xl {
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+}
 
-/* Spacing */
-.mt-24 { margin-top: 24px; }
-.mb-16 { margin-bottom: 16px; }
+/* Weights */
+.font-regular {
+  font-weight: var(--font-regular);
+}
+.font-medium {
+  font-weight: var(--font-medium);
+}
+.font-semibold {
+  font-weight: var(--font-semibold);
+}
+.font-bold {
+  font-weight: var(--font-bold);
+}
 
+/* Alignment */
+.text-left {
+  text-align: left;
+}
+.text-center {
+  text-align: center;
+}
+.text-right {
+  text-align: right;
+}
+
+/* Colors */
+.text-main {
+  color: var(--text-main);
+}
+.text-sub {
+  color: var(--text-sub);
+}
+.text-muted {
+  color: var(--text-muted);
+}
+.text-primary {
+  color: var(--color-primary);
+}
+.text-danger {
+  color: var(--color-danger);
+}
+
+/* =======================================
+   📐 Spacing Utilities (변수 기반 수정)
+======================================= */
+/* Margin Top */
+.mt-4 {
+  margin-top: var(--space-1);
+}
+.mt-8 {
+  margin-top: var(--space-2);
+}
+.mt-12 {
+  margin-top: var(--space-3);
+}
+.mt-16 {
+  margin-top: var(--space-4);
+}
+.mt-24 {
+  margin-top: var(--space-6);
+} /* 변수화 완료 */
+
+/* Margin Bottom */
+.mb-4 {
+  margin-bottom: var(--space-1);
+}
+.mb-8 {
+  margin-bottom: var(--space-2);
+}
+.mb-12 {
+  margin-bottom: var(--space-3);
+}
+.mb-16 {
+  margin-bottom: var(--space-4);
+} /* 변수화 완료 */
+.mb-24 {
+  margin-bottom: var(--space-6);
+}
+
+/* Margin Auto */
+.ml-auto {
+  margin-left: auto;
+}
+.mr-auto {
+  margin-right: auto;
+}
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Padding */
+.p-8 {
+  padding: var(--space-2);
+}
+.p-12 {
+  padding: var(--space-3);
+}
+.p-16 {
+  padding: var(--space-4);
+}
+.p-24 {
+  padding: var(--space-6);
+}
+
+.px-12 {
+  padding-left: var(--space-3);
+  padding-right: var(--space-3);
+}
+.px-16 {
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+.py-8 {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+.py-12 {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+/* Flex Gap (요소 간 여백 띄우기 최적화) */
+.gap-4 {
+  gap: var(--space-1);
+}
+.gap-8 {
+  gap: var(--space-2);
+}
+.gap-12 {
+  gap: var(--space-3);
+}
+.gap-16 {
+  gap: var(--space-4);
+}
+
+/* =======================================
+   ⚡️ Interactive & Effects (추가 및 고도화)
+======================================= */
 /* Apple Style Blur (모달 배경이나 네비게이션 바에 활용) */
 .glass-effect {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/* Hover Background Effect */
+.hover-bg {
+  transition: background-color var(--transition-fast);
+}
+.hover-bg:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Smooth Click/Active Scale Effect (애플 UI 특유의 눌리는 느낌) */
+.active-scale {
+  transition: transform var(--transition-fast);
+}
+.active-scale:active {
+  transform: scale(0.97);
+}
+
+/* Border Reset Utility */
+.border-none {
+  border: none;
+  outline: none;
 }
