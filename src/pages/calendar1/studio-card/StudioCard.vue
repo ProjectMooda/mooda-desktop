@@ -129,7 +129,6 @@
     </div>
   </section>
 </template>
-
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import draggable from 'vuedraggable'
@@ -157,28 +156,33 @@ const formattedDate = computed(() => {
 
 const openDetailModal = (item: ScheduleItem) => emit('open-detail', item)
 
-// ==========================================
-// 🚨 드래그 순서 영구 저장 완벽 해결 로직 (Store 구조 반영)
-// ==========================================
 const localActiveMilestones = ref<ScheduleItem[]>([])
 const localActiveTasks = ref<ScheduleItem[]>([])
 
+// 🌟 핵심 변경: 마일스톤 카테고리에 "마일스톤에 속한 Task들"을 각각 개별로 넣습니다.
 watch(
-  () => scheduleStore.milestones,
-  (newVal) => {
-    const filtered = newVal.filter((m) => !m.done && !m.isPinned)
-    localActiveMilestones.value = filtered.sort(
-      (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
+  () => [scheduleStore.milestones, scheduleStore.tasks],
+  () => {
+    // 1. 마일스톤에 속한 진행 중인 할 일들 (각각 1장의 카드가 됨)
+    const activeMilestoneTasks = scheduleStore.tasks.filter(
+      (t) => !t.done && !t.isPinned && t.milestoneId
     )
-  },
-  { immediate: true, deep: true }
-)
+    // 2. 할 일이 하나도 없는 텅 빈 마일스톤도 안 보이게 되면 안 되므로 추가
+    const activeEmptyMilestones = scheduleStore.milestones.filter((m) => {
+      const hasTasks = scheduleStore.tasks.some((t) => t.milestoneId === m.id)
+      return !m.done && !m.isPinned && !hasTasks
+    })
 
-watch(
-  () => scheduleStore.tasks,
-  (newVal) => {
-    const filtered = newVal.filter((t) => !t.done && !t.isPinned)
-    localActiveTasks.value = filtered.sort(
+    localActiveMilestones.value = [
+      ...activeMilestoneTasks,
+      ...activeEmptyMilestones
+    ].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
+
+    // 일반 할 일 (마일스톤이 없는 독립적인 할 일)
+    const activeStandardTasks = scheduleStore.tasks.filter(
+      (t) => !t.done && !t.isPinned && !t.milestoneId
+    )
+    localActiveTasks.value = activeStandardTasks.sort(
       (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
     )
   },
@@ -197,26 +201,40 @@ const onTaskDragEnd = () => {
   })
 }
 
-// ==========================================
-// 파생 데이터 (Pinia Getter 활용)
-// ==========================================
-const pinnedMilestones = computed(() =>
-  scheduleStore.milestones.filter((m) => !m.done && m.isPinned)
-)
+// 🌟 고정(Pinned) 항목 로직도 동일하게 분리 적용
+const pinnedMilestones = computed(() => {
+  const pinnedTasks = scheduleStore.tasks.filter(
+    (t) => !t.done && t.isPinned && t.milestoneId
+  )
+  const emptyMilestones = scheduleStore.milestones.filter(
+    (m) =>
+      !m.done &&
+      m.isPinned &&
+      !scheduleStore.tasks.some((t) => t.milestoneId === m.id)
+  )
+  return [...pinnedTasks, ...emptyMilestones]
+})
 const pinnedTasks = computed(() =>
-  scheduleStore.tasks.filter((t) => !t.done && t.isPinned)
+  scheduleStore.tasks.filter((t) => !t.done && t.isPinned && !t.milestoneId)
 )
 
-const completedMilestones = computed(() =>
-  scheduleStore.milestones.filter((m) => m.done)
+// 🌟 완료(Completed) 항목 로직도 동일하게 분리 적용
+const completedMilestones = computed(() => {
+  const doneTasks = scheduleStore.tasks.filter((t) => t.done && t.milestoneId)
+  const emptyMilestones = scheduleStore.milestones.filter(
+    (m) => m.done && !scheduleStore.tasks.some((t) => t.milestoneId === m.id)
+  )
+  return [...doneTasks, ...emptyMilestones]
+})
+const completedTasks = computed(() =>
+  scheduleStore.tasks.filter((t) => t.done && !t.milestoneId)
 )
-const completedTasks = computed(() => scheduleStore.tasks.filter((t) => t.done))
 
 const totalItems = computed(
   () =>
     scheduleStore.milestones.length +
     scheduleStore.tasks.length +
-    scheduleStore.events.length // ✅ events 추가
+    scheduleStore.events.length
 )
 const completedItemsCount = computed(
   () => completedMilestones.value.length + completedTasks.value.length

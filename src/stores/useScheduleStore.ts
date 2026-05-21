@@ -113,8 +113,14 @@ export const useScheduleStore = defineStore('schedule', () => {
     saveData()
   }
 
-  const addTask = (summary: string, date: string) => {
-    addSchedule({ type: 'task', summary, startDate: date, endDate: date })
+  const addTask = (summary: string, date?: string) => {
+    addSchedule({
+      type: 'task',
+      summary,
+      // date 값이 없으면 빈 문자열을 넣습니다.
+      startDate: date || '',
+      endDate: date || ''
+    })
   }
 
   const addMilestone = (goalId: number, summary: string, date: string) => {
