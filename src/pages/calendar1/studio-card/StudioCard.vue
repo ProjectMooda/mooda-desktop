@@ -213,7 +213,10 @@ const completedMilestones = computed(() =>
 const completedTasks = computed(() => scheduleStore.tasks.filter((t) => t.done))
 
 const totalItems = computed(
-  () => scheduleStore.milestones.length + scheduleStore.tasks.length
+  () =>
+    scheduleStore.milestones.length +
+    scheduleStore.tasks.length +
+    scheduleStore.events.length // ✅ events 추가
 )
 const completedItemsCount = computed(
   () => completedMilestones.value.length + completedTasks.value.length

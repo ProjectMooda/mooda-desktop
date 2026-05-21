@@ -129,15 +129,11 @@
           </button>
         </div>
 
-        <div class="search-row">
-          <span class="search-icon">🔍</span>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="마일스톤 타이틀 검색..."
-            class="s-input search-input"
-          />
-        </div>
+        <SearchInput
+          v-model="searchQuery"
+          placeholder="마일스톤 타이틀 검색..."
+          class="mb-4"
+        />
 
         <div class="ms-list-container">
           <div
@@ -181,6 +177,8 @@
 import { ref, computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
 import PopupCalendar from '@/global-components/calendar/PopupCalendar.vue'
+
+import SearchInput from '@/global-components/ui/SearchInput.vue'
 
 const props = defineProps<{ goal: Goal }>()
 defineEmits(['open-detail', 'open-create'])
@@ -461,23 +459,7 @@ const getCompletedCount = (msId: number) => {
 .btn-primary:hover {
   background: #3f3f46;
 }
-.search-row {
-  position: relative;
-  margin-bottom: 16px;
-}
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 14px;
-  color: #a1a1aa;
-}
-.search-input {
-  padding-left: 38px;
-  border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
+
 .ms-header-row {
   display: flex;
   justify-content: space-between;

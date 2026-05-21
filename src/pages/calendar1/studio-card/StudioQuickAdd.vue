@@ -180,7 +180,7 @@ const handleQuickAdd = () => {
     }
 
     scheduleStore.addSchedule({
-      type: 'event',
+      type: 'milestone',
       summary: newTitle.value,
       goalId: Number(selectedGoalId.value),
       startDate: scheduleStore.selectedDate,
