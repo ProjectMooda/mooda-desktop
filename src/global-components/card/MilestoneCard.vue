@@ -1,35 +1,36 @@
 <template>
   <CardBase
     :item="item"
-    custom-class="milestone-item"
+    custom-class="milestone-task-card"
     @update="(payload) => $emit('update', payload)"
     @delete="$emit('delete')"
     @toggle-pin="$emit('toggle-pin')"
   >
     <template #content>
-      <div class="ms-meta-row">
-        <span v-if="goalTitle" class="meta-badge goal-badge">{{
-          truncateText(goalTitle, 10)
-        }}</span>
-        <span
-          v-if="item.category && item.category !== '선택 안함'"
-          class="meta-badge category-badge"
-          >{{ item.category }}</span
-        >
-        <span
-          v-if="item.priority"
-          class="meta-badge priority-badge"
-          :style="getPriorityStyle(item.priority)"
-        >
-          {{ getPriorityLabel(item.priority) }}
-        </span>
+      <div class="ms-content-wrapper">
+        <!-- 1. 컨텍스트 영역: 어느 목표/마일스톤에 속해 있는지 작게 표시 -->
+        <div class="ms-context">
+          <span v-if="goalTitle" class="context-goal">{{ goalTitle }}</span>
+          <span v-if="goalTitle && parentMilestone" class="context-divider"
+            >/</span
+          >
+          <span v-if="parentMilestone" class="context-name">{{
+            truncateText(parentMilestone.summary, 10)
+          }}</span>
+        </div>
+
+        <!-- 2. 메인 할 일 영역: 실제 태스크의 이름 -->
+        <div class="ms-task-title" :class="{ 'is-done': item.done }">
+          {{ displayTitle }}
+        </div>
       </div>
-      <div class="ms-main-text" :class="{ 'is-done': item.done }">
-        <span class="ms-title">{{ truncateText(item.summary, 10) }}</span>
-        <span v-if="item.memo" class="ms-summary">{{
-          truncateText(item.memo, 10)
-        }}</span>
-      </div>
+    </template>
+
+    <template #meta>
+      <!-- 3. 시간 영역: 태스크의 시간이 있으면 표시 -->
+      <span v-if="displayTime" class="meta-time">
+        {{ displayTime }}
+      </span>
     </template>
   </CardBase>
 </template>
@@ -40,49 +41,94 @@ import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
 import CardBase from './base/CardBase.vue'
 import { useFormatter } from '@/utils/useFormatter'
 
-const { truncateText, getPriorityLabel, getPriorityStyle } = useFormatter()
+const { truncateText } = useFormatter()
 
 const props = defineProps<{ item: ScheduleItem }>()
 const emit = defineEmits(['update', 'delete', 'toggle-pin'])
 const store = useScheduleStore()
 
+// 아이템이 Task인지 Milestone 자체인지 판별
+const isTask = computed(() => props.item.type === 'task')
+
+// 부모 마일스톤 찾기 (아이템이 Task면 milestoneId로 찾고, Milestone이면 자기 자신)
+const parentMilestone = computed(() => {
+  if (isTask.value)
+    return store.schedules.find((s) => s.id === props.item.milestoneId)
+  return props.item
+})
+
+// 소속 목표 이름
 const goalTitle = computed(() => {
-  if (!props.item.goalId) return ''
-  return store.goals.find((g) => g.id === props.item.goalId)?.title || ''
+  // 변수에 미리 할당하여 TS 추론을 돕고 에러 방지
+  const gId = parentMilestone.value?.goalId
+  if (!gId) return ''
+  return store.goals.find((g) => g.id === gId)?.title || ''
+})
+
+// 보여줄 타이틀 (Task면 Task 이름, 비어있는 Milestone이면 안내 문구)
+const displayTitle = computed(() => {
+  if (isTask.value) return truncateText(props.item.summary || '미정', 15)
+  return '등록된 세부 할 일이 없습니다'
+})
+
+// 보여줄 시간/기간 (Task면 시작~종료 시간, Milestone 자체면 기간)
+const displayTime = computed(() => {
+  if (isTask.value) {
+    if (!props.item.startTime && !props.item.endTime) return ''
+    return `🕒 ${props.item.startTime || '미정'} ~ ${props.item.endTime || '미정'}`
+  } else {
+    const start = props.item.startDate
+    const end = props.item.endDate
+    if (start && end)
+      return `📅 ${start === end ? start.slice(5) : start.slice(5) + '~' + end.slice(5)}`
+    return ''
+  }
 })
 </script>
 
 <style scoped>
-.milestone-item {
-  /* 기존 #f8fafc(연한 푸른빛 배경)를 시스템 변수로 대체 */
-  background-color: var(--color-primary-pale);
-  /* 기존 #e2e8f0(테두리)를 공통 테두리 색상으로 통일 */
-  border: 1px solid var(--border-color);
+/* TaskCard와 동일한 규격을 유지하되, 마일스톤 소속임을 나타내는 스타일 */
+.milestone-task-card {
+  background: var(--color-primary-pale, #eff6ff);
+  border: 1px dashed var(--color-primary-light, #bfdbfe);
 }
 
-/* Milestone 전용 배지/텍스트 스타일 */
-.ms-meta-row {
+.ms-content-wrapper {
   display: flex;
-  gap: 6px; /* 촘촘한 데이터 밀도를 위해 기존 픽셀 유지 */
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 2px; /* 텍스트 간격을 좁혀서 TaskCard와 높이를 비슷하게 맞춤 */
+  padding: var(--space-1);
 }
 
-.meta-badge {
-  font-size: 10px; /* 배지의 특수성을 고려해 텍스트 스케일 예외(10px) 유지 */
-  font-weight: var(--font-bold); /* 700 */
-  padding: 3px var(--space-2); /* 3px 8px */
-  border-radius: 6px; /* 컴팩트한 라운딩 유지 */
+.ms-context {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.context-goal {
+  font-weight: 800;
+  color: var(--color-primary, #3b82f6);
+}
+.context-name {
+  font-weight: 600;
 }
 
-.goal-badge {
-  background: var(
-    --color-primary
-  ); /* 기존 #3b82f6 파란색을 브랜드 프라이머리로 연결 */
-  color: var(--bg-card); /* 순백색 #fff */
+.ms-task-title {
+  font-size: var(--text-sm, 14px);
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-main);
+  margin-top: 2px;
 }
-
-.ms-main-text.is-done {
+.ms-task-title.is-done {
   text-decoration: line-through;
-  opacity: 0.6; /* var(--text-muted) 컬러를 직접 써도 좋지만, opacity 방식도 부드러움 */
+  color: var(--text-muted);
+}
+
+.meta-time {
+  font-size: 11px;
+  color: var(--text-sub);
+  font-weight: var(--font-semibold);
 }
 </style>

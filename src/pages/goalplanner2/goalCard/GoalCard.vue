@@ -40,7 +40,6 @@
     </div>
   </article>
 </template>
-
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
@@ -53,10 +52,12 @@ const store = useScheduleStore()
 
 // --- Computed ---
 const goalSchedules = computed(() => {
-  return store.schedules
-    .filter((s) => s.goalId === props.goal.id)
-    .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
-  // 💡 날짜 표시 로직 제거: BaseTaskList에 text-key="summary"로 원본 텍스트만 전달
+  return (
+    store.schedules
+      // 🌟 수정됨: 해당 목표에 속하면서, 타입이 'milestone'인 것만 가져오기
+      .filter((s) => s.goalId === props.goal.id && s.type === 'milestone')
+      .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
+  )
 })
 
 const progressPercent = computed(() => {

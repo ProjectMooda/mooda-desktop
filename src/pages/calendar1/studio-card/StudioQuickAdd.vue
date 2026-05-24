@@ -149,8 +149,8 @@ const selectPriority = (priority: string) => {
 }
 
 /** TimePicker v-model */
-const startTime = ref('09:00')
-const endTime = ref('18:00')
+const startTime = ref('')
+const endTime = ref('')
 
 const selectedGoalName = computed(() => {
   const goal = scheduleStore.goals.find((g) => g.id === selectedGoalId.value)
@@ -198,8 +198,8 @@ const handleQuickAdd = () => {
   newCategory.value = ''
   newPriority.value = ''
 
-  startTime.value = '09:00'
-  endTime.value = '18:00'
+  startTime.value = ''
+  endTime.value = ''
 
   emit('close')
 }
