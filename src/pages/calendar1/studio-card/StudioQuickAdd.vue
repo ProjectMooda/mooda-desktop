@@ -19,15 +19,15 @@
     </div>
 
     <div class="input-row">
-      <input
+      <BaseInput
         v-model="newTitle"
-        type="text"
+        :field="addType === 'task' ? 'taskTitle' : 'eventTitle'"
         :placeholder="
           addType === 'task'
             ? '할 일을 입력하세요...'
             : '이벤트 제목을 입력하세요...'
         "
-        class="s-input flex-1"
+        class="flex-1"
         @keyup.enter="handleQuickAdd"
       />
       <button class="btn-confirm" @click="handleQuickAdd">추가</button>
@@ -120,6 +120,7 @@
 import { ref, computed } from 'vue'
 import { useScheduleStore } from '@/stores/useScheduleStore'
 import TimePicker from '@/global-components/time-picker/TimePicker.vue'
+import BaseInput from '@/global-components/Input/BaseInput.vue'
 
 const scheduleStore = useScheduleStore()
 const emit = defineEmits(['close'])
@@ -169,7 +170,7 @@ const selectedPriorityLabel = computed(() => {
 })
 
 const handleQuickAdd = () => {
-  if (!newTitle.value.trim()) return
+  if (!newTitle.value) return
 
   if (addType.value === 'task') {
     scheduleStore.addTask(newTitle.value, scheduleStore.selectedDate)
@@ -344,24 +345,6 @@ const handleQuickAdd = () => {
 .input-row {
   display: flex;
   gap: var(--space-2); /* 8px */
-}
-
-.s-input {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  background-color: var(--bg-card);
-  color: var(--text-main);
-  outline: none;
-  transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
-}
-
-.s-input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .event-options-grid {

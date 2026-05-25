@@ -1,20 +1,20 @@
-<!-- src/global-components/ui/SearchInput.vue -->
 <template>
-  <div class="search-wrapper">
-    <span class="search-icon">🔍</span>
-    <input
-      :value="modelValue"
-      type="text"
-      :placeholder="placeholder"
-      class="s-input search-input"
-      @input="
-        $emit('update:modelValue', ($event.target as HTMLInputElement).value)
-      "
-    />
-  </div>
+  <BaseInput
+    :model-value="modelValue"
+    field="search"
+    :placeholder="placeholder"
+    class="custom-search-input"
+    @update:model-value="$emit('update:modelValue', $event)"
+  >
+    <template #prefix>
+      <span class="search-icon">🔍</span>
+    </template>
+  </BaseInput>
 </template>
 
 <script setup lang="ts">
+import BaseInput from '../Input/BaseInput.vue'
+
 defineProps({
   modelValue: {
     type: String,
@@ -30,41 +30,25 @@ defineEmits(['update:modelValue'])
 </script>
 
 <style scoped>
-.search-wrapper {
-  position: relative;
-  width: 100%;
-}
-
+/* 절대 위치(position: absolute)나 여백 계산이 더 이상 필요 없습니다! */
 .search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 14px;
-  color: #a1a1aa;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  /* BaseInput 내부 gap이 있으므로 별도의 마진을 줄 필요가 없습니다 */
 }
 
-/* s-input의 기본 스타일 (다른 곳과 일관성을 위해 포함) */
-.s-input {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #e4e4e7;
-  border-radius: 10px;
-  background: #fff;
-  font-size: 14px;
-  outline: none;
-  transition: 0.2s;
-  color: #27272a;
-}
-.s-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-/* 검색바 특화 스타일 */
-.search-input {
-  padding-left: 38px;
-  border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+*
+  만약
+  검색바의
+  높이나
+  폰트
+  크기를
+  다르게
+  하고
+  싶다면
+  */
+  .custom-search-input
+  :deep(.base-input) {
+  font-size: var(--text-sm);
 }
 </style>

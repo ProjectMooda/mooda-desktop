@@ -9,15 +9,18 @@
         <h1 class="page-title">
           {{ menuItems[currentTab - 1]?.label || 'Loading...' }}
         </h1>
-        <div class="focus-container">
-          <span class="focus-badge">FOCUS</span>
-          <input
-            v-model="scheduleStore.dailyFocus"
-            type="text"
-            placeholder="오늘의 핵심 목표..."
-            @change="scheduleStore.saveData"
-          />
-        </div>
+
+        <BaseInput
+          v-model="scheduleStore.dailyFocus"
+          field="dailyFocus"
+          placeholder="오늘의 핵심 목표..."
+          @change="scheduleStore.saveData"
+          class="focus-input"
+        >
+          <template #prefix>
+            <span class="focus-badge">FOCUS</span>
+          </template>
+        </BaseInput>
       </header>
 
       <div class="scroll-content">
@@ -40,6 +43,8 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+
+import BaseInput from './global-components/Input/BaseInput.vue'
 
 // 컴포넌트 임포트
 import Sidebar from './global-components/sidebar/Sidebar.vue'
@@ -95,35 +100,17 @@ onMounted(() => {
   margin: 0;
 }
 
-.focus-container {
-  display: flex;
-  align-items: center;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  padding: 10px 16px;
-  border-radius: 10px;
-  width: 300px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
-}
-
 .focus-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--color-primary);
-  margin-right: 12px;
   letter-spacing: 1px;
 }
 
-.focus-container input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text-main);
-  font-size: 14px;
-  font-weight: 500;
+.focus-input {
+  width: 360px; /* 입력창 전체 너비 지정 */
+  margin-bottom: 0 !important;
 }
-
 .scroll-content {
   flex: 1;
   display: flex;
