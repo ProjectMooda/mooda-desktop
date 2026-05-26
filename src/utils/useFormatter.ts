@@ -12,14 +12,14 @@ export function useFormatter() {
 
   // 2. 동적 우선순위 라벨 반환
   const getPriorityLabel = (priorityId: string): string => {
-    const option = store.priorityOptions.find(opt => opt.id === priorityId)
+    const option = store.priorityOptions.find((opt) => opt.id === priorityId)
     if (!option) return priorityId // 매칭되는 옵션 없으면 원래 값 반환
     return `${option.emoji} ${option.label}`
   }
 
   // 3. 동적 색상 반환 (배지 스타일용)
   const getPriorityStyle = (priorityId: string) => {
-    const option = store.priorityOptions.find(opt => opt.id === priorityId)
+    const option = store.priorityOptions.find((opt) => opt.id === priorityId)
     return option ? { backgroundColor: option.color } : {}
   }
 

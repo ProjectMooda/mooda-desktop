@@ -1,116 +1,61 @@
 <template>
-  <div class="quick-add-area">
+  <div class="smart-quick-add">
     <div
-      v-if="openDropdown"
+      v-if="isDropdownOpen"
       class="dropdown-overlay"
-      @click="openDropdown = null"
+      @click="isDropdownOpen = false"
     ></div>
 
-    <div class="type-selector">
-      <button :class="{ active: addType === 'task' }" @click="addType = 'task'">
-        할 일
-      </button>
-      <button
-        :class="{ active: addType === 'event' }"
-        @click="addType = 'event'"
-      >
-        이벤트
-      </button>
-    </div>
+    <div class="input-container" :class="{ 'is-focused': isFocused }">
+      <div class="milestone-selector" @click="isDropdownOpen = !isDropdownOpen">
+        <span class="ms-badge" :class="{ 'is-empty': !selectedMilestoneId }">
+          {{ selectedMilestoneName }}
+        </span>
 
-    <div class="input-row">
-      <BaseInput
+        <ul v-if="isDropdownOpen" class="ms-dropdown">
+          <li
+            :class="{ active: selectedMilestoneId === null }"
+            @click.stop="selectMilestone(null)"
+          >
+            선택 안함 (일반 할 일)
+          </li>
+          <li
+            v-for="ms in activeMilestones"
+            :key="ms.id"
+            :class="{ active: selectedMilestoneId === ms.id }"
+            @click.stop="selectMilestone(ms.id)"
+          >
+            {{ ms.title }}
+          </li>
+        </ul>
+      </div>
+
+      <input
+        ref="titleInput"
         v-model="newTitle"
-        :field="addType === 'task' ? 'taskTitle' : 'eventTitle'"
-        :placeholder="
-          addType === 'task'
-            ? '할 일을 입력하세요...'
-            : '이벤트 제목을 입력하세요...'
-        "
-        class="flex-1"
+        type="text"
+        class="quick-input"
+        placeholder="새로운 일정을 입력하세요 (Enter)"
+        @focus="isFocused = true"
+        @blur="isFocused = false"
         @keyup.enter="handleQuickAdd"
       />
-      <button class="btn-confirm" @click="handleQuickAdd">추가</button>
-    </div>
 
-    <div v-if="addType === 'event'" class="event-options-grid">
-      <!-- 목표 -->
-      <div
-        class="custom-select-box"
-        :class="{ 'is-active': openDropdown === 'goal' }"
-        @click="openDropdown = 'goal'"
-      >
-        <span :class="{ 'placeholder-text': !selectedGoalId }">{{
-          selectedGoalName
-        }}</span>
-        <span class="chevron">▾</span>
-        <ul v-if="openDropdown === 'goal'" class="dropdown-menu">
-          <li
-            v-for="goal in scheduleStore.goals"
-            :key="goal.id"
-            :class="{ selected: selectedGoalId === goal.id }"
-            @click.stop="selectGoal(goal.id)"
-          >
-            {{
-              goal.title.length > 10
-                ? goal.title.slice(0, 10) + '...'
-                : goal.title
-            }}
-          </li>
-        </ul>
-      </div>
-
-      <!-- 카테고리 -->
-      <div
-        class="custom-select-box"
-        :class="{ 'is-active': openDropdown === 'category' }"
-        @click="openDropdown = 'category'"
-      >
-        <span :class="{ 'placeholder-text': !newCategory }">{{
-          newCategory || '카테고리'
-        }}</span>
-        <span class="chevron">▾</span>
-        <ul v-if="openDropdown === 'category'" class="dropdown-menu">
-          <li
-            v-for="cat in scheduleStore.categories"
-            :key="cat"
-            :class="{ selected: newCategory === cat }"
-            @click.stop="selectCategory(cat)"
-          >
-            {{ cat }}
-          </li>
-        </ul>
-      </div>
-
-      <!-- 우선순위 -->
-      <div
-        class="custom-select-box"
-        :class="{ 'is-active': openDropdown === 'priority' }"
-        @click="openDropdown = 'priority'"
-      >
-        <span :class="{ 'placeholder-text': !newPriority }">{{
-          selectedPriorityLabel
-        }}</span>
-        <span class="chevron">▾</span>
-        <ul v-if="openDropdown === 'priority'" class="dropdown-menu">
-          <li
-            v-for="p in scheduleStore.priorityOptions"
-            :key="p.id"
-            :class="{ selected: newPriority === p.id }"
-            @click.stop="selectPriority(p.id)"
-          >
-            {{ p.emoji }} {{ p.label }}
-          </li>
-        </ul>
-      </div>
-
-      <!-- 시간 -->
-      <div class="time-range">
-        <TimePicker v-model="startTime" />
-
-        <span class="range-dash">~</span>
-
-        <TimePicker v-model="endTime" />
+      <div class="action-buttons">
+        <button
+          class="btn-expand"
+          title="상세 일정 추가 (기간, 반복)"
+          @click="$emit('open-full-add')"
+        >
+          ⤢ 상세
+        </button>
+        <button
+          class="btn-submit"
+          :disabled="!newTitle.trim()"
+          @click="handleQuickAdd"
+        >
+          ↑
+        </button>
       </div>
     </div>
   </div>
@@ -119,274 +64,230 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useScheduleStore } from '@/stores/useScheduleStore'
-import TimePicker from '@/global-components/time-picker/TimePicker.vue'
-import BaseInput from '@/global-components/Input/BaseInput.vue'
 
 const scheduleStore = useScheduleStore()
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'open-full-add'])
 
-const addType = ref<'task' | 'event'>('task')
 const newTitle = ref('')
+const isFocused = ref(false)
+const isDropdownOpen = ref(false)
 
-const selectedGoalId = ref<number | ''>('')
-const newCategory = ref('')
-const newPriority = ref<string | ''>('')
+// 🌟 선택된 마일스톤 ID (null이면 일반 Task)
+const selectedMilestoneId = ref<number | null>(null)
 
-const openDropdown = ref<string | null>(null)
-
-const selectGoal = (id: number) => {
-  selectedGoalId.value = id
-  openDropdown.value = null
-}
-
-const selectCategory = (category: string) => {
-  newCategory.value = category
-  openDropdown.value = null
-}
-
-const selectPriority = (priority: string) => {
-  newPriority.value = priority
-  openDropdown.value = null
-}
-
-/** TimePicker v-model */
-const startTime = ref('')
-const endTime = ref('')
-
-const selectedGoalName = computed(() => {
-  const goal = scheduleStore.goals.find((g) => g.id === selectedGoalId.value)
-  return goal
-    ? goal.title.length > 8
-      ? goal.title.slice(0, 8) + '...'
-      : goal.title
-    : '목표 선택'
+// 현재 스토어에 있는 완료되지 않은 마일스톤만 필터링
+const activeMilestones = computed(() => {
+  return scheduleStore.milestones.filter((m) => !m.done)
 })
 
-const selectedPriorityLabel = computed(() => {
-  const p = scheduleStore.priorityOptions.find(
-    (opt) => opt.id === newPriority.value
+const selectedMilestoneName = computed(() => {
+  if (!selectedMilestoneId.value) return '# 마일스톤 선택'
+  const ms = scheduleStore.milestones.find(
+    (m) => m.id === selectedMilestoneId.value
   )
-  return p ? `${p.emoji} ${p.label}` : '중요도'
+  return ms
+    ? `# ${ms.title.slice(0, 10)}${ms.title.length > 10 ? '...' : ''}`
+    : '# 마일스톤 선택'
 })
+
+const titleInput = ref<HTMLInputElement | null>(null)
+
+const selectMilestone = (id: number | null) => {
+  selectedMilestoneId.value = id
+  isDropdownOpen.value = false
+
+  titleInput.value?.focus()
+}
 
 const handleQuickAdd = () => {
-  if (!newTitle.value) return
+  if (!newTitle.value.trim()) return
 
-  if (addType.value === 'task') {
-    scheduleStore.addTask(newTitle.value, scheduleStore.selectedDate)
-  } else {
-    if (!selectedGoalId.value) {
-      alert('연결할 목표를 선택해주세요.')
-      return
-    }
+  // 🌟 마일스톤이 선택되었다면 해당 마일스톤의 하위 Task로, 아니면 일반 Task로 저장
+  scheduleStore.addSchedule({
+    type: 'task',
+    summary: newTitle.value,
+    milestoneId: selectedMilestoneId.value,
+    goalId: selectedMilestoneId.value
+      ? scheduleStore.milestones.find((m) => m.id === selectedMilestoneId.value)
+          ?.goalId
+      : null,
+    startDate: scheduleStore.selectedDate,
+    endDate: undefined // 퀵 애드는 무조건 당일 일정
+  })
 
-    scheduleStore.addSchedule({
-      type: 'milestone',
-      summary: newTitle.value,
-      goalId: Number(selectedGoalId.value),
-      startDate: scheduleStore.selectedDate,
-      endDate: scheduleStore.selectedDate,
-      startTime: startTime.value,
-      endTime: endTime.value,
-      category: newCategory.value,
-      priority: newPriority.value as 'High' | 'Medium' | 'Low' | undefined
-    })
-  }
-
-  // reset
+  // 초기화 후 닫기
   newTitle.value = ''
-  selectedGoalId.value = ''
-  newCategory.value = ''
-  newPriority.value = ''
-
-  startTime.value = ''
-  endTime.value = ''
-
+  selectedMilestoneId.value = null
   emit('close')
 }
 </script>
+
 <style scoped>
 /* =======================================
-   OVERLAY & LAYER MANAGEMENT
+   OVERLAY
 ======================================= */
 .dropdown-overlay {
   position: fixed;
   inset: 0;
-  /* 변수 기반 레이어 격상: 모달 레이어 영역 하위 조율 */
-  z-index: calc(var(--z-dropdown) - 1);
+  z-index: 99;
 }
 
 /* =======================================
-   CUSTOM SELECT BOX (Trigger)
+   SMART QUICK ADD (Spotlight Style)
 ======================================= */
-.custom-select-box {
-  position: relative;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm); /* 10px 부근 대용 */
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-sm); /* 13px 대용 14px 권장 또는 변수 연동 */
-  font-weight: var(--font-semibold);
-  color: var(--text-main);
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast);
+.smart-quick-add {
+  padding: var(--space-4) 0;
+  margin-bottom: var(--space-2);
 }
 
-.custom-select-box.is-active {
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-1) var(--space-2);
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.input-container.is-focused {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
-.placeholder-text {
+/* =======================================
+   MILESTONE SELECTOR (Badge)
+======================================= */
+.milestone-selector {
+  position: relative;
+  margin-right: var(--space-2);
+  z-index: 100;
+}
+
+.ms-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.ms-badge.is-empty {
+  background-color: var(--bg-hover);
   color: var(--text-muted);
 }
 
-.chevron {
-  font-size: var(--text-xs);
-  color: var(--text-sub);
-  margin-left: var(--space-2);
+.ms-badge:hover {
+  opacity: 0.8;
 }
 
-/* =======================================
-   DROPDOWN MENU
-======================================= */
-.dropdown-menu {
+/* Dropdown */
+.ms-dropdown {
   position: absolute;
-  top: calc(100% + var(--space-1)); /* 4px~6px 여백 조절 */
+  top: calc(100% + 8px);
   left: 0;
-  width: 100%;
+  width: 220px;
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md); /* 12px */
-  /* 애플 스타일의 묵직하고 은은한 드롭다운 그림자 적용 */
-  box-shadow: var(--shadow-lg);
-  max-height: 180px;
-  overflow-y: auto;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
   list-style: none;
-  padding: var(--space-1); /* 내부 요소 공간 균등 분배 */
+  padding: var(--space-1);
   margin: 0;
-  z-index: var(--z-dropdown); /* 100 */
+  max-height: 200px;
+  overflow-y: auto;
 }
 
-.dropdown-menu li {
+.ms-dropdown li {
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
+  color: var(--text-main);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  color: var(--text-main);
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast);
 }
 
-.dropdown-menu li:hover {
+.ms-dropdown li:hover {
   background-color: var(--bg-hover);
 }
 
-/* 애플 표준 리스트 선택 피드백 (연한 블루 배경과 시그니처 블루 매핑) */
-.dropdown-menu li.selected {
+.ms-dropdown li.active {
   background-color: var(--color-primary-light);
   color: var(--color-primary);
   font-weight: var(--font-bold);
 }
 
 /* =======================================
-   QUICK ADD AREA & SEGMENTED CONTROL
+   INPUT FIELD
 ======================================= */
-.quick-add-area {
-  background-color: var(--bg-hover); /* 가벼운 내부 박스 톤 */
-  padding: var(--space-4); /* 16px */
-  border-radius: var(--radius-md); /* 12px */
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3); /* 12px */
-}
-
-/* iOS 스타일 세그먼트 컨트롤 디자인 */
-.type-selector {
-  display: flex;
-  gap: 2px; /* 간격을 좁혀 정교하게 유착 */
-  background-color: var(--border-color);
-  padding: 3px;
-  border-radius: var(--radius-sm);
-  align-self: flex-start;
-}
-
-.type-selector button {
+.quick-input {
+  flex: 1;
   border: none;
   background: transparent;
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--text-xs);
-  font-weight: var(--font-bold);
-  color: var(--text-sub);
-  cursor: pointer;
-  border-radius: calc(var(--radius-sm) - 2px); /* 내부 둥글기 보정 */
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast),
-    box-shadow var(--transition-fast);
-}
-
-/* 세그먼트 활성화: 백색 카드가 은은한 그림자를 품고 올라오는 느낌 */
-.type-selector button.active {
-  background-color: var(--bg-card);
+  padding: var(--space-2);
+  font-size: var(--text-sm);
   color: var(--text-main);
-  box-shadow: var(--shadow-sm);
+  outline: none;
 }
 
-/* =======================================
-   INPUT & LAYOUT GRID
-======================================= */
-.input-row {
-  display: flex;
-  gap: var(--space-2); /* 8px */
-}
-
-.event-options-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2); /* 8px */
-}
-
-.time-range {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.range-dash {
-  font-weight: var(--font-bold);
+.quick-input::placeholder {
   color: var(--text-muted);
 }
 
 /* =======================================
-   CONFIRM BUTTON
+   ACTIONS
 ======================================= */
-.btn-confirm {
-  background-color: var(--text-main); /* 애플 특유의 다크 솔리드 버튼 */
-  color: #ffffff;
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.btn-expand {
+  background: transparent;
   border: none;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-sm);
-  font-weight: var(--font-semibold);
+  color: var(--text-sub);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
   cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.btn-expand:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.btn-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background-color: var(--text-main);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-weight: bold;
   transition:
-    background-color var(--transition-fast),
-    transform var(--transition-fast);
+    transform 0.1s,
+    opacity 0.2s;
 }
 
-.btn-confirm:hover {
-  background-color: #3a3a3c;
+.btn-submit:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
-.btn-confirm:active {
-  transform: scale(0.97); /* 쫀득한 타건감 피드백 */
+.btn-submit:not(:disabled):active {
+  transform: scale(0.9);
 }
 </style>

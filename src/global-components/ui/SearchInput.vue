@@ -37,18 +37,7 @@ defineEmits(['update:modelValue'])
   /* BaseInput 내부 gap이 있으므로 별도의 마진을 줄 필요가 없습니다 */
 }
 
-*
-  만약
-  검색바의
-  높이나
-  폰트
-  크기를
-  다르게
-  하고
-  싶다면
-  */
-  .custom-search-input
-  :deep(.base-input) {
+.custom-search-input :deep(.base-input) {
   font-size: var(--text-sm);
 }
 </style>

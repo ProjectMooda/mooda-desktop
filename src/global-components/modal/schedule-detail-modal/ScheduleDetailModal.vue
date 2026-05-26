@@ -117,7 +117,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import BaseModal from '@/global-components/modal/base/BaseModal.vue'
-import TimePicker from '@/global-components//time-picker/TimePicker.vue'
+import TimePicker from '@/global-components/time-picker/TimePicker.vue'
 import { useScheduleStore } from '@/stores/useScheduleStore'
 import SelectList from '@/global-components/ui/SelectList.vue'
 import type { ScheduleItem } from '@/stores/useScheduleStore'
@@ -152,14 +152,18 @@ const priorityOptions = computed(() => {
   }))
 })
 
-// 2. 모달이 열릴 때 props.data를 localData로 깊은 복사 (독립된 데이터로 만듦)
+// 🌟 2. 모달이 열릴 때 props.data를 localData로 안전하게 깊은 복사
 watch(
   () => props.isOpen,
   (newVal) => {
-    if (newVal) {
-      localData.value = JSON.parse(JSON.stringify(props.data))
-      if (!localData.value.subtasks) {
-        localData.value.subtasks = []
+    if (newVal && props.data) {
+      // JSON 방식 대신 전개 연산자(Spread)를 사용하여 undefined 속성 보존
+      localData.value = {
+        ...props.data,
+        // 하위 할 일은 배열 안의 객체까지 얕은 복사가 필요하므로 map 사용
+        subtasks: props.data.subtasks
+          ? props.data.subtasks.map((s) => ({ ...s }))
+          : []
       }
     }
   },
@@ -187,7 +191,7 @@ const handleAddSubtask = () => {
   newSubtaskText.value = '' // 완료 후 입력창 비우기
 }
 
-// 하위 할 일 추가 (로컬 상태의 배열 맨 뒤에 추가됨)
+// 하위 할 일 추가
 const addSubtask = (text: string) => {
   if (!text) return
   localData.value.subtasks?.push({
@@ -197,15 +201,18 @@ const addSubtask = (text: string) => {
   })
 }
 
-const updateSubtaskProgress = (updatedItem: any) => {
+// 🌟 타입 any 제거 및 안전한 업데이트
+const updateSubtaskProgress = (updatedItem: {
+  id: number
+  text: string
+  done: boolean
+}) => {
   if (!localData.value.subtasks) return
 
-  // 1. 하위 할 일 배열에서 방금 클릭한 항목의 위치(인덱스)를 찾습니다.
   const index = localData.value.subtasks.findIndex(
     (sub) => sub.id === updatedItem.id
   )
 
-  // 2. 배열의 해당 위치를 체크 상태가 변한 새로운 데이터로 싹 교체합니다.
   if (index !== -1) {
     localData.value.subtasks[index] = updatedItem
   }
@@ -237,7 +244,6 @@ const handleClose = () => {
   emit('close')
 }
 </script>
-
 <style scoped>
 /* =======================================
    📜 Scrollable Wrapper

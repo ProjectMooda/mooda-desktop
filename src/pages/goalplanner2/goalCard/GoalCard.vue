@@ -1,17 +1,20 @@
 <template>
   <article class="studio-card goal-card">
     <div class="card-top shrink-0">
-      <!-- 목표 헤더 (제목, 기간, 진행률, 삭제 버튼) -->
       <div class="goal-header">
-        <!-- 제목 클릭 시 상세 모달(MilestoneWorkspace) 오픈 -->
         <div class="title-area min-w-0" @click="$emit('open')">
           <h4>{{ goal.title }}</h4>
-          <span class="date-range">
-            {{ goal.startDate }} ~ {{ goal.endDate }}
+          <span class="date-range" style="font-variant-numeric: tabular-nums">
+            {{ goal.startDate }} ~ {{ goal.endDate || '미정' }}
           </span>
         </div>
         <div class="header-actions">
-          <div class="pct-text shrink-0">{{ progressPercent }}%</div>
+          <div
+            class="pct-text shrink-0"
+            style="font-variant-numeric: tabular-nums"
+          >
+            {{ progressPercent }}%
+          </div>
           <Xbutton
             variant="rounded"
             @click.stop.prevent="deleteGoal(goal.id)"
@@ -19,7 +22,6 @@
         </div>
       </div>
 
-      <!-- 진행률 프로그레스 바 -->
       <div class="progress-track">
         <div
           class="progress-fill"
@@ -28,21 +30,25 @@
       </div>
     </div>
 
-    <!-- 하위 세부 일정 리스트 -->
     <div class="ms-list min-h-0">
       <BaseTaskList
-        :items="goalSchedules"
-        text-key="summary"
-        empty-message="등록된 세부 일정이 없습니다."
-        @update="(item) => store.updateSchedule(item.id, { done: item.done })"
+        :items="goalMilestones"
+        text-key="title"
+        empty-message="등록된 마일스톤이 없습니다."
+        @update="handleMilestoneUpdate"
         @delete="removeMilestone"
       />
     </div>
   </article>
 </template>
+
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
+import {
+  useScheduleStore,
+  type Goal,
+  type Milestone
+} from '@/stores/useScheduleStore'
 import Xbutton from '@/global-components/ui/Xbutton.vue'
 import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
 
@@ -51,26 +57,42 @@ const props = defineProps<{ goal: Goal }>()
 const store = useScheduleStore()
 
 // --- Computed ---
-const goalSchedules = computed(() => {
-  return (
-    store.schedules
-      // 🌟 수정됨: 해당 목표에 속하면서, 타입이 'milestone'인 것만 가져오기
-      .filter((s) => s.goalId === props.goal.id && s.type === 'milestone')
-      .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
-  )
+
+// 🌟 수정됨: 분리된 milestones 배열에서 데이터 가져오기
+const goalMilestones = computed(() => {
+  return store.milestones
+    .filter((m) => m.goalId === props.goal.id)
+    .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
 })
 
 const progressPercent = computed(() => {
-  const total = goalSchedules.value.length
+  const total = goalMilestones.value.length
   if (total === 0) return 0
 
-  const doneCount = goalSchedules.value.filter((m) => m.done).length
+  const doneCount = goalMilestones.value.filter((m) => m.done).length
   return Math.round((doneCount / total) * 100)
 })
 
 // --- Methods ---
+
+// 🌟 마일스톤 체크박스 상태 업데이트 핸들러
+const handleMilestoneUpdate = (updatedItem: Milestone) => {
+  const target = store.milestones.find((m) => m.id === updatedItem.id)
+  if (target) {
+    target.done = updatedItem.done
+    store.saveData()
+  }
+}
+
+// 🌟 마일스톤 삭제 로직 (연관된 Task도 함께 삭제)
 const removeMilestone = (msId: number) => {
-  store.removeSchedule(msId)
+  // 1. 해당 마일스톤에 종속된 스케줄(태스크) 먼저 일괄 삭제
+  store.schedules = store.schedules.filter((s) => s.milestoneId !== msId)
+
+  // 2. 마일스톤 삭제
+  store.milestones = store.milestones.filter((m) => m.id !== msId)
+
+  store.saveData()
 }
 
 const deleteGoal = (id: number) => {
