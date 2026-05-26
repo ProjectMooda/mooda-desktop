@@ -30,7 +30,7 @@
             :class="{ 'active-tab': activeCalendar === 'end' }"
             @click="activeCalendar = 'end'"
           >
-            {{ goal?.endDate || '종료일 선택' }}
+            {{ goal?.endDate || '미정' }}
           </button>
         </div>
 
@@ -98,7 +98,12 @@
       <div class="progress-section mt-auto">
         <div class="progress-header">
           <label>전체 Task 진행률</label>
-          <span class="pct-text" :style="{ color: goal?.color || '#4f46e5' }"
+          <span
+            class="pct-text"
+            :style="{
+              color: goal?.color || '#4f46e5',
+              fontVariantNumeric: 'tabular-nums'
+            }"
             >{{ calculateProgress }}%</span
           >
         </div>
@@ -120,7 +125,9 @@
         <div class="ms-header-row mb-4">
           <div class="flex-row gap-2 items-center">
             <label>마일스톤 (기간별 목표)</label>
-            <span class="ms-count">총 {{ goalMilestones.length }}개</span>
+            <span class="ms-count" style="font-variant-numeric: tabular-nums"
+              >총 {{ goalMilestones.length }}개</span
+            >
           </div>
           <button class="btn-primary" @click="$emit('open-create')">
             마일스톤 추가
@@ -148,16 +155,23 @@
               <div class="ms-content min-w-0">
                 <div class="ms-meta">
                   <span class="ms-badge bg-gray">마일스톤</span>
-                  <span class="ms-date">
-                    {{ (ms.startDate || '').slice(5).replace('-', '/') }} ~
-                    {{ (ms.endDate || '미정').slice(5).replace('-', '/') }}
+                  <span
+                    class="ms-date"
+                    style="font-variant-numeric: tabular-nums"
+                  >
+                    {{ formatSafeDate(ms.startDate) }} ~
+                    {{ formatSafeDate(ms.endDate) }}
                   </span>
-                  <span class="ms-task-count">
+                  <span
+                    class="ms-task-count"
+                    style="font-variant-numeric: tabular-nums"
+                  >
                     완료 {{ getCompletedCount(ms.id) }} /
                     {{ getTotalTaskCount(ms.id) }}
                   </span>
                 </div>
-                <div class="ms-title">{{ ms.summary }}</div>
+                <!-- 🚨 인터페이스 변경에 따라 ms.summary -> ms.title 로 수정 -->
+                <div class="ms-title">{{ ms.title }}</div>
               </div>
               <div class="ms-actions shrink-0 text-gray-400">〉</div>
             </div>
@@ -196,7 +210,12 @@ const palette = [
   '#71717a'
 ]
 
-// 🌟 Props 직접 수정 에러 원천 차단 핸들러
+// 날짜 undefined 방어용 포맷터
+const formatSafeDate = (dateStr?: string) => {
+  if (!dateStr) return '미정'
+  return dateStr.slice(5).replace('-', '/')
+}
+
 const updateGoalField = (field: keyof Goal, value: any) => {
   if (!props.goal || !store.goals) return
   const targetGoal = store.goals.find((g) => g.id === props.goal.id)
@@ -206,7 +225,6 @@ const updateGoalField = (field: keyof Goal, value: any) => {
   }
 }
 
-// 🌟 스토어 안전핀 확보 및 필터 안정화
 const calculateProgress = computed(() => {
   const schedules = store.schedules || []
   const tasks = schedules.filter(
@@ -216,17 +234,17 @@ const calculateProgress = computed(() => {
   return Math.round((tasks.filter((t) => t.done).length / tasks.length) * 100)
 })
 
+// 🚨 schedules 배열 대신 새롭게 분리된 store.milestones 배열을 직접 참조
 const goalMilestones = computed(() => {
-  const schedules = store.schedules || []
-  return schedules.filter(
-    (s) => s && s.goalId === props.goal?.id && s.type === 'milestone'
-  )
+  const milestones = store.milestones || []
+  return milestones.filter((m) => m && m.goalId === props.goal?.id)
 })
 
 const filteredMilestones = computed(() => {
   if (!searchQuery.value) return goalMilestones.value
   return goalMilestones.value.filter((m) =>
-    m.summary?.toLowerCase().includes(searchQuery.value.toLowerCase())
+    // 🚨 summary 대신 title로 검색
+    m.title?.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
 

@@ -1,13 +1,14 @@
+<!-- MilestoneCreateModal.vue -->
 <template>
   <BaseModal title="새로운 마일스톤 추가" width="420px" @close="$emit('close')">
     <div class="form-container">
       <div class="form-group">
         <label>타이틀</label>
         <BaseInput
-          v-model="newMsSummary"
+          v-model="newMsTitle"
+          v-focus
           field="goalTitle"
           placeholder="마일스톤 타이틀 입력"
-          v-focus
           @keyup.enter="submitNewMilestone"
         />
       </div>
@@ -41,8 +42,8 @@
 import { ref } from 'vue'
 import {
   useScheduleStore,
-  type Goal,
-  type ScheduleItem
+  type Goal
+  // ScheduleItem 임포트 제거됨 (더 이상 여기서 안 씀)
 } from '@/stores/useScheduleStore'
 import BaseModal from '@/global-components/modal/base/BaseModal.vue'
 import BaseInput from '@/global-components/Input/BaseInput.vue'
@@ -51,47 +52,54 @@ const props = defineProps<{ goal: Goal }>()
 const emit = defineEmits(['close'])
 const store = useScheduleStore()
 
+// summary -> title 로 네이밍 변경
+const newMsTitle = ref('')
 const newMsStartDate = ref(store?.selectedDate || '')
-const newMsEndDate = ref(store?.selectedDate || '')
-const newMsSummary = ref('')
+const newMsEndDate = ref('') // 종료일은 기본적으로 비워둠 (옵셔널)
 
 const validateMilestoneDates = (msStart: string, msEnd: string) => {
   if (!props.goal) return false
   const { startDate: gStart, endDate: gEnd } = props.goal
+
+  if (!msStart) return (alert('시작일은 필수입니다.'), false)
+
   if (msStart && gStart && msStart < gStart)
     return (alert(`목표 시작일(${gStart})보다 빠를 수 없습니다.`), false)
+
   if (gEnd) {
+    // 마일스톤 종료일이 입력되었고, 목표 종료일보다 늦은 경우
     if (msEnd && msEnd > gEnd)
       return (alert(`목표 종료일(${gEnd})보다 늦을 수 없습니다.`), false)
     if (msStart && msStart > gEnd)
       return (alert(`시작일이 목표 종료일(${gEnd})을 초과했습니다.`), false)
   }
+
+  // 시작일과 종료일이 모두 있을 때의 선후 관계 검증
   if (msStart && msEnd && msStart > msEnd)
     return (alert('시작 날짜가 종료 날짜보다 늦을 수 없습니다.'), false)
+
   return true
 }
 
 const submitNewMilestone = () => {
-  if (
-    !newMsSummary.value ||
-    !validateMilestoneDates(newMsStartDate.value, newMsEndDate.value)
-  )
+  if (!newMsTitle.value) {
+    alert('마일스톤 타이틀을 입력해주세요.')
     return
+  }
 
-  // 🌟 스토어 배열 부재 시 초기화 예외 처리 및 추가
-  if (!store.schedules) store.schedules = []
+  if (!validateMilestoneDates(newMsStartDate.value, newMsEndDate.value)) return
 
-  store.schedules.push({
-    id: Date.now(),
-    type: 'milestone',
-    goalId: props.goal.id,
-    summary: newMsSummary.value,
-    done: false,
-    startDate: newMsStartDate.value,
-    endDate: newMsEndDate.value
-  } as ScheduleItem)
+  // 🌟 빈 문자열("")일 경우 undefined로 변환하여 스토어에 전달
+  const finalEndDate = newMsEndDate.value || undefined
 
-  store.saveData()
+  // 🌟 스토어 배열 직접 수정 대신, 정규화된 addMilestone 액션 사용
+  store.addMilestone(
+    props.goal.id,
+    newMsTitle.value,
+    newMsStartDate.value,
+    finalEndDate
+  )
+
   emit('close')
 }
 

@@ -1,28 +1,29 @@
+<!-- MilestoneWorkspace.vue -->
 <template>
   <div class="goal-detail-view">
     <div class="ms-workspace-header">
       <div class="header-left">
         <button class="btn-back" @click="$emit('back')">〈 목록으로</button>
         <BaseInput
-          :model-value="activeMilestone?.summary || ''"
+          :model-value="activeMilestone?.title || ''"
           field="goalTitle"
           placeholder="마일스톤 타이틀"
           class="workspace-title-base-input"
-          @update:model-value="onSummaryChange"
+          @update:model-value="onTitleChange"
         />
       </div>
       <div class="header-right">
         <div class="workspace-date-edit">
           <input
             type="date"
-            :value="activeMilestone?.startDate"
+            :value="activeMilestone?.startDate || ''"
             class="s-input-sm"
             @change="(e) => updateMilestoneDate('startDate', e)"
           />
           <span>~</span>
           <input
             type="date"
-            :value="activeMilestone?.endDate"
+            :value="activeMilestone?.endDate || ''"
             class="s-input-sm"
             @change="(e) => updateMilestoneDate('endDate', e)"
           />
@@ -53,7 +54,6 @@
         </div>
 
         <div class="task-list-scroll">
-          <!-- 진행 중인 항목 (할 일 추가 영역 포함) -->
           <BaseTaskList
             :items="pendingTasks"
             text-key="summary"
@@ -62,7 +62,6 @@
             @update="handleListTaskUpdate"
             @item-click="openTaskModal"
           >
-            <!-- 🟢 header 슬롯을 사용하여 리스트 위에 입력창 배치 -->
             <template #header>
               <BaseInput
                 v-model="newTaskText"
@@ -78,7 +77,6 @@
             </template>
           </BaseTaskList>
 
-          <!-- 완료된 항목 -->
           <div v-if="completedTasks.length > 0" class="completed-section mt-4">
             <button
               class="toggle-completed-btn"
@@ -104,7 +102,6 @@
       </div>
     </div>
 
-    <!-- 세부 일정 편집 (ScheduleDetailModal) -->
     <ScheduleDetailModal
       v-if="isTaskModalOpen && selectedTask"
       :is-open="isTaskModalOpen"
@@ -121,7 +118,8 @@ import { ref, computed } from 'vue'
 import {
   useScheduleStore,
   type Goal,
-  type ScheduleItem
+  type ScheduleItem,
+  type Milestone
 } from '@/stores/useScheduleStore'
 import Calendar from '@/global-components/calendar/Calendar.vue'
 import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
@@ -133,33 +131,39 @@ const emit = defineEmits(['back'])
 const store = useScheduleStore()
 
 const todayString = new Date().toISOString().slice(0, 10)
+
+// 🌟 분리된 store.milestones 배열에서 현재 마일스톤 찾기
 const activeMilestone = computed(
-  () =>
-    store.schedules.find(
-      (s) => s.id === props.milestoneId && s.type === 'milestone'
-    ) || null
+  () => store.milestones.find((m) => m.id === props.milestoneId) || null
 )
 const selectedMsDate = ref(activeMilestone.value?.startDate || todayString)
 
-// 마일스톤 업데이트 / 삭제 로직
-const handleMilestoneUpdate = (payload: Partial<ScheduleItem>) => {
+// 🌟 마일스톤 직접 업데이트 로직 (Pinia State의 반응성 활용)
+const handleMilestoneUpdate = (field: keyof Milestone, value: any) => {
   if (activeMilestone.value) {
-    store.updateSchedule(activeMilestone.value.id, payload)
+    ;(activeMilestone.value as any)[field] = value
     store.saveData()
   }
 }
-const onSummaryChange = (val: string) => {
-  handleMilestoneUpdate({ summary: val })
+
+const onTitleChange = (val: string) => {
+  handleMilestoneUpdate('title', val)
 }
+
 const removeMilestone = () => {
-  store.schedules
-    .filter((s) => s.type === 'task' && s.milestoneId === props.milestoneId)
-    .forEach((t) => store.removeSchedule(t.id))
-  store.removeSchedule(props.milestoneId)
+  // 연관된 Task 먼저 일괄 삭제
+  store.schedules = store.schedules.filter(
+    (s) => s.milestoneId !== props.milestoneId
+  )
+  // 마일스톤 삭제
+  store.milestones = store.milestones.filter((m) => m.id !== props.milestoneId)
   store.saveData()
   emit('back')
 }
+
 const validateMilestoneDates = (msStart: string, msEnd: string) => {
+  if (!msStart) return (alert('시작일은 필수입니다.'), false)
+
   const { startDate: gStart, endDate: gEnd } = props.goal
   if (msStart && gStart && msStart < gStart)
     return (alert(`목표 시작일(${gStart})보다 빠를 수 없습니다.`), false)
@@ -173,18 +177,21 @@ const validateMilestoneDates = (msStart: string, msEnd: string) => {
     return (alert('시작 날짜가 종료 날짜보다 늦을 수 없습니다.'), false)
   return true
 }
+
 const updateMilestoneDate = (field: 'startDate' | 'endDate', event: Event) => {
   if (!activeMilestone.value) return
-  const newVal = (event.target as HTMLInputElement).value
+  // 입력값이 비어있으면 undefined로 처리
+  const newVal = (event.target as HTMLInputElement).value || undefined
+
   const tempStart =
-    field === 'startDate' ? newVal : activeMilestone.value.startDate || ''
+    field === 'startDate' ? newVal || '' : activeMilestone.value.startDate || ''
   const tempEnd =
-    field === 'endDate' ? newVal : activeMilestone.value.endDate || ''
+    field === 'endDate' ? newVal || '' : activeMilestone.value.endDate || ''
 
   if (validateMilestoneDates(tempStart, tempEnd)) {
-    activeMilestone.value[field] = newVal
-    handleMilestoneUpdate({ [field]: newVal })
+    handleMilestoneUpdate(field, newVal)
   } else {
+    // 롤백
     ;(event.target as HTMLInputElement).value =
       activeMilestone.value[field] || ''
   }
@@ -192,7 +199,7 @@ const updateMilestoneDate = (field: 'startDate' | 'endDate', event: Event) => {
 
 // Task 관리 로직
 const showCompleted = ref(false)
-const newTaskText = ref('') // 🌟 입력창 상태 추가
+const newTaskText = ref('')
 
 const tasksForSelectedDate = computed(() => {
   if (!activeMilestone.value || !selectedMsDate.value) return []
@@ -210,19 +217,17 @@ const completedTasks = computed(() =>
   tasksForSelectedDate.value.filter((t) => t.done)
 )
 
-// 🌟 입력 처리 함수 추가
 const handleAddTask = () => {
   const text = newTaskText.value
   if (!text) return
 
   addTaskToSelectedDate(text)
-  newTaskText.value = '' // 입력창 초기화
+  newTaskText.value = ''
 }
 
 const addTaskToSelectedDate = (text: string) => {
   if (!activeMilestone.value || !selectedMsDate.value) return
 
-  // 🌟 항목이 위로 쌓이도록 unshift 사용
   store.schedules.unshift({
     id: Date.now(),
     type: 'task',
@@ -231,19 +236,17 @@ const addTaskToSelectedDate = (text: string) => {
     summary: text,
     done: false,
     startDate: selectedMsDate.value,
-    endDate: selectedMsDate.value
+    // 🌟 하루짜리 일반 일정이므로 endDate는 명시적으로 undefined 처리
+    endDate: undefined
   } as ScheduleItem)
 
   store.saveData()
 }
+
 const removeTask = (taskId: number) => store.removeSchedule(taskId)
 
 const handleListTaskUpdate = (updatedTask: ScheduleItem) => {
-  // 스토어의 기존 데이터를 수정된 데이터로 교체
   store.updateSchedule(updatedTask.id, updatedTask)
-
-  // 교체된 최신 상태를 로컬 스토리지에 저장
-  store.saveData()
 }
 
 // Task 수정 모달 로직
