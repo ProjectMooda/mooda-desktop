@@ -3,12 +3,12 @@
     <div class="ms-workspace-header">
       <div class="header-left">
         <button class="btn-back" @click="$emit('back')">〈 목록으로</button>
-        <input
-          type="text"
-          :value="activeMilestone?.summary"
-          class="workspace-title-input"
+        <BaseInput
+          :model-value="activeMilestone?.summary || ''"
+          field="goalTitle"
           placeholder="마일스톤 타이틀"
-          @change="onSummaryChange"
+          class="workspace-title-base-input"
+          @update:model-value="onSummaryChange"
         />
       </div>
       <div class="header-right">
@@ -59,21 +59,22 @@
             text-key="summary"
             empty-message="해당 날짜에 진행 중인 일정이 없습니다."
             @delete="removeTask"
-            @update="store.saveData"
+            @update="handleListTaskUpdate"
             @item-click="openTaskModal"
           >
             <!-- 🟢 header 슬롯을 사용하여 리스트 위에 입력창 배치 -->
             <template #header>
-              <div class="add-subtask-wrapper mb-2">
-                <span class="add-icon">↳</span>
-                <input
-                  v-model="newTaskText"
-                  type="text"
-                  class="add-subtask-input"
-                  :placeholder="`${selectedMsDate.slice(8)}일에 수행할 일정 추가...`"
-                  @keyup.enter="handleAddTask"
-                />
-              </div>
+              <BaseInput
+                v-model="newTaskText"
+                field="taskTitle"
+                :placeholder="`${selectedMsDate.slice(8)}일에 수행할 일정 추가...`"
+                class="mb-2"
+                @keyup.enter="handleAddTask"
+              >
+                <template #prefix>
+                  <span class="add-icon">↳</span>
+                </template>
+              </BaseInput>
             </template>
           </BaseTaskList>
 
@@ -95,7 +96,7 @@
               :is-completed-style="true"
               :theme-color="goal.color || '#4f46e5'"
               @delete="removeTask"
-              @update="store.saveData"
+              @update="handleListTaskUpdate"
               @item-click="openTaskModal"
             />
           </div>
@@ -125,6 +126,7 @@ import {
 import Calendar from '@/global-components/calendar/Calendar.vue'
 import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
 import ScheduleDetailModal from '@/global-components/modal/schedule-detail-modal/ScheduleDetailModal.vue'
+import BaseInput from '@/global-components/Input/BaseInput.vue'
 
 const props = defineProps<{ goal: Goal; milestoneId: number }>()
 const emit = defineEmits(['back'])
@@ -146,9 +148,8 @@ const handleMilestoneUpdate = (payload: Partial<ScheduleItem>) => {
     store.saveData()
   }
 }
-const onSummaryChange = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  if (target) handleMilestoneUpdate({ summary: target.value })
+const onSummaryChange = (val: string) => {
+  handleMilestoneUpdate({ summary: val })
 }
 const removeMilestone = () => {
   store.schedules
@@ -211,7 +212,7 @@ const completedTasks = computed(() =>
 
 // 🌟 입력 처리 함수 추가
 const handleAddTask = () => {
-  const text = newTaskText.value.trim()
+  const text = newTaskText.value
   if (!text) return
 
   addTaskToSelectedDate(text)
@@ -236,6 +237,14 @@ const addTaskToSelectedDate = (text: string) => {
   store.saveData()
 }
 const removeTask = (taskId: number) => store.removeSchedule(taskId)
+
+const handleListTaskUpdate = (updatedTask: ScheduleItem) => {
+  // 스토어의 기존 데이터를 수정된 데이터로 교체
+  store.updateSchedule(updatedTask.id, updatedTask)
+
+  // 교체된 최신 상태를 로컬 스토리지에 저장
+  store.saveData()
+}
 
 // Task 수정 모달 로직
 const isTaskModalOpen = ref(false)
@@ -339,22 +348,29 @@ const handleTaskDelete = () => {
   background: #e4e4e7;
   color: #18181b;
 }
-.workspace-title-input {
-  font-size: 18px;
-  font-weight: 800;
-  color: #27272a;
-  border: none;
-  background: transparent;
-  outline: none;
+.workspace-title-base-input {
   width: 100%;
   max-width: 400px;
-  padding: 4px;
-  border-bottom: 2px solid transparent;
-  transition: border-color 0.2s;
+  margin-bottom: 0 !important;
 }
-.workspace-title-input:focus {
-  border-bottom-color: #6366f1;
+
+/* 알약 배경/테두리 제거 및 하단 실선만 남김 */
+.workspace-title-base-input :deep(.input-container) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 4px 65px 4px 4px !important; /* 우측 카운터 공간 유지 */
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
 }
+
+/* 포커스 시 하단 테두리 색상 변경 */
+.workspace-title-base-input.is-focused :deep(.input-container),
+.workspace-title-base-input:focus-within :deep(.input-container) {
+  border-bottom-color: #6366f1 !important;
+  transform: none !important; /* 위로 뜨는 애니메이션 방지 */
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -414,10 +430,12 @@ const handleTaskDelete = () => {
 .task-list-scroll {
   flex: 1;
   overflow-y: auto;
-  padding-right: 8px;
-  margin-right: -8px;
   scrollbar-gutter: stable;
-  padding-right: 4px; /* 기존의 margin-right 음수 값을 지우고 패딩만 살짝 줍니다 */
+
+  /* ✨ 수정된 부분: 스크롤 영역 안쪽에 위/아래 여백을 주어 애니메이션이 잘리지 않게 보호 */
+  padding-top: 4px; /* 상단 보호 구역 */
+  padding-bottom: 4px; /* 하단 보호 구역 */
+  padding-right: 4px; /* 우측 스크롤바 여백 */
 }
 
 /* 완료된 항목 토글 버튼 */
@@ -440,37 +458,11 @@ const handleTaskDelete = () => {
 }
 
 /* 🌟 하위 할 일 추가 입력창 (이관된 스타일) */
-.add-subtask-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #fff;
-  border-radius: 8px;
-  border: 1px dashed #d4d4d8;
-  transition: border-color 0.2s;
-}
-.add-subtask-wrapper:focus-within {
-  border-color: #6366f1;
-  border-style: solid;
-}
 .add-icon {
   color: #a1a1aa;
   font-weight: bold;
-  font-size: 14px;
+  font-size: 16px;
   width: 16px;
   text-align: center;
-}
-.add-subtask-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  color: #27272a;
-  outline: none;
-  min-width: 0;
-}
-.add-subtask-input::placeholder {
-  color: #a1a1aa;
 }
 </style>

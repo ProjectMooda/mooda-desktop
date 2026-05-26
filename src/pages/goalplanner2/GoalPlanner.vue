@@ -3,12 +3,14 @@
     <section class="studio-card creator-card shrink-0">
       <h3>새로운 장기 목표 설정</h3>
       <div class="input-row flex-wrap">
-        <input
+        <BaseInput
           v-model="newGoal.title"
-          type="text"
+          field="goalTitle"
           placeholder="목표 타이틀..."
-          class="s-input flex-1 min-w-200"
+          class="flex-1 min-w-200 goal-title-input"
+          @keyup.enter="createGoal"
         />
+
         <input
           v-model="newGoal.startDate"
           type="date"
@@ -45,10 +47,11 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useScheduleStore } from '@/stores/useScheduleStore' // 스토어 경로를 상황에 맞게 수정하세요
+import { useScheduleStore } from '@/stores/useScheduleStore'
 import GoalCard from './goalCard/GoalCard.vue'
-import GoalDetailModal from './goalDetailModal/GoalDetailModal.vue' // 추가!
+import GoalDetailModal from './goalDetailModal/GoalDetailModal.vue'
 import type { Goal } from '@/stores/useScheduleStore'
+import BaseInput from '@/global-components/Input/BaseInput.vue'
 
 // 스토어 연동
 const store = useScheduleStore()

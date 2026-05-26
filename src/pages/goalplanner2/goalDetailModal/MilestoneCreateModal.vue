@@ -3,11 +3,11 @@
     <div class="form-container">
       <div class="form-group">
         <label>타이틀</label>
-        <input
+        <BaseInput
           v-model="newMsSummary"
-          type="text"
-          class="s-input"
+          field="goalTitle"
           placeholder="마일스톤 타이틀 입력"
+          v-focus
           @keyup.enter="submitNewMilestone"
         />
       </div>
@@ -45,6 +45,7 @@ import {
   type ScheduleItem
 } from '@/stores/useScheduleStore'
 import BaseModal from '@/global-components/modal/base/BaseModal.vue'
+import BaseInput from '@/global-components/Input/BaseInput.vue'
 
 const props = defineProps<{ goal: Goal }>()
 const emit = defineEmits(['close'])
@@ -72,7 +73,7 @@ const validateMilestoneDates = (msStart: string, msEnd: string) => {
 
 const submitNewMilestone = () => {
   if (
-    !newMsSummary.value.trim() ||
+    !newMsSummary.value ||
     !validateMilestoneDates(newMsStartDate.value, newMsEndDate.value)
   )
     return
@@ -92,6 +93,16 @@ const submitNewMilestone = () => {
 
   store.saveData()
   emit('close')
+}
+
+const vFocus = {
+  mounted: (el: HTMLElement) => {
+    // BaseInput의 최상단 div 안에서 실제 input 태그를 찾음
+    const input = el.querySelector('input')
+    if (input) {
+      input.focus()
+    }
+  }
 }
 </script>
 

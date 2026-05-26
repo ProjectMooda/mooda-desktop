@@ -9,13 +9,17 @@
     <div class="detail-content-wrapper">
       <!-- 메인 타이틀 -->
       <div class="modal-header-title">
-        <input
+        <BaseInput
           v-model="localData.summary"
-          type="text"
-          class="title-input"
+          field="taskTitle"
           placeholder="할 일의 제목(한줄 요약)을 입력하세요"
-        />
-        <span class="title-edit-hint">✏️</span>
+          class="title-base-input"
+        >
+          <!-- ✏️ 아이콘을 prefix 슬롯으로 삽입 -->
+          <template #prefix>
+            <span class="title-edit-hint">✏️</span>
+          </template>
+        </BaseInput>
       </div>
 
       <!-- 시간 설정 -->
@@ -67,15 +71,19 @@
         >
           <!-- 🔴 footer 슬롯을 사용하여 리스트 아래에 입력창 배치 -->
           <template #footer>
-            <div class="add-subtask-wrapper" style="margin-top: 4px">
-              <span class="add-icon">＋</span>
-              <input
+            <div style="margin-top: 12px">
+              <!-- 기존 add-subtask-wrapper 걷어내고 BaseInput 직관적 사용 -->
+              <BaseInput
                 v-model="newSubtaskText"
-                type="text"
-                class="add-subtask-input"
+                field="subtask"
                 placeholder="하위 할 일 추가 (Enter)"
                 @keyup.enter="handleAddSubtask"
-              />
+              >
+                <!-- ＋ 아이콘을 prefix 슬롯으로 삽입 -->
+                <template #prefix>
+                  <span class="add-icon">＋</span>
+                </template>
+              </BaseInput>
             </div>
           </template>
         </BaseTaskList>
@@ -114,6 +122,7 @@ import { useScheduleStore } from '@/stores/useScheduleStore'
 import SelectList from '@/global-components/ui/SelectList.vue'
 import type { ScheduleItem } from '@/stores/useScheduleStore'
 import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
+import BaseInput from '@/global-components/Input/BaseInput.vue'
 
 const store = useScheduleStore()
 
@@ -171,7 +180,7 @@ const progressPercentage = computed(() => {
 
 // 🌟 엔터 입력 처리 함수
 const handleAddSubtask = () => {
-  const text = newSubtaskText.value.trim()
+  const text = newSubtaskText.value
   if (!text) return
 
   addSubtask(text)
@@ -189,7 +198,17 @@ const addSubtask = (text: string) => {
 }
 
 const updateSubtaskProgress = (updatedItem: any) => {
-  // 별도로 할 게 없다면 비워두셔도 되지만 프로그레스 바 갱신 시 유용합니다.
+  if (!localData.value.subtasks) return
+
+  // 1. 하위 할 일 배열에서 방금 클릭한 항목의 위치(인덱스)를 찾습니다.
+  const index = localData.value.subtasks.findIndex(
+    (sub) => sub.id === updatedItem.id
+  )
+
+  // 2. 배열의 해당 위치를 체크 상태가 변한 새로운 데이터로 싹 교체합니다.
+  if (index !== -1) {
+    localData.value.subtasks[index] = updatedItem
+  }
 }
 
 const removeSubtask = (subtaskId: number) => {
@@ -231,7 +250,12 @@ const handleClose = () => {
   overflow-y: scroll;
   scrollbar-gutter: stable;
   overflow-x: hidden;
-  padding-right: var(--space-2); /* 8px */
+
+  /* ✨ 수정된 부분: 위/아래 패딩을 추가하여 애니메이션과 그림자가 잘리지 않게 보호 */
+  padding-top: var(--space-2); /* 상단 여유 공간 확보 (8px) */
+  padding-bottom: var(--space-2); /* 하단 여유 공간 확보 */
+  padding-right: var(--space-2); /* 기존 우측 스크롤 여백 유지 */
+
   box-sizing: border-box;
 }
 
@@ -239,43 +263,23 @@ const handleClose = () => {
    🖋 Title Input (Editable)
 ======================================= */
 .modal-header-title {
-  margin-bottom: var(--space-1);
-  position: relative;
-  display: flex;
-  align-items: center;
+  margin-bottom: var(--space-3);
+
+  /* 위에서 패딩을 줬지만 조금 더 넉넉하게 보이고 싶다면 margin-top을 살짝 줘도 좋습니다 */
+  margin-top: var(--space-1);
 }
-.title-input {
-  width: 100%;
-  font-size: var(--text-xl); /* 20px */
+
+/* 제목용 BaseInput은 조금 더 크고 두껍게 보이고 싶다면 
+   기본 스타일을 덮어씌움 */
+.title-base-input :deep(.base-input) {
+  font-size: var(--text-md);
   font-weight: var(--font-bold);
-  color: var(--text-main);
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: var(--space-1) 0;
-  padding-right: var(--space-8); /* 32px */
-  outline: none;
-  transition: border-color var(--transition-fast);
-  background: transparent;
 }
-.title-input:focus {
-  border-bottom-color: var(--color-primary);
-}
-.title-input::placeholder {
-  color: var(--text-muted);
-  font-weight: var(--font-semibold);
-}
+
 .title-edit-hint {
-  position: absolute;
-  right: var(--space-2);
-  font-size: var(--text-base); /* 16px */
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-  pointer-events: none;
-  filter: grayscale(1);
-}
-.modal-header-title:hover .title-edit-hint,
-.title-input:focus + .title-edit-hint {
-  opacity: 0.6;
+  font-size: var(--text-base);
+  opacity: 0.5;
+  margin-right: var(--space-1);
 }
 
 /* =======================================
@@ -363,39 +367,12 @@ const handleClose = () => {
 }
 
 /* 🌟 하위 할 일 추가 입력창 스타일 복구 */
-.add-subtask-wrapper {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 6px var(--space-2);
-  background: transparent;
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--border-color);
-  transition: border-color var(--transition-fast);
-}
-.add-subtask-wrapper:focus-within {
-  border-color: var(--color-primary);
-}
 .add-icon {
-  color: var(--text-muted);
+  color: var(--color-primary); /* 아이콘에 브랜드 컬러 부여 */
   font-weight: var(--font-bold);
-  font-size: var(--text-sm);
-  width: 16px;
+  font-size: var(--text-base);
+  width: 24px;
   text-align: center;
-}
-.add-subtask-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  font-size: var(--text-sm);
-  color: var(--text-main);
-  outline: none;
-  min-width: 0;
-  width: 100%;
-  padding: var(--space-1) 0;
-}
-.add-subtask-input::placeholder {
-  color: var(--text-muted);
 }
 
 /* =======================================

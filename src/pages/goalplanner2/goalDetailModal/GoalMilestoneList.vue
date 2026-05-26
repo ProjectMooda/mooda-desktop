@@ -4,14 +4,12 @@
     <div class="info-section">
       <div class="form-group">
         <label>목표 타이틀</label>
-        <input
-          :value="goal?.title || ''"
-          type="text"
-          class="s-input title-input"
-          @change="
-            (e) =>
-              updateGoalField('title', (e.target as HTMLInputElement).value)
-          "
+        <BaseInput
+          :model-value="goal?.title || ''"
+          field="goalTitle"
+          placeholder="목표 타이틀을 입력하세요"
+          class="goal-title-input"
+          @update:model-value="(val) => updateGoalField('title', val)"
         />
       </div>
 
@@ -177,8 +175,8 @@
 import { ref, computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
 import PopupCalendar from '@/global-components/calendar/PopupCalendar.vue'
-
 import SearchInput from '@/global-components/ui/SearchInput.vue'
+import BaseInput from '@/global-components/Input/BaseInput.vue'
 
 const props = defineProps<{ goal: Goal }>()
 defineEmits(['open-detail', 'open-create'])
@@ -226,7 +224,7 @@ const goalMilestones = computed(() => {
 })
 
 const filteredMilestones = computed(() => {
-  if (!searchQuery.value.trim()) return goalMilestones.value
+  if (!searchQuery.value) return goalMilestones.value
   return goalMilestones.value.filter((m) =>
     m.summary?.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
@@ -424,25 +422,14 @@ const getCompletedCount = (msId: number) => {
 /* =======================================
    나머지 폼 요소 & 마일스톤 리스트
 ======================================= */
-.s-input {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #e4e4e7;
-  border-radius: 10px;
-  background: #fff;
-  font-size: 14px;
-  outline: none;
-  transition: 0.2s;
-  color: #27272a;
+/* ✨ BaseInput을 타이틀의 묵직한 느낌에 맞게 커스텀 */
+.goal-title-input {
+  margin-bottom: 0 !important;
 }
-.s-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-.title-input {
+
+.goal-title-input :deep(.base-input) {
   font-size: 16px;
-  font-weight: 700;
-  padding: 14px 16px;
+  font-weight: 700; /* 타이틀에 맞게 두꺼운 폰트 적용 */
 }
 
 .btn-primary {
