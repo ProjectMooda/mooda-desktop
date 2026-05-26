@@ -10,7 +10,11 @@
       @toggle-add-form="showAddForm = !showAddForm"
     />
 
-    <StudioQuickAdd v-if="showAddForm" @close="showAddForm = false" />
+    <StudioQuickAdd
+      v-if="showAddForm"
+      @close="showAddForm = false"
+      @open-full-add="isFullAddOpen = true"
+    />
 
     <div class="task-scroll-area">
       <div v-if="totalItems === 0" class="empty-msg">
@@ -121,6 +125,11 @@
         </div>
       </div>
     </div>
+
+    <FullScheduleAddModal
+      :is-open="isFullAddOpen"
+      @close="isFullAddOpen = false"
+    />
   </section>
 </template>
 
@@ -133,6 +142,7 @@ import TaskCard from '@/global-components/card/TaskCard.vue'
 import StudioCardHeader from './StudioCardHeader.vue'
 import StudioQuickAdd from './StudioQuickAdd.vue'
 import PinButton from '@/global-components/ui/PinButton.vue'
+import FullScheduleAddModal from '@/global-components/modal/full-schedule-add-modal/FullScheduleAddModal.vue'
 
 const scheduleStore = useScheduleStore()
 const emit = defineEmits(['open-detail'])
@@ -140,6 +150,9 @@ const emit = defineEmits(['open-detail'])
 // 상태 관리
 const showAddForm = ref(false)
 const showCompleted = ref(false)
+
+// 상세 모달창을 열고 닫을 상태 변수
+const isFullAddOpen = ref(false)
 
 // 헤더용 데이터
 const formattedDate = computed(() => {
@@ -149,7 +162,7 @@ const formattedDate = computed(() => {
   return parts.length === 3 ? `${parts[1]}.${parts[2]}` : full
 })
 
-// 🌟 타입 안정성 확보: any 대신 ScheduleItem 명시
+// 🌟 타입 안정성 확보
 const openDetailModal = (item: ScheduleItem) => emit('open-detail', item)
 
 const localActiveMilestones = ref<ScheduleItem[]>([])
@@ -183,7 +196,21 @@ const handleItemUpdate = (item: ScheduleItem, patch: Partial<ScheduleItem>) => {
   scheduleStore.updateSchedule(item.id, patch)
 }
 
+// 🌟 그룹 단위 삭제 대응 처리
 const handleItemDelete = (item: ScheduleItem) => {
+  // 생성 모드가 단일(single)이 아니고 그룹 ID가 존재할 경우 삭제 의도 묻기
+  if (item.groupId && item.creationMode !== 'single') {
+    const isGroupDelete = window.confirm(
+      '이 일정은 다중/반복 생성된 일정입니다.\n\n[확인] 연결된 전체 일정을 일괄 삭제합니다.\n[취소] 현재 일정만 삭제합니다.'
+    )
+
+    if (isGroupDelete) {
+      scheduleStore.removeScheduleGroup(item.groupId)
+      return
+    }
+  }
+
+  // 단일 삭제 (그룹이 아니거나, 그룹 중에서 취소를 눌러 하나만 삭제할 때)
   scheduleStore.removeSchedule(item.id)
 }
 
