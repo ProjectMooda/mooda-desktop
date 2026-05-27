@@ -1,4 +1,3 @@
-<!-- MilestoneWorkspace.vue -->
 <template>
   <div class="goal-detail-view">
     <div class="ms-workspace-header">
@@ -58,22 +57,50 @@
             :items="pendingTasks"
             text-key="summary"
             empty-message="해당 날짜에 진행 중인 일정이 없습니다."
-            @delete="removeTask"
+            @delete="requestTaskDelete"
             @update="handleListTaskUpdate"
             @item-click="openTaskModal"
           >
             <template #header>
-              <BaseInput
-                v-model="newTaskText"
-                field="taskTitle"
-                :placeholder="`${selectedMsDate.slice(8)}일에 수행할 일정 추가...`"
-                class="mb-2"
-                @keyup.enter="handleAddTask"
-              >
-                <template #prefix>
-                  <span class="add-icon">↳</span>
-                </template>
-              </BaseInput>
+              <div class="smart-quick-add mb-4">
+                <div
+                  class="input-container"
+                  :class="{ 'is-focused': isFocused }"
+                >
+                  <div class="milestone-selector">
+                    <span class="ms-badge">
+                      ↳ {{ selectedMsDate.slice(8) }}일
+                    </span>
+                  </div>
+
+                  <input
+                    v-model="newTaskText"
+                    type="text"
+                    class="quick-input"
+                    placeholder="수행할 일정을 입력하세요 (Enter)"
+                    @focus="isFocused = true"
+                    @blur="isFocused = false"
+                    @keyup.enter="handleAddTask"
+                  />
+
+                  <div class="action-buttons">
+                    <button
+                      class="btn-expand"
+                      title="상세 일정 추가"
+                      @click="isFullAddOpen = true"
+                    >
+                      ⤢ 상세
+                    </button>
+                    <button
+                      class="btn-submit"
+                      :disabled="!newTaskText.trim()"
+                      @click="handleAddTask"
+                    >
+                      ↑
+                    </button>
+                  </div>
+                </div>
+              </div>
             </template>
           </BaseTaskList>
 
@@ -93,7 +120,7 @@
               text-key="summary"
               :is-completed-style="true"
               :theme-color="goal.color || '#4f46e5'"
-              @delete="removeTask"
+              @delete="requestTaskDelete"
               @update="handleListTaskUpdate"
               @item-click="openTaskModal"
             />
@@ -107,9 +134,19 @@
       :is-open="isTaskModalOpen"
       :data="selectedTask"
       @close="isTaskModalOpen = false"
-      @delete="handleTaskDelete"
+      @delete="() => requestTaskDelete(selectedTask!.id)"
       @update="handleTaskUpdate"
     />
+
+    <FullScheduleAddModal
+      :is-open="isFullAddOpen"
+      :default-goal-id="props.goal.id"
+      :default-milestone-id="props.milestoneId"
+      :default-date="selectedMsDate"
+      @close="isFullAddOpen = false"
+    />
+
+    <BaseDeleteAlert v-model="showDeleteOptions" :task="taskPendingDelete" />
   </div>
 </template>
 
@@ -125,6 +162,8 @@ import Calendar from '@/global-components/calendar/Calendar.vue'
 import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
 import ScheduleDetailModal from '@/global-components/modal/schedule-detail-modal/ScheduleDetailModal.vue'
 import BaseInput from '@/global-components/Input/BaseInput.vue'
+import FullScheduleAddModal from '@/global-components/modal/full-schedule-add-modal/FullScheduleAddModal.vue'
+import BaseDeleteAlert from '@/global-components/modal/alert/BaseDeleteAlert.vue' // ✅ 임포트 추가
 
 const props = defineProps<{ goal: Goal; milestoneId: number }>()
 const emit = defineEmits(['back'])
@@ -132,13 +171,14 @@ const store = useScheduleStore()
 
 const todayString = new Date().toISOString().slice(0, 10)
 
-// 🌟 분리된 store.milestones 배열에서 현재 마일스톤 찾기
+const isFullAddOpen = ref(false)
+const isFocused = ref(false)
+
 const activeMilestone = computed(
   () => store.milestones.find((m) => m.id === props.milestoneId) || null
 )
 const selectedMsDate = ref(activeMilestone.value?.startDate || todayString)
 
-// 🌟 마일스톤 직접 업데이트 로직 (Pinia State의 반응성 활용)
 const handleMilestoneUpdate = (field: keyof Milestone, value: any) => {
   if (activeMilestone.value) {
     ;(activeMilestone.value as any)[field] = value
@@ -151,11 +191,9 @@ const onTitleChange = (val: string) => {
 }
 
 const removeMilestone = () => {
-  // 연관된 Task 먼저 일괄 삭제
   store.schedules = store.schedules.filter(
     (s) => s.milestoneId !== props.milestoneId
   )
-  // 마일스톤 삭제
   store.milestones = store.milestones.filter((m) => m.id !== props.milestoneId)
   store.saveData()
   emit('back')
@@ -180,7 +218,6 @@ const validateMilestoneDates = (msStart: string, msEnd: string) => {
 
 const updateMilestoneDate = (field: 'startDate' | 'endDate', event: Event) => {
   if (!activeMilestone.value) return
-  // 입력값이 비어있으면 undefined로 처리
   const newVal = (event.target as HTMLInputElement).value || undefined
 
   const tempStart =
@@ -191,25 +228,63 @@ const updateMilestoneDate = (field: 'startDate' | 'endDate', event: Event) => {
   if (validateMilestoneDates(tempStart, tempEnd)) {
     handleMilestoneUpdate(field, newVal)
   } else {
-    // 롤백
     ;(event.target as HTMLInputElement).value =
       activeMilestone.value[field] || ''
   }
 }
 
-// Task 관리 로직
+// 🌟 삭제 로직 관련 상태
+const showDeleteOptions = ref(false)
+const taskPendingDelete = ref<ScheduleItem | null>(null)
+
+const requestTaskDelete = (taskId: number) => {
+  const task = store.schedules.find((s) => s.id === taskId)
+  if (!task) return
+
+  if (task.groupId) {
+    taskPendingDelete.value = task
+    showDeleteOptions.value = true
+  } else {
+    taskPendingDelete.value = task
+    executeDelete('single')
+  }
+}
+
+const executeDelete = (mode: 'single' | 'all') => {
+  if (!taskPendingDelete.value) return
+
+  // 🌟 스토어의 스마트 삭제 액션 호출
+  store.smartRemoveSchedule(taskPendingDelete.value.id, mode)
+
+  cancelDelete()
+
+  if (isTaskModalOpen.value) {
+    isTaskModalOpen.value = false
+  }
+}
+
+const cancelDelete = () => {
+  showDeleteOptions.value = false
+  taskPendingDelete.value = null
+}
+
 const showCompleted = ref(false)
 const newTaskText = ref('')
 
 const tasksForSelectedDate = computed(() => {
   if (!activeMilestone.value || !selectedMsDate.value) return []
-  return store.schedules.filter(
-    (s) =>
-      s.type === 'task' &&
-      s.milestoneId === activeMilestone.value!.id &&
-      s.startDate === selectedMsDate.value
-  )
+
+  const targetDate = selectedMsDate.value
+
+  return store.schedules.filter((s) => {
+    if (s.milestoneId !== activeMilestone.value!.id) return false
+
+    const start = s.startDate
+    const end = s.endDate || s.startDate
+    return start <= targetDate && targetDate <= end
+  })
 })
+
 const pendingTasks = computed(() =>
   tasksForSelectedDate.value.filter((t) => !t.done)
 )
@@ -228,43 +303,32 @@ const handleAddTask = () => {
 const addTaskToSelectedDate = (text: string) => {
   if (!activeMilestone.value || !selectedMsDate.value) return
 
-  store.schedules.unshift({
+  store.addSchedule({
     id: Date.now(),
     type: 'task',
+    creationMode: 'single',
     goalId: props.goal.id,
     milestoneId: activeMilestone.value.id,
     summary: text,
-    done: false,
-    startDate: selectedMsDate.value,
-    // 🌟 하루짜리 일반 일정이므로 endDate는 명시적으로 undefined 처리
-    endDate: undefined
-  } as ScheduleItem)
-
-  store.saveData()
+    startDate: selectedMsDate.value
+  })
 }
-
-const removeTask = (taskId: number) => store.removeSchedule(taskId)
 
 const handleListTaskUpdate = (updatedTask: ScheduleItem) => {
   store.updateSchedule(updatedTask.id, updatedTask)
 }
 
-// Task 수정 모달 로직
 const isTaskModalOpen = ref(false)
 const selectedTask = ref<ScheduleItem | null>(null)
+
 const openTaskModal = (task: ScheduleItem) => {
   selectedTask.value = task
   isTaskModalOpen.value = true
 }
+
 const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   if (selectedTask.value) {
     store.updateSchedule(selectedTask.value.id, payload)
-    isTaskModalOpen.value = false
-  }
-}
-const handleTaskDelete = () => {
-  if (selectedTask.value) {
-    store.removeSchedule(selectedTask.value.id)
     isTaskModalOpen.value = false
   }
 }
@@ -286,6 +350,9 @@ const handleTaskDelete = () => {
 }
 .mb-2 {
   margin-bottom: 8px;
+}
+.mb-4 {
+  margin-bottom: 16px;
 }
 .h-full {
   height: 100%;
@@ -357,21 +424,19 @@ const handleTaskDelete = () => {
   margin-bottom: 0 !important;
 }
 
-/* 알약 배경/테두리 제거 및 하단 실선만 남김 */
 .workspace-title-base-input :deep(.input-container) {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  padding: 4px 65px 4px 4px !important; /* 우측 카운터 공간 유지 */
+  padding: 4px 65px 4px 4px !important;
   border-bottom: 2px solid transparent !important;
   border-radius: 0 !important;
 }
 
-/* 포커스 시 하단 테두리 색상 변경 */
 .workspace-title-base-input.is-focused :deep(.input-container),
 .workspace-title-base-input:focus-within :deep(.input-container) {
   border-bottom-color: #6366f1 !important;
-  transform: none !important; /* 위로 뜨는 애니메이션 방지 */
+  transform: none !important;
 }
 
 .header-right {
@@ -387,7 +452,7 @@ const handleTaskDelete = () => {
   border-radius: 8px;
 }
 
-/* 바디 레이아웃 (달력 & 테스크 영역) */
+/* 바디 레이아웃 */
 .ms-workspace-body {
   display: flex;
   flex: 1;
@@ -434,11 +499,9 @@ const handleTaskDelete = () => {
   flex: 1;
   overflow-y: auto;
   scrollbar-gutter: stable;
-
-  /* ✨ 수정된 부분: 스크롤 영역 안쪽에 위/아래 여백을 주어 애니메이션이 잘리지 않게 보호 */
-  padding-top: 4px; /* 상단 보호 구역 */
-  padding-bottom: 4px; /* 하단 보호 구역 */
-  padding-right: 4px; /* 우측 스크롤바 여백 */
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-right: 4px;
 }
 
 /* 완료된 항목 토글 버튼 */
@@ -460,12 +523,105 @@ const handleTaskDelete = () => {
   color: #27272a;
 }
 
-/* 🌟 하위 할 일 추가 입력창 (이관된 스타일) */
-.add-icon {
+/* SMART QUICK ADD */
+.smart-quick-add {
+  margin-bottom: 16px;
+}
+
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  padding: 4px 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.input-container.is-focused {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.milestone-selector {
+  margin-right: 8px;
+}
+
+.ms-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background-color: #eef2ff;
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.quick-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px;
+  font-size: 13px;
+  color: #27272a;
+  outline: none;
+}
+
+.quick-input::placeholder {
   color: #a1a1aa;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-expand {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-expand:hover {
+  background-color: #f4f4f5;
+  color: #18181b;
+}
+
+.btn-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background-color: #27272a;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
   font-weight: bold;
-  font-size: 16px;
-  width: 16px;
-  text-align: center;
+  transition:
+    transform 0.1s,
+    opacity 0.2s;
+}
+
+.btn-submit:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-submit:not(:disabled):active {
+  transform: scale(0.9);
 }
 </style>

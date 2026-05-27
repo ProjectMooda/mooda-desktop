@@ -10,7 +10,11 @@
       @toggle-add-form="showAddForm = !showAddForm"
     />
 
-    <StudioQuickAdd v-if="showAddForm" @close="showAddForm = false" />
+    <StudioQuickAdd
+      v-if="showAddForm"
+      @close="showAddForm = false"
+      @open-full-add="isFullAddOpen = true"
+    />
 
     <div class="task-scroll-area">
       <div v-if="totalItems === 0" class="empty-msg">
@@ -121,6 +125,13 @@
         </div>
       </div>
     </div>
+
+    <FullScheduleAddModal
+      :is-open="isFullAddOpen"
+      @close="isFullAddOpen = false"
+    />
+
+    <BaseDeleteAlert v-model="showDeleteOptions" :task="taskPendingDelete" />
   </section>
 </template>
 
@@ -133,6 +144,8 @@ import TaskCard from '@/global-components/card/TaskCard.vue'
 import StudioCardHeader from './StudioCardHeader.vue'
 import StudioQuickAdd from './StudioQuickAdd.vue'
 import PinButton from '@/global-components/ui/PinButton.vue'
+import FullScheduleAddModal from '@/global-components/modal/full-schedule-add-modal/FullScheduleAddModal.vue'
+import BaseDeleteAlert from '@/global-components/modal/alert/BaseDeleteAlert.vue' // ✅ 임포트 추가
 
 const scheduleStore = useScheduleStore()
 const emit = defineEmits(['open-detail'])
@@ -140,6 +153,9 @@ const emit = defineEmits(['open-detail'])
 // 상태 관리
 const showAddForm = ref(false)
 const showCompleted = ref(false)
+
+// 상세 모달창을 열고 닫을 상태 변수
+const isFullAddOpen = ref(false)
 
 // 헤더용 데이터
 const formattedDate = computed(() => {
@@ -149,7 +165,6 @@ const formattedDate = computed(() => {
   return parts.length === 3 ? `${parts[1]}.${parts[2]}` : full
 })
 
-// 🌟 타입 안정성 확보: any 대신 ScheduleItem 명시
 const openDetailModal = (item: ScheduleItem) => emit('open-detail', item)
 
 const localActiveMilestones = ref<ScheduleItem[]>([])
@@ -183,8 +198,32 @@ const handleItemUpdate = (item: ScheduleItem, patch: Partial<ScheduleItem>) => {
   scheduleStore.updateSchedule(item.id, patch)
 }
 
+// 🌟 다중 삭제 모달 관련 상태
+const showDeleteOptions = ref(false)
+const taskPendingDelete = ref<ScheduleItem | null>(null)
+
+// 🌟 그룹 단위 삭제 가로채기 (window.confirm 제거)
 const handleItemDelete = (item: ScheduleItem) => {
-  scheduleStore.removeSchedule(item.id)
+  if (item.groupId && item.creationMode !== 'single') {
+    // 다중 일정일 경우 모달을 띄우기 위해 타겟을 저장
+    taskPendingDelete.value = item
+    showDeleteOptions.value = true
+  } else {
+    // 단일 일정은 즉시 삭제
+    scheduleStore.smartRemoveSchedule(item.id, 'single')
+  }
+}
+
+// 🌟 Alert 모달에서 선택한 옵션에 따라 실제 삭제 실행
+const executeDelete = (mode: 'single' | 'all') => {
+  if (!taskPendingDelete.value) return
+
+  // Store의 스마트 삭제 액션 호출
+  scheduleStore.smartRemoveSchedule(taskPendingDelete.value.id, mode)
+
+  // 상태 초기화 및 모달 닫기
+  taskPendingDelete.value = null
+  showDeleteOptions.value = false
 }
 
 const handleItemTogglePin = (item: ScheduleItem) => {

@@ -1,17 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
-// 1. 일반 일정 및 태스크 (Milestone 제거)
+// 1. 일반 일정 및 태스크
 export interface ScheduleItem {
   id: number
+  groupId?: string // ✅ 반복/다중 생성된 일정들을 묶는 그룹 ID
+  creationMode: 'period' | 'weekly' | 'multiple' | 'single' // ✅ 생성 방식 기록
   type: 'task' | 'event'
   goalId?: number | null
   milestoneId?: number | null
   summary?: string
   memo?: string
   done: boolean
-  startDate?: string
-  endDate?: string // 하루짜리 일정은 undefined
+  startDate: string // ✅ 필수로 변경 (모든 일정은 시작일이 있음)
+  endDate?: string // 하루짜리나 단일 태스크는 undefined
   startTime?: string
   endTime?: string
   category?: string
@@ -30,11 +32,11 @@ export interface Goal {
   id: number
   title: string
   startDate: string
-  endDate?: string // 미정일 수 있으므로 옵셔널 처리
+  endDate?: string
   color?: string
 }
 
-// 3. 마일스톤 (새로 추가됨)
+// 3. 마일스톤
 export interface Milestone {
   id: number
   goalId: number
@@ -55,11 +57,11 @@ export const useScheduleStore = defineStore('schedule', () => {
   const today = new Date().toISOString().split('T')[0]
 
   // =========================
-  // STATE (상태 분리 완벽 적용)
+  // STATE
   // =========================
   const schedules = ref<ScheduleItem[]>([])
   const goals = ref<Goal[]>([])
-  const milestones = ref<Milestone[]>([]) // ✅ 마일스톤 배열 분리
+  const milestones = ref<Milestone[]>([])
   const selectedDate = ref(today)
   const dailyFocus = ref('')
 
@@ -82,9 +84,9 @@ export const useScheduleStore = defineStore('schedule', () => {
   // =========================
   const currentSchedules = computed(() => {
     return schedules.value.filter((s) => {
-      // undefined 처리 완벽 대응
-      const start = s.startDate || s.endDate || selectedDate.value
-      const end = s.endDate || s.startDate || selectedDate.value
+      // 기간 일정인 경우 startDate ~ endDate 사이에 selectedDate가 포함되는지 체크
+      const start = s.startDate
+      const end = s.endDate || s.startDate // endDate가 없으면 startDate와 동일하게 취급
       return start <= selectedDate.value && end >= selectedDate.value
     })
   })
@@ -105,14 +107,18 @@ export const useScheduleStore = defineStore('schedule', () => {
   // =========================
   // ACTIONS
   // =========================
+
+  // ✅ addSchedule 변경: groupId와 creationMode를 받도록 수정
   const addSchedule = (item: Partial<ScheduleItem>) => {
     schedules.value.push({
-      id: Date.now(),
+      id: Date.now() + Math.floor(Math.random() * 1000), // 다중 생성 시 id 중복 방지
+      groupId: item.groupId, // 반복/다중 그룹핑 ID
+      creationMode: item.creationMode || 'single', // 생성 모드 (기본 single)
       type: item.type || 'task',
       summary: item.summary || '',
-      memo: '',
+      memo: item.memo || '',
       done: false,
-      startDate: item.startDate,
+      startDate: item.startDate || today, // 최소한 오늘 날짜 보장
       endDate: item.endDate,
       startTime: item.startTime,
       endTime: item.endTime,
@@ -121,21 +127,23 @@ export const useScheduleStore = defineStore('schedule', () => {
       goalId: item.goalId || null,
       milestoneId: item.milestoneId || null,
       isPinned: false,
-      orderIndex: schedules.value.length
+      orderIndex: schedules.value.length,
+      subtasks: []
     })
     saveData()
   }
 
+  // ✅ 단일 할 일 추가 (기존 호환성 유지)
   const addTask = (summary: string, date?: string) => {
     addSchedule({
       type: 'task',
+      creationMode: 'single',
       summary,
-      startDate: date || undefined, // ✅ 빈 문자열 방지
-      endDate: undefined // ✅ 단일 태스크는 endDate 없음
+      startDate: date || today,
+      endDate: undefined
     })
   }
 
-  // ✅ 마일스톤 추가 로직 (schedules가 아닌 milestones 배열로!)
   const addMilestone = (
     goalId: number,
     title: string,
@@ -177,9 +185,29 @@ export const useScheduleStore = defineStore('schedule', () => {
     }
   }
 
+  // ✅ 단일 삭제
   const removeSchedule = (id: number) => {
     schedules.value = schedules.value.filter((s) => s.id !== id)
     saveData()
+  }
+
+  // 🌟 NEW: 그룹 일괄 삭제 (이 일정과 연결된 모든 반복 일정 삭제)
+  const removeScheduleGroup = (groupId: string) => {
+    if (!groupId) return
+    schedules.value = schedules.value.filter((s) => s.groupId !== groupId)
+    saveData()
+  }
+
+  // 🌟 NEW: 통합 스마트 삭제 액션
+  const smartRemoveSchedule = (id: number, mode: 'single' | 'all') => {
+    const target = schedules.value.find((s) => s.id === id)
+    if (!target) return
+
+    if (mode === 'single') {
+      removeSchedule(id) // 단일 삭제
+    } else if (mode === 'all' && target.groupId) {
+      removeScheduleGroup(target.groupId) // 그룹 삭제
+    }
   }
 
   const togglePin = (id: number) => {
@@ -194,8 +222,6 @@ export const useScheduleStore = defineStore('schedule', () => {
 
     try {
       const parsed = JSON.parse(saved)
-
-      // ✅ 꼬인 데이터가 들어와도 배열 형태만 받도록 방어 로직 추가
       schedules.value = Array.isArray(parsed.schedules) ? parsed.schedules : []
       goals.value = Array.isArray(parsed.goals) ? parsed.goals : []
       milestones.value = Array.isArray(parsed.milestones)
@@ -217,7 +243,7 @@ export const useScheduleStore = defineStore('schedule', () => {
       JSON.stringify({
         schedules: schedules.value,
         goals: goals.value,
-        milestones: milestones.value, // ✅ 분리된 마일스톤도 함께 저장
+        milestones: milestones.value,
         dailyFocus: dailyFocus.value,
         categories: categories.value,
         priorityOptions: priorityOptions.value
@@ -229,7 +255,6 @@ export const useScheduleStore = defineStore('schedule', () => {
     goals.value.unshift({
       id: Date.now(),
       ...goal,
-      // 🌟 빈 문자열("")이 넘어오면 undefined로 깔끔하게 변환
       endDate: goal.endDate || undefined
     })
     saveData()
@@ -237,7 +262,6 @@ export const useScheduleStore = defineStore('schedule', () => {
 
   const removeGoal = (id: number) => {
     goals.value = goals.value.filter((g) => g.id !== id)
-    // ✅ 목표 삭제 시 연관된 마일스톤과 일정도 함께 삭제
     milestones.value = milestones.value.filter((m) => m.goalId !== id)
     schedules.value = schedules.value.filter((s) => s.goalId !== id)
     saveData()
@@ -263,7 +287,7 @@ export const useScheduleStore = defineStore('schedule', () => {
   return {
     schedules,
     goals,
-    milestones, // ✅ 외부로 노출
+    milestones,
     selectedDate,
     dailyFocus,
     categories,
@@ -280,6 +304,8 @@ export const useScheduleStore = defineStore('schedule', () => {
     removeSubtask,
     updateSchedule,
     removeSchedule,
+    removeScheduleGroup,
+    smartRemoveSchedule,
     togglePin,
     loadData,
     saveData,
