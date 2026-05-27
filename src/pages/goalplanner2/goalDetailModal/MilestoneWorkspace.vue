@@ -62,20 +62,17 @@
             @item-click="openTaskModal"
           >
             <template #header>
-              <!-- 🌟 스포트라이트 스타일의 Quick Add -->
               <div class="smart-quick-add mb-4">
                 <div
                   class="input-container"
                   :class="{ 'is-focused': isFocused }"
                 >
-                  <!-- 날짜 표시 뱃지 -->
                   <div class="milestone-selector">
                     <span class="ms-badge">
                       ↳ {{ selectedMsDate.slice(8) }}일
                     </span>
                   </div>
 
-                  <!-- 입력 필드 -->
                   <input
                     v-model="newTaskText"
                     type="text"
@@ -86,7 +83,6 @@
                     @keyup.enter="handleAddTask"
                   />
 
-                  <!-- 우측 액션 버튼 -->
                   <div class="action-buttons">
                     <button
                       class="btn-expand"
@@ -124,7 +120,7 @@
               text-key="summary"
               :is-completed-style="true"
               :theme-color="goal.color || '#4f46e5'"
-              @delete="removeTask"
+              @delete="requestTaskDelete"
               @update="handleListTaskUpdate"
               @item-click="openTaskModal"
             />
@@ -149,21 +145,8 @@
       :default-date="selectedMsDate"
       @close="isFullAddOpen = false"
     />
-  </div>
-  <div v-if="showDeleteOptions" class="delete-overlay">
-    <div class="delete-modal">
-      <h4>🗑 다중 일정 삭제</h4>
-      <p>반복 또는 연속된 일정입니다.<br />어떻게 삭제하시겠습니까?</p>
-      <div class="delete-actions">
-        <button class="btn-single-delete" @click="executeDelete('single')">
-          이 일정만 삭제
-        </button>
-        <button class="btn-all-delete" @click="executeDelete('all')">
-          모든 연결된 일정 삭제
-        </button>
-        <button class="btn-cancel" @click="cancelDelete">취소</button>
-      </div>
-    </div>
+
+    <BaseDeleteAlert v-model="showDeleteOptions" :task="taskPendingDelete" />
   </div>
 </template>
 
@@ -179,8 +162,8 @@ import Calendar from '@/global-components/calendar/Calendar.vue'
 import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
 import ScheduleDetailModal from '@/global-components/modal/schedule-detail-modal/ScheduleDetailModal.vue'
 import BaseInput from '@/global-components/Input/BaseInput.vue'
-// ✅ 상세 일정 추가 모달 임포트
 import FullScheduleAddModal from '@/global-components/modal/full-schedule-add-modal/FullScheduleAddModal.vue'
+import BaseDeleteAlert from '@/global-components/modal/alert/BaseDeleteAlert.vue' // ✅ 임포트 추가
 
 const props = defineProps<{ goal: Goal; milestoneId: number }>()
 const emit = defineEmits(['back'])
@@ -188,9 +171,7 @@ const store = useScheduleStore()
 
 const todayString = new Date().toISOString().slice(0, 10)
 
-// 🌟 상세 일정 모달 열림 상태 관리
 const isFullAddOpen = ref(false)
-
 const isFocused = ref(false)
 
 const activeMilestone = computed(
@@ -252,55 +233,36 @@ const updateMilestoneDate = (field: 'startDate' | 'endDate', event: Event) => {
   }
 }
 
-// 🌟 삭제 로직 관련 상태 추가
+// 🌟 삭제 로직 관련 상태
 const showDeleteOptions = ref(false)
 const taskPendingDelete = ref<ScheduleItem | null>(null)
 
-// 🌟 통합 삭제 요청 핸들러
 const requestTaskDelete = (taskId: number) => {
   const task = store.schedules.find((s) => s.id === taskId)
   if (!task) return
 
-  // 다중 일정 여부 확인 (스토어 모델에 맞게 groupId, repeatId 등 사용)
-  // 예시에서는 'groupId' 속성이 존재한다고 가정합니다.
   if (task.groupId) {
     taskPendingDelete.value = task
     showDeleteOptions.value = true
   } else {
-    // 단일 일정이라면 묻지 않고 즉시 삭제
     taskPendingDelete.value = task
     executeDelete('single')
   }
 }
 
-// 🌟 실제 삭제 실행 함수
 const executeDelete = (mode: 'single' | 'all') => {
   if (!taskPendingDelete.value) return
 
-  const targetTask = taskPendingDelete.value
+  // 🌟 스토어의 스마트 삭제 액션 호출
+  store.smartRemoveSchedule(taskPendingDelete.value.id, mode)
 
-  if (mode === 'single') {
-    // 1. 이 일정만 삭제
-    store.removeSchedule(targetTask.id)
-  } else if (mode === 'all') {
-    // 2. 연결된 모든 일정 삭제
-    // 스토어에 관련 액션이 없다면 직접 필터링 (아래는 직접 필터링하는 예시)
-    store.schedules = store.schedules.filter(
-      (s) => s.groupId !== targetTask.groupId
-    )
-    store.saveData() // 데이터 저장 싱크가 필요한 경우 호출
-  }
-
-  // 정리 및 모달 닫기
   cancelDelete()
 
-  // 만약 상세 모달이 열려있었다면 같이 닫아줍니다.
   if (isTaskModalOpen.value) {
     isTaskModalOpen.value = false
   }
 }
 
-// 🌟 삭제 취소 및 상태 초기화
 const cancelDelete = () => {
   showDeleteOptions.value = false
   taskPendingDelete.value = null
@@ -309,25 +271,16 @@ const cancelDelete = () => {
 const showCompleted = ref(false)
 const newTaskText = ref('')
 
-// 🌟 수정된 필터링 로직 (기간 일정 포함)
 const tasksForSelectedDate = computed(() => {
   if (!activeMilestone.value || !selectedMsDate.value) return []
 
   const targetDate = selectedMsDate.value
 
   return store.schedules.filter((s) => {
-    // 1. 현재 마일스톤에 속한 일정인지 확인
     if (s.milestoneId !== activeMilestone.value!.id) return false
 
-    // 2. '일반 할 일(task)' 뿐만 아니라 '이벤트(event)'도 목록에 표시
-    // (기존 코드에 있던 s.type === 'task' 조건을 빼야 이벤트도 뜹니다!)
-
-    // 🌟 3. 날짜 범위 검사 (핵심)
     const start = s.startDate
-    // endDate가 없는 하루짜리 일정이면 endDate를 startDate와 동일하게 취급
     const end = s.endDate || s.startDate
-
-    // 현재 선택한 날짜(targetDate)가 시작일과 종료일 사이에 포함되면 true!
     return start <= targetDate && targetDate <= end
   })
 })
@@ -350,20 +303,16 @@ const handleAddTask = () => {
 const addTaskToSelectedDate = (text: string) => {
   if (!activeMilestone.value || !selectedMsDate.value) return
 
-  // 🌟 배열 직접 수정(unshift) 대신 스토어의 전용 액션 사용
   store.addSchedule({
     id: Date.now(),
     type: 'task',
-    creationMode: 'single', // 퀵 애드는 무조건 단일 생성
-    goalId: props.goal.id, // 현재 목표 ID 주입
-    milestoneId: activeMilestone.value.id, // 현재 마일스톤 ID 주입
+    creationMode: 'single',
+    goalId: props.goal.id,
+    milestoneId: activeMilestone.value.id,
     summary: text,
     startDate: selectedMsDate.value
-    // endDate는 undefined로 두어 하루짜리 일정으로 처리
   })
 }
-
-const removeTask = (taskId: number) => store.removeSchedule(taskId)
 
 const handleListTaskUpdate = (updatedTask: ScheduleItem) => {
   store.updateSchedule(updatedTask.id, updatedTask)
@@ -371,19 +320,15 @@ const handleListTaskUpdate = (updatedTask: ScheduleItem) => {
 
 const isTaskModalOpen = ref(false)
 const selectedTask = ref<ScheduleItem | null>(null)
+
 const openTaskModal = (task: ScheduleItem) => {
   selectedTask.value = task
   isTaskModalOpen.value = true
 }
+
 const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   if (selectedTask.value) {
     store.updateSchedule(selectedTask.value.id, payload)
-    isTaskModalOpen.value = false
-  }
-}
-const handleTaskDelete = () => {
-  if (selectedTask.value) {
-    store.removeSchedule(selectedTask.value.id)
     isTaskModalOpen.value = false
   }
 }
@@ -479,7 +424,6 @@ const handleTaskDelete = () => {
   margin-bottom: 0 !important;
 }
 
-/* 알약 배경/테두리 제거 및 하단 실선만 남김 */
 .workspace-title-base-input :deep(.input-container) {
   background: transparent !important;
   border: none !important;
@@ -508,7 +452,7 @@ const handleTaskDelete = () => {
   border-radius: 8px;
 }
 
-/* 바디 레이아웃 (달력 & 테스크 영역) */
+/* 바디 레이아웃 */
 .ms-workspace-body {
   display: flex;
   flex: 1;
@@ -579,9 +523,7 @@ const handleTaskDelete = () => {
   color: #27272a;
 }
 
-/* =======================================
-   🌟 SMART QUICK ADD (Spotlight Style)
-======================================= */
+/* SMART QUICK ADD */
 .smart-quick-add {
   margin-bottom: 16px;
 }
@@ -599,13 +541,10 @@ const handleTaskDelete = () => {
 }
 
 .input-container.is-focused {
-  border-color: #6366f1; /* 브랜드 컬러 맞춤 (Indigo) */
+  border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
-/* =======================================
-   MILESTONE SELECTOR (Badge)
-======================================= */
 .milestone-selector {
   margin-right: 8px;
 }
@@ -622,9 +561,6 @@ const handleTaskDelete = () => {
   white-space: nowrap;
 }
 
-/* =======================================
-   INPUT FIELD
-======================================= */
 .quick-input {
   flex: 1;
   border: none;
@@ -639,9 +575,6 @@ const handleTaskDelete = () => {
   color: #a1a1aa;
 }
 
-/* =======================================
-   ACTIONS
-======================================= */
 .action-buttons {
   display: flex;
   align-items: center;
@@ -672,7 +605,7 @@ const handleTaskDelete = () => {
   justify-content: center;
   width: 28px;
   height: 28px;
-  background-color: #27272a; /* 묵직한 다크 그레이 */
+  background-color: #27272a;
   color: #fff;
   border: none;
   border-radius: 50%;

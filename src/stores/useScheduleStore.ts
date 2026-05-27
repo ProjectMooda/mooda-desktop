@@ -198,6 +198,18 @@ export const useScheduleStore = defineStore('schedule', () => {
     saveData()
   }
 
+  // 🌟 NEW: 통합 스마트 삭제 액션
+  const smartRemoveSchedule = (id: number, mode: 'single' | 'all') => {
+    const target = schedules.value.find((s) => s.id === id)
+    if (!target) return
+
+    if (mode === 'single') {
+      removeSchedule(id) // 단일 삭제
+    } else if (mode === 'all' && target.groupId) {
+      removeScheduleGroup(target.groupId) // 그룹 삭제
+    }
+  }
+
   const togglePin = (id: number) => {
     const item = schedules.value.find((s) => s.id === id)
     if (item) item.isPinned = !item.isPinned
@@ -292,7 +304,8 @@ export const useScheduleStore = defineStore('schedule', () => {
     removeSubtask,
     updateSchedule,
     removeSchedule,
-    removeScheduleGroup, // ✅ 내보내기 추가
+    removeScheduleGroup,
+    smartRemoveSchedule,
     togglePin,
     loadData,
     saveData,

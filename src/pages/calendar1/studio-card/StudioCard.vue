@@ -130,6 +130,8 @@
       :is-open="isFullAddOpen"
       @close="isFullAddOpen = false"
     />
+
+    <BaseDeleteAlert v-model="showDeleteOptions" :task="taskPendingDelete" />
   </section>
 </template>
 
@@ -143,6 +145,7 @@ import StudioCardHeader from './StudioCardHeader.vue'
 import StudioQuickAdd from './StudioQuickAdd.vue'
 import PinButton from '@/global-components/ui/PinButton.vue'
 import FullScheduleAddModal from '@/global-components/modal/full-schedule-add-modal/FullScheduleAddModal.vue'
+import BaseDeleteAlert from '@/global-components/modal/alert/BaseDeleteAlert.vue' // ✅ 임포트 추가
 
 const scheduleStore = useScheduleStore()
 const emit = defineEmits(['open-detail'])
@@ -162,7 +165,6 @@ const formattedDate = computed(() => {
   return parts.length === 3 ? `${parts[1]}.${parts[2]}` : full
 })
 
-// 🌟 타입 안정성 확보
 const openDetailModal = (item: ScheduleItem) => emit('open-detail', item)
 
 const localActiveMilestones = ref<ScheduleItem[]>([])
@@ -196,22 +198,32 @@ const handleItemUpdate = (item: ScheduleItem, patch: Partial<ScheduleItem>) => {
   scheduleStore.updateSchedule(item.id, patch)
 }
 
-// 🌟 그룹 단위 삭제 대응 처리
+// 🌟 다중 삭제 모달 관련 상태
+const showDeleteOptions = ref(false)
+const taskPendingDelete = ref<ScheduleItem | null>(null)
+
+// 🌟 그룹 단위 삭제 가로채기 (window.confirm 제거)
 const handleItemDelete = (item: ScheduleItem) => {
-  // 생성 모드가 단일(single)이 아니고 그룹 ID가 존재할 경우 삭제 의도 묻기
   if (item.groupId && item.creationMode !== 'single') {
-    const isGroupDelete = window.confirm(
-      '이 일정은 다중/반복 생성된 일정입니다.\n\n[확인] 연결된 전체 일정을 일괄 삭제합니다.\n[취소] 현재 일정만 삭제합니다.'
-    )
-
-    if (isGroupDelete) {
-      scheduleStore.removeScheduleGroup(item.groupId)
-      return
-    }
+    // 다중 일정일 경우 모달을 띄우기 위해 타겟을 저장
+    taskPendingDelete.value = item
+    showDeleteOptions.value = true
+  } else {
+    // 단일 일정은 즉시 삭제
+    scheduleStore.smartRemoveSchedule(item.id, 'single')
   }
+}
 
-  // 단일 삭제 (그룹이 아니거나, 그룹 중에서 취소를 눌러 하나만 삭제할 때)
-  scheduleStore.removeSchedule(item.id)
+// 🌟 Alert 모달에서 선택한 옵션에 따라 실제 삭제 실행
+const executeDelete = (mode: 'single' | 'all') => {
+  if (!taskPendingDelete.value) return
+
+  // Store의 스마트 삭제 액션 호출
+  scheduleStore.smartRemoveSchedule(taskPendingDelete.value.id, mode)
+
+  // 상태 초기화 및 모달 닫기
+  taskPendingDelete.value = null
+  showDeleteOptions.value = false
 }
 
 const handleItemTogglePin = (item: ScheduleItem) => {
