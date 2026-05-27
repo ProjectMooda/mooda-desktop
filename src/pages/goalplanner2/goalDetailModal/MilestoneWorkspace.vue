@@ -57,7 +57,7 @@
             :items="pendingTasks"
             text-key="summary"
             empty-message="해당 날짜에 진행 중인 일정이 없습니다."
-            @delete="removeTask"
+            @delete="requestTaskDelete"
             @update="handleListTaskUpdate"
             @item-click="openTaskModal"
           >
@@ -138,7 +138,7 @@
       :is-open="isTaskModalOpen"
       :data="selectedTask"
       @close="isTaskModalOpen = false"
-      @delete="handleTaskDelete"
+      @delete="() => requestTaskDelete(selectedTask!.id)"
       @update="handleTaskUpdate"
     />
 
@@ -149,6 +149,21 @@
       :default-date="selectedMsDate"
       @close="isFullAddOpen = false"
     />
+  </div>
+  <div v-if="showDeleteOptions" class="delete-overlay">
+    <div class="delete-modal">
+      <h4>🗑 다중 일정 삭제</h4>
+      <p>반복 또는 연속된 일정입니다.<br />어떻게 삭제하시겠습니까?</p>
+      <div class="delete-actions">
+        <button class="btn-single-delete" @click="executeDelete('single')">
+          이 일정만 삭제
+        </button>
+        <button class="btn-all-delete" @click="executeDelete('all')">
+          모든 연결된 일정 삭제
+        </button>
+        <button class="btn-cancel" @click="cancelDelete">취소</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -235,6 +250,60 @@ const updateMilestoneDate = (field: 'startDate' | 'endDate', event: Event) => {
     ;(event.target as HTMLInputElement).value =
       activeMilestone.value[field] || ''
   }
+}
+
+// 🌟 삭제 로직 관련 상태 추가
+const showDeleteOptions = ref(false)
+const taskPendingDelete = ref<ScheduleItem | null>(null)
+
+// 🌟 통합 삭제 요청 핸들러
+const requestTaskDelete = (taskId: number) => {
+  const task = store.schedules.find((s) => s.id === taskId)
+  if (!task) return
+
+  // 다중 일정 여부 확인 (스토어 모델에 맞게 groupId, repeatId 등 사용)
+  // 예시에서는 'groupId' 속성이 존재한다고 가정합니다.
+  if (task.groupId) {
+    taskPendingDelete.value = task
+    showDeleteOptions.value = true
+  } else {
+    // 단일 일정이라면 묻지 않고 즉시 삭제
+    taskPendingDelete.value = task
+    executeDelete('single')
+  }
+}
+
+// 🌟 실제 삭제 실행 함수
+const executeDelete = (mode: 'single' | 'all') => {
+  if (!taskPendingDelete.value) return
+
+  const targetTask = taskPendingDelete.value
+
+  if (mode === 'single') {
+    // 1. 이 일정만 삭제
+    store.removeSchedule(targetTask.id)
+  } else if (mode === 'all') {
+    // 2. 연결된 모든 일정 삭제
+    // 스토어에 관련 액션이 없다면 직접 필터링 (아래는 직접 필터링하는 예시)
+    store.schedules = store.schedules.filter(
+      (s) => s.groupId !== targetTask.groupId
+    )
+    store.saveData() // 데이터 저장 싱크가 필요한 경우 호출
+  }
+
+  // 정리 및 모달 닫기
+  cancelDelete()
+
+  // 만약 상세 모달이 열려있었다면 같이 닫아줍니다.
+  if (isTaskModalOpen.value) {
+    isTaskModalOpen.value = false
+  }
+}
+
+// 🌟 삭제 취소 및 상태 초기화
+const cancelDelete = () => {
+  showDeleteOptions.value = false
+  taskPendingDelete.value = null
 }
 
 const showCompleted = ref(false)
