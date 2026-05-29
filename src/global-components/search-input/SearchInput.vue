@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import BaseInput from '../Input/BaseInput.vue'
+import BaseInput from '../../global-ui/BaseInput.vue'
 
 defineProps({
   modelValue: {

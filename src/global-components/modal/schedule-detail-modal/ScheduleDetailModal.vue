@@ -62,7 +62,7 @@
         </div>
 
         <!-- 🌟 공통 컴포넌트 적용 (슬롯 사용) -->
-        <BaseTaskList
+        <TaskListArea
           :items="localData.subtasks || []"
           text-key="text"
           :editable="true"
@@ -86,7 +86,7 @@
               </BaseInput>
             </div>
           </template>
-        </BaseTaskList>
+        </TaskListArea>
       </div>
 
       <!-- 상세 메모 -->
@@ -117,12 +117,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import BaseModal from '@/global-components/modal/base/BaseModal.vue'
-import TimePicker from '@/global-components/time-picker/TimePicker.vue'
+import TimePicker from '@/global-ui/TimePicker.vue'
 import { useScheduleStore } from '@/stores/useScheduleStore'
-import SelectList from '@/global-components/ui/SelectList.vue'
+import SelectList from '@/global-ui/SelectList.vue'
 import type { ScheduleItem } from '@/stores/useScheduleStore'
-import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
-import BaseInput from '@/global-components/Input/BaseInput.vue'
+import TaskListArea from '@/global-components/task-list-area/TaskListArea.vue'
+import BaseInput from '@/global-ui/BaseInput.vue'
 
 const store = useScheduleStore()
 

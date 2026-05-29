@@ -210,9 +210,9 @@
 <script setup lang="ts">
 import { reactive, ref, watch, computed } from 'vue'
 import BaseModal from '@/global-components/modal/base/BaseModal.vue'
-import BaseInput from '@/global-components/Input/BaseInput.vue'
-import TimePicker from '@/global-components/time-picker/TimePicker.vue'
-import SelectList from '@/global-components/ui/SelectList.vue'
+import BaseInput from '@/global-ui/BaseInput.vue'
+import TimePicker from '@/global-ui/TimePicker.vue'
+import SelectList from '@/global-ui/SelectList.vue'
 import { useScheduleStore } from '@/stores/useScheduleStore'
 
 const props = defineProps<{

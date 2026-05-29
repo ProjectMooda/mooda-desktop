@@ -53,7 +53,7 @@
         </div>
 
         <div class="task-list-scroll">
-          <BaseTaskList
+          <TaskListArea
             :items="pendingTasks"
             text-key="summary"
             empty-message="해당 날짜에 진행 중인 일정이 없습니다."
@@ -102,26 +102,28 @@
                 </div>
               </div>
             </template>
-          </BaseTaskList>
+          </TaskListArea>
 
-          <div v-if="completedTasks.length > 0" class="completed-section mt-4">
-            <button
-              class="toggle-completed-btn"
-              @click="showCompleted = !showCompleted"
-            >
-              {{ showCompleted ? '▼' : '▶' }} 완료된 항목 ({{
-                completedTasks.length
-              }})
-            </button>
-            <BaseTaskList
-              v-if="showCompleted"
+          <div
+            v-if="completedTasks.length > 0"
+            class="completed-section mt-4"
+          ></div>
+
+          <div v-if="otherTasks.length > 0" class="other-tasks-section mt-4">
+            <div class="section-divider">
+              <span class="divider-line"></span>
+              <span class="divider-text"
+                >그 외의 일정 ({{ otherTasks.length }})</span
+              >
+              <span class="divider-line"></span>
+            </div>
+
+            <TaskListArea
               class="mt-2 opacity-70"
-              :items="completedTasks"
+              :items="otherTasks"
               text-key="summary"
               :is-completed-style="true"
-              :theme-color="goal.color || '#4f46e5'"
-              @delete="requestTaskDelete"
-              @update="handleListTaskUpdate"
+              readonly
               @item-click="openTaskModal"
             />
           </div>
@@ -146,7 +148,19 @@
       @close="isFullAddOpen = false"
     />
 
-    <BaseDeleteAlert v-model="showDeleteOptions" :task="taskPendingDelete" />
+    <BaseDeleteAlert
+      v-model="showDeleteOptions"
+      :task="taskPendingDelete"
+      @deleted="onDeleteCompleted"
+      @cancel="cancelDelete"
+    />
+
+    <BaseDeleteAlert
+      v-model="showAlert"
+      title="날짜 설정 오류"
+      :message="alertMessage"
+      confirm-text="확인"
+    />
   </div>
 </template>
 
@@ -159,11 +173,11 @@ import {
   type Milestone
 } from '@/stores/useScheduleStore'
 import Calendar from '@/global-components/calendar/Calendar.vue'
-import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
+import TaskListArea from '@/global-components/task-list-area/TaskListArea.vue'
 import ScheduleDetailModal from '@/global-components/modal/schedule-detail-modal/ScheduleDetailModal.vue'
-import BaseInput from '@/global-components/Input/BaseInput.vue'
+import BaseInput from '@/global-ui/BaseInput.vue'
 import FullScheduleAddModal from '@/global-components/modal/full-schedule-add-modal/FullScheduleAddModal.vue'
-import BaseDeleteAlert from '@/global-components/modal/alert/BaseDeleteAlert.vue' // ✅ 임포트 추가
+import BaseDeleteAlert from '@/global-components/modal/alert/BaseDeleteAlert.vue'
 
 const props = defineProps<{ goal: Goal; milestoneId: number }>()
 const emit = defineEmits(['back'])
@@ -199,20 +213,31 @@ const removeMilestone = () => {
   emit('back')
 }
 
+// 🌟 커스텀 에러 모달 상태 추가
+const showAlert = ref(false)
+const alertMessage = ref('')
+
+const showError = (msg: string) => {
+  alertMessage.value = msg
+  showAlert.value = true
+  return false
+}
+
+// 🌟 alert() 대신 showError() 호출
 const validateMilestoneDates = (msStart: string, msEnd: string) => {
-  if (!msStart) return (alert('시작일은 필수입니다.'), false)
+  if (!msStart) return showError('시작일은 필수입니다.')
 
   const { startDate: gStart, endDate: gEnd } = props.goal
   if (msStart && gStart && msStart < gStart)
-    return (alert(`목표 시작일(${gStart})보다 빠를 수 없습니다.`), false)
+    return showError(`목표 시작일(${gStart})보다 빠를 수 없습니다.`)
   if (gEnd) {
     if (msEnd && msEnd > gEnd)
-      return (alert(`목표 종료일(${gEnd})보다 늦을 수 없습니다.`), false)
+      return showError(`목표 종료일(${gEnd})보다 늦을 수 없습니다.`)
     if (msStart && msStart > gEnd)
-      return (alert(`시작일이 목표 종료일(${gEnd})을 초과했습니다.`), false)
+      return showError(`시작일이 목표 종료일(${gEnd})을 초과했습니다.`)
   }
   if (msStart && msEnd && msStart > msEnd)
-    return (alert('시작 날짜가 종료 날짜보다 늦을 수 없습니다.'), false)
+    return showError('시작 날짜가 종료 날짜보다 늦을 수 없습니다.')
   return true
 }
 
@@ -233,7 +258,7 @@ const updateMilestoneDate = (field: 'startDate' | 'endDate', event: Event) => {
   }
 }
 
-// 🌟 삭제 로직 관련 상태
+// --- 삭제 로직 관련 상태 ---
 const showDeleteOptions = ref(false)
 const taskPendingDelete = ref<ScheduleItem | null>(null)
 
@@ -242,22 +267,18 @@ const requestTaskDelete = (taskId: number) => {
   if (!task) return
 
   if (task.groupId) {
+    // 1. 다중 일정: BaseDeleteAlert에 처리를 위임하고 모달 오픈
     taskPendingDelete.value = task
     showDeleteOptions.value = true
   } else {
-    taskPendingDelete.value = task
-    executeDelete('single')
+    // 2. 단일 일정: 스토어에서 즉시 삭제 처리 후 UI 정리
+    store.smartRemoveSchedule(task.id, 'single')
+    onDeleteCompleted()
   }
 }
 
-const executeDelete = (mode: 'single' | 'all') => {
-  if (!taskPendingDelete.value) return
-
-  // 🌟 스토어의 스마트 삭제 액션 호출
-  store.smartRemoveSchedule(taskPendingDelete.value.id, mode)
-
+const onDeleteCompleted = () => {
   cancelDelete()
-
   if (isTaskModalOpen.value) {
     isTaskModalOpen.value = false
   }
@@ -268,6 +289,7 @@ const cancelDelete = () => {
   taskPendingDelete.value = null
 }
 
+// --- 할 일(Task) 관련 상태 및 로직 ---
 const showCompleted = ref(false)
 const newTaskText = ref('')
 
@@ -284,12 +306,37 @@ const tasksForSelectedDate = computed(() => {
     return start <= targetDate && targetDate <= end
   })
 })
+// 1. 선택된 날짜에 해당하는 '모든' 일정 (마일스톤 무관)
+const allTasksForSelectedDate = computed(() => {
+  if (!selectedMsDate.value) return []
+  const targetDate = selectedMsDate.value
 
+  return store.schedules.filter((s) => {
+    const start = s.startDate
+    const end = s.endDate || s.startDate
+    return start <= targetDate && targetDate <= end
+  })
+})
+
+// 2. 현재 작업 중인 마일스톤의 일정 (진행 중)
 const pendingTasks = computed(() =>
-  tasksForSelectedDate.value.filter((t) => !t.done)
+  allTasksForSelectedDate.value.filter(
+    (t) => t.milestoneId === props.milestoneId && !t.done
+  )
 )
+
+// 3. 현재 작업 중인 마일스톤의 일정 (완료)
 const completedTasks = computed(() =>
-  tasksForSelectedDate.value.filter((t) => t.done)
+  allTasksForSelectedDate.value.filter(
+    (t) => t.milestoneId === props.milestoneId && t.done
+  )
+)
+
+// 4. 🌟 그 외의 일정 (다른 마일스톤이거나 일반 일정)
+const otherTasks = computed(() =>
+  allTasksForSelectedDate.value.filter(
+    (t) => t.milestoneId !== props.milestoneId
+  )
 )
 
 const handleAddTask = () => {
@@ -623,5 +670,33 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 
 .btn-submit:not(:disabled):active {
   transform: scale(0.9);
+}
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  margin: 24px 0 12px 0;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background-color: #e4e4e7;
+}
+
+.divider-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a1a1aa;
+  padding: 0 12px;
+}
+
+.other-tasks-section {
+  /* 읽기 전용이나 서브 정보 느낌을 강화하기 위한 트랜지션 */
+  transition: opacity 0.2s ease;
+}
+
+.other-tasks-section:hover {
+  opacity: 1; /* 마우스를 올렸을 때만 선명하게 표시 */
 }
 </style>

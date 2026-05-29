@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
-import Xbutton from '@/global-components/ui/Xbutton.vue'
+import Xbutton from '@/global-ui/Xbutton.vue'
 
 const props = withDefaults(
   defineProps<{

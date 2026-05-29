@@ -4,7 +4,7 @@
     <div class="card-head">
       <button class="icon-btn" @click="changeMonth(-1)">‹</button>
 
-      <!-- 🌟 분리한 MonthPicker 컴포넌트 사용 -->
+      <!-- 분리한 MonthPicker 컴포넌트 사용 -->
       <div class="title-wrapper">
         <button class="title-btn" @click="showMonthPicker = true">
           {{ currentYear }}. {{ String(currentMonth + 1).padStart(2, '0') }}

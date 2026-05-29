@@ -143,7 +143,7 @@ import MilestoneCard from '@/global-components/card/MilestoneCard.vue'
 import TaskCard from '@/global-components/card/TaskCard.vue'
 import StudioCardHeader from './StudioCardHeader.vue'
 import StudioQuickAdd from './StudioQuickAdd.vue'
-import PinButton from '@/global-components/ui/PinButton.vue'
+import PinButton from '@/global-ui/PinButton.vue'
 import FullScheduleAddModal from '@/global-components/modal/full-schedule-add-modal/FullScheduleAddModal.vue'
 import BaseDeleteAlert from '@/global-components/modal/alert/BaseDeleteAlert.vue' // ✅ 임포트 추가
 

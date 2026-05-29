@@ -31,7 +31,7 @@
     </div>
 
     <div class="ms-list min-h-0">
-      <BaseTaskList
+      <TaskListArea
         :items="goalMilestones"
         text-key="title"
         empty-message="등록된 마일스톤이 없습니다."
@@ -49,8 +49,8 @@ import {
   type Goal,
   type Milestone
 } from '@/stores/useScheduleStore'
-import Xbutton from '@/global-components/ui/Xbutton.vue'
-import BaseTaskList from '@/global-components/ui/BaseTaskList.vue'
+import Xbutton from '@/global-ui/Xbutton.vue'
+import TaskListArea from '@/global-components/task-list-area/TaskListArea.vue'
 
 const emit = defineEmits(['open'])
 const props = defineProps<{ goal: Goal }>()

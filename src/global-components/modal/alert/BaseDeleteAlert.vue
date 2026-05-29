@@ -51,7 +51,7 @@
 </template>
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
-import Xbutton from '@/global-components/ui/Xbutton.vue'
+import Xbutton from '@/global-ui/Xbutton.vue'
 import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
 
 const props = withDefaults(

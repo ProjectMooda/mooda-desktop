@@ -1,4 +1,6 @@
 // src/constants/validation.ts
+
+// 인풋 텍스트 길이 제한 상수
 export const INPUT_MAX_LENGTH = {
   // APP.vue에서 쓰는 오늘의 목표
   dailyFocus: 20,

@@ -51,7 +51,7 @@ import { useScheduleStore } from '@/stores/useScheduleStore'
 import GoalCard from './goalCard/GoalCard.vue'
 import GoalDetailModal from './goalDetailModal/GoalDetailModal.vue'
 import type { Goal } from '@/stores/useScheduleStore'
-import BaseInput from '@/global-components/Input/BaseInput.vue'
+import BaseInput from '@/global-ui/BaseInput.vue'
 
 // 스토어 연동
 const store = useScheduleStore()

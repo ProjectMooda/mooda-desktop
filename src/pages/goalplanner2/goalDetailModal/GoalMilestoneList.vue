@@ -189,8 +189,8 @@
 import { ref, computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
 import PopupCalendar from '@/global-components/calendar/PopupCalendar.vue'
-import SearchInput from '@/global-components/ui/SearchInput.vue'
-import BaseInput from '@/global-components/Input/BaseInput.vue'
+import SearchInput from '@/global-components/search-input/SearchInput.vue'
+import BaseInput from '@/global-ui/BaseInput.vue'
 
 const props = defineProps<{ goal: Goal }>()
 defineEmits(['open-detail', 'open-create'])
