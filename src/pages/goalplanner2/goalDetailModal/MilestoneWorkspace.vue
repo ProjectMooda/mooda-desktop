@@ -53,79 +53,139 @@
         </div>
 
         <div class="task-list-scroll">
-          <TaskListArea
-            :items="pendingTasks"
-            text-key="summary"
-            empty-message="해당 날짜에 진행 중인 일정이 없습니다."
-            @delete="requestTaskDelete"
-            @update="handleListTaskUpdate"
-            @item-click="openTaskModal"
-          >
-            <template #header>
-              <div class="smart-quick-add mb-4">
-                <div
-                  class="input-container"
-                  :class="{ 'is-focused': isFocused }"
-                >
-                  <div class="milestone-selector">
-                    <span class="ms-badge">
-                      ↳ {{ selectedMsDate.slice(8) }}일
-                    </span>
-                  </div>
-
-                  <input
-                    v-model="newTaskText"
-                    type="text"
-                    class="quick-input"
-                    placeholder="수행할 일정을 입력하세요 (Enter)"
-                    @focus="isFocused = true"
-                    @blur="isFocused = false"
-                    @keyup.enter="handleAddTask"
-                  />
-
-                  <div class="action-buttons">
-                    <button
-                      class="btn-expand"
-                      title="상세 일정 추가"
-                      @click="isFullAddOpen = true"
-                    >
-                      ⤢ 상세
-                    </button>
-                    <button
-                      class="btn-submit"
-                      :disabled="!newTaskText.trim()"
-                      @click="handleAddTask"
-                    >
-                      ↑
-                    </button>
-                  </div>
-                </div>
+          <div class="smart-quick-add mb-4">
+            <div class="input-container" :class="{ 'is-focused': isFocused }">
+              <div class="milestone-selector">
+                <span class="ms-badge">
+                  ↳ {{ selectedMsDate.slice(8) }}일
+                </span>
               </div>
-            </template>
-          </TaskListArea>
+
+              <input
+                v-model="newTaskText"
+                type="text"
+                class="quick-input"
+                placeholder="수행할 일정을 입력하세요 (Enter)"
+                @focus="isFocused = true"
+                @blur="isFocused = false"
+                @keyup.enter="handleAddTask"
+              />
+
+              <div class="action-buttons">
+                <button
+                  class="btn-expand"
+                  title="상세 일정 추가"
+                  @click="isFullAddOpen = true"
+                >
+                  ⤢ 상세
+                </button>
+                <button
+                  class="btn-submit"
+                  :disabled="!newTaskText.trim()"
+                  @click="handleAddTask"
+                >
+                  ↑
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div
-            v-if="completedTasks.length > 0"
-            class="completed-section mt-4"
-          ></div>
+            v-if="
+              localPendingTasks.length === 0 &&
+              localOtherTasks.length === 0 &&
+              completedTasks.length === 0
+            "
+            class="empty-msg"
+          >
+            해당 날짜에 일정이 없습니다.
+          </div>
 
-          <div v-if="otherTasks.length > 0" class="other-tasks-section mt-4">
-            <div class="section-divider">
-              <span class="divider-line"></span>
-              <span class="divider-text"
-                >그 외의 일정 ({{ otherTasks.length }})</span
+          <div v-else class="task-lists-container">
+            <div v-if="localPendingTasks.length > 0" class="list-group">
+              <draggable
+                :list="localPendingTasks"
+                item-key="id"
+                ghost-class="ghost-card"
+                animation="200"
+                handle=".drag-handle"
+                @end="onPendingDragEnd"
               >
-              <span class="divider-line"></span>
+                <template #item="{ element }">
+                  <MilestoneCard
+                    :item="element"
+                    :is-mini="true"
+                    @open-detail="openTaskModal(element)"
+                    @update="handleItemUpdate(element, $event)"
+                    @toggle-pin="handleItemTogglePin(element)"
+                    @delete="requestTaskDelete(element.id)"
+                  />
+                </template>
+              </draggable>
             </div>
 
-            <TaskListArea
-              class="mt-2 opacity-70"
-              :items="otherTasks"
-              text-key="summary"
-              :is-completed-style="true"
-              readonly
-              @item-click="openTaskModal"
-            />
+            <div
+              v-if="completedTasks.length > 0"
+              class="completed-section mt-4"
+            >
+              <button
+                class="toggle-completed-btn"
+                @click="showCompleted = !showCompleted"
+              >
+                {{ showCompleted ? '▼' : '▶' }} 완료된 항목 ({{
+                  completedTasks.length
+                }})
+              </button>
+
+              <div v-show="showCompleted" class="completed-tasks-group">
+                <MilestoneCard
+                  v-for="item in completedTasks"
+                  :key="'done-ms-' + item.id"
+                  :item="item"
+                  :is-mini="true"
+                  @open-detail="openTaskModal(item)"
+                  @update="handleItemUpdate(item, $event)"
+                  @toggle-pin="handleItemTogglePin(item)"
+                  @delete="requestTaskDelete(item.id)"
+                />
+              </div>
+            </div>
+
+            <div
+              v-if="localOtherTasks.length > 0"
+              class="other-tasks-section mt-4"
+            >
+              <div class="section-divider">
+                <span class="divider-line"></span>
+                <span class="divider-text"
+                  >그 외의 일정 ({{ localOtherTasks.length }})</span
+                >
+                <span class="divider-line"></span>
+              </div>
+
+              <div class="other-tasks-group mt-2">
+                <draggable
+                  :list="localOtherTasks"
+                  item-key="id"
+                  ghost-class="ghost-card"
+                  animation="200"
+                  handle=".drag-handle"
+                  @end="onOtherDragEnd"
+                >
+                  <template #item="{ element }">
+                    <component
+                      :is="element.milestoneId ? MilestoneCard : TaskCard"
+                      :item="element"
+                      :is-mini="true"
+                      @open-detail="openTaskModal(element)"
+                      @update="handleItemUpdate(element, $event)"
+                      @toggle-pin="handleItemTogglePin(element)"
+                      @delete="requestTaskDelete(element.id)"
+                    />
+                  </template>
+                </draggable>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -165,7 +225,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import draggable from 'vuedraggable'
 import {
   useScheduleStore,
   type Goal,
@@ -173,7 +234,8 @@ import {
   type Milestone
 } from '@/stores/useScheduleStore'
 import Calendar from '@/global-components/calendar/Calendar.vue'
-import TaskListArea from '@/global-components/task-list-area/TaskListArea.vue'
+import MilestoneCard from '@/global-components/card/MilestoneCard.vue'
+import TaskCard from '@/global-components/card/TaskCard.vue'
 import ScheduleDetailModal from '@/global-components/modal/schedule-detail-modal/ScheduleDetailModal.vue'
 import BaseInput from '@/global-ui/BaseInput.vue'
 import FullScheduleAddModal from '@/global-components/modal/full-schedule-add-modal/FullScheduleAddModal.vue'
@@ -213,7 +275,7 @@ const removeMilestone = () => {
   emit('back')
 }
 
-// 🌟 커스텀 에러 모달 상태 추가
+// 🌟 커스텀 에러 모달 상태
 const showAlert = ref(false)
 const alertMessage = ref('')
 
@@ -223,7 +285,6 @@ const showError = (msg: string) => {
   return false
 }
 
-// 🌟 alert() 대신 showError() 호출
 const validateMilestoneDates = (msStart: string, msEnd: string) => {
   if (!msStart) return showError('시작일은 필수입니다.')
 
@@ -267,11 +328,9 @@ const requestTaskDelete = (taskId: number) => {
   if (!task) return
 
   if (task.groupId) {
-    // 1. 다중 일정: BaseDeleteAlert에 처리를 위임하고 모달 오픈
     taskPendingDelete.value = task
     showDeleteOptions.value = true
   } else {
-    // 2. 단일 일정: 스토어에서 즉시 삭제 처리 후 UI 정리
     store.smartRemoveSchedule(task.id, 'single')
     onDeleteCompleted()
   }
@@ -293,20 +352,7 @@ const cancelDelete = () => {
 const showCompleted = ref(false)
 const newTaskText = ref('')
 
-const tasksForSelectedDate = computed(() => {
-  if (!activeMilestone.value || !selectedMsDate.value) return []
-
-  const targetDate = selectedMsDate.value
-
-  return store.schedules.filter((s) => {
-    if (s.milestoneId !== activeMilestone.value!.id) return false
-
-    const start = s.startDate
-    const end = s.endDate || s.startDate
-    return start <= targetDate && targetDate <= end
-  })
-})
-// 1. 선택된 날짜에 해당하는 '모든' 일정 (마일스톤 무관)
+// 선택된 날짜에 해당하는 모든 일정
 const allTasksForSelectedDate = computed(() => {
   if (!selectedMsDate.value) return []
   const targetDate = selectedMsDate.value
@@ -318,25 +364,46 @@ const allTasksForSelectedDate = computed(() => {
   })
 })
 
-// 2. 현재 작업 중인 마일스톤의 일정 (진행 중)
 const pendingTasks = computed(() =>
   allTasksForSelectedDate.value.filter(
     (t) => t.milestoneId === props.milestoneId && !t.done
   )
 )
 
-// 3. 현재 작업 중인 마일스톤의 일정 (완료)
 const completedTasks = computed(() =>
   allTasksForSelectedDate.value.filter(
     (t) => t.milestoneId === props.milestoneId && t.done
   )
 )
 
-// 4. 🌟 그 외의 일정 (다른 마일스톤이거나 일반 일정)
 const otherTasks = computed(() =>
   allTasksForSelectedDate.value.filter(
     (t) => t.milestoneId !== props.milestoneId
   )
+)
+
+// 🌟 드래그 앤 드롭용 로컬 리스트 분배
+const localPendingTasks = ref<ScheduleItem[]>([])
+const localOtherTasks = ref<ScheduleItem[]>([])
+
+watch(
+  pendingTasks,
+  (newTasks) => {
+    localPendingTasks.value = [...newTasks].sort(
+      (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
+    )
+  },
+  { immediate: true, deep: true }
+)
+
+watch(
+  otherTasks,
+  (newTasks) => {
+    localOtherTasks.value = [...newTasks].sort(
+      (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0)
+    )
+  },
+  { immediate: true, deep: true }
 )
 
 const handleAddTask = () => {
@@ -361,8 +428,26 @@ const addTaskToSelectedDate = (text: string) => {
   })
 }
 
-const handleListTaskUpdate = (updatedTask: ScheduleItem) => {
-  store.updateSchedule(updatedTask.id, updatedTask)
+// 카드 컴포넌트들에서 올라오는 @update 이벤트 처리
+const handleItemUpdate = (item: ScheduleItem, patch: Partial<ScheduleItem>) => {
+  store.updateSchedule(item.id, patch)
+}
+
+const handleItemTogglePin = (item: ScheduleItem) => {
+  store.togglePin(item.id)
+}
+
+// 드래그 종료 시 인덱스 저장
+const onPendingDragEnd = () => {
+  localPendingTasks.value.forEach((item, index) => {
+    store.updateSchedule(item.id, { orderIndex: index })
+  })
+}
+
+const onOtherDragEnd = () => {
+  localOtherTasks.value.forEach((item, index) => {
+    store.updateSchedule(item.id, { orderIndex: index })
+  })
 }
 
 const isTaskModalOpen = ref(false)
@@ -541,7 +626,7 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   border-radius: 20px;
 }
 
-/* 리스트 영역 래퍼 */
+/* 🌟 드래그 앤 드롭 및 새로운 리스트 디자인 속성 추가 */
 .task-list-scroll {
   flex: 1;
   overflow-y: auto;
@@ -549,6 +634,27 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   padding-top: 4px;
   padding-bottom: 4px;
   padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.empty-msg {
+  font-size: 13px;
+  color: #a1a1aa;
+  text-align: center;
+  padding: 40px 20px;
+  background-color: #fff;
+  border-radius: 12px;
+  border: 1px dashed #e4e4e7;
+  margin-top: 8px;
+}
+
+.ghost-card {
+  opacity: 0.4;
+  background-color: #f4f4f5;
+  border: 2px dashed #a1a1aa !important;
+  transform: scale(0.98);
+  transition: transform 0.2s;
 }
 
 /* 완료된 항목 토글 버튼 */
@@ -568,6 +674,13 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 }
 .toggle-completed-btn:hover {
   color: #27272a;
+}
+.completed-tasks-group {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+.completed-tasks-group:hover {
+  opacity: 1;
 }
 
 /* SMART QUICK ADD */
@@ -692,11 +805,11 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 }
 
 .other-tasks-section {
-  /* 읽기 전용이나 서브 정보 느낌을 강화하기 위한 트랜지션 */
   transition: opacity 0.2s ease;
+  opacity: 0.7;
 }
 
 .other-tasks-section:hover {
-  opacity: 1; /* 마우스를 올렸을 때만 선명하게 표시 */
+  opacity: 1;
 }
 </style>

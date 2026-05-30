@@ -7,52 +7,54 @@
     </div>
 
     <ul v-else class="task-list">
-      <li
-        v-for="item in items"
-        :key="item.id"
-        class="task-item"
-        :class="{
-          'is-completed-style': isCompletedStyle,
-          'is-readonly': readonly
-        }"
-        @click.stop="$emit('item-click', item)"
-      >
-        <label class="checkbox-wrapper" @click.stop>
-          <CheckBox
-            :model-value="item.done"
-            :disabled="readonly"
-            @update:model-value="
-              (val) => {
-                if (!readonly) handleCheckChange(item, val)
-              }
-            "
-          />
-        </label>
+      <template v-for="item in items" :key="item.id">
+        <slot name="item" :item="item">
+          <li
+            class="task-item"
+            :class="{
+              'is-completed-style': isCompletedStyle,
+              'is-readonly': readonly
+            }"
+            @click.stop="$emit('item-click', item)"
+          >
+            <label class="checkbox-wrapper" @click.stop>
+              <CheckBox
+                :model-value="item.done"
+                :disabled="readonly"
+                @update:model-value="
+                  (val) => {
+                    if (!readonly) handleCheckChange(item, val)
+                  }
+                "
+              />
+            </label>
 
-        <div class="task-text-wrapper">
-          <input
-            v-if="editable && !readonly"
-            :value="item[textKey]"
-            type="text"
-            class="task-input"
-            :class="{ 'is-done': item.done }"
-            @change="
-              (e) =>
-                handleTextChange(item, (e.target as HTMLInputElement).value)
-            "
-            @click.stop
-          />
-          <span v-else class="task-text" :class="{ 'is-done': item.done }">
-            {{ item[textKey] }}
-          </span>
-        </div>
+            <div class="task-text-wrapper">
+              <input
+                v-if="editable && !readonly"
+                :value="item[textKey]"
+                type="text"
+                class="task-input"
+                :class="{ 'is-done': item.done }"
+                @change="
+                  (e) =>
+                    handleTextChange(item, (e.target as HTMLInputElement).value)
+                "
+                @click.stop
+              />
+              <span v-else class="task-text" :class="{ 'is-done': item.done }">
+                {{ item[textKey] }}
+              </span>
+            </div>
 
-        <Xbutton
-          v-if="!readonly"
-          variant="rounded"
-          @click.stop="$emit('delete', item.id)"
-        />
-      </li>
+            <Xbutton
+              v-if="!readonly"
+              variant="rounded"
+              @click.stop="$emit('delete', item.id)"
+            />
+          </li>
+        </slot>
+      </template>
     </ul>
 
     <slot name="footer"></slot>
