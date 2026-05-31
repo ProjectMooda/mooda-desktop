@@ -34,6 +34,7 @@ export interface Goal {
   startDate: string
   endDate?: string
   color?: string
+  isArchived?: boolean // 목표 보관 확인 함수
 }
 
 // 3. 마일스톤
@@ -267,6 +268,15 @@ export const useScheduleStore = defineStore('schedule', () => {
     saveData()
   }
 
+  // 목표 보관함 토글 액션
+  const toggleGoalArchive = (id: number) => {
+    const goal = goals.value.find((g) => g.id === id)
+    if (goal) {
+      goal.isArchived = !goal.isArchived
+      saveData() // 변경 후 즉시 저장
+    }
+  }
+
   const addPriorityOption = (newOption: Omit<PriorityOption, 'id'>) => {
     if (priorityOptions.value.length >= 8) {
       alert('최대 8개까지만 설정 가능합니다.')
@@ -311,6 +321,7 @@ export const useScheduleStore = defineStore('schedule', () => {
     saveData,
     addGoal,
     removeGoal,
+    toggleGoalArchive,
     addPriorityOption,
     addCategory
   }

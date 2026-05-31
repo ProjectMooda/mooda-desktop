@@ -8,6 +8,7 @@
             {{ goal.startDate }} ~ {{ goal.endDate || '미정' }}
           </span>
         </div>
+
         <div class="header-actions">
           <div
             class="pct-text shrink-0"
@@ -15,11 +16,25 @@
           >
             {{ progressPercent }}%
           </div>
-          <Xbutton
-            variant="rounded"
-            class="btn-delete"
-            @click.stop.prevent="deleteGoal(goal.id)"
-          />
+
+          <div class="action-buttons-group">
+            <BaseButton
+              :size="1"
+              variant="ghost"
+              icon-only
+              title="보관함으로 이동"
+              class="card-action-btn"
+              @click.stop.prevent="store.toggleGoalArchive(goal.id)"
+            >
+              📥
+            </BaseButton>
+
+            <Xbutton
+              variant="rounded"
+              class="btn-delete"
+              @click.stop.prevent="deleteGoal(goal.id)"
+            />
+          </div>
         </div>
       </div>
 
@@ -31,7 +46,6 @@
       </div>
     </div>
 
-    <!-- 하단 페이드 아웃 효과를 주어 좁은 영역에서도 예쁘게 보이도록 처리 -->
     <div class="ms-list-wrapper min-h-0">
       <div class="ms-list">
         <TaskListArea
@@ -53,8 +67,9 @@ import {
   type Goal,
   type Milestone
 } from '@/stores/useScheduleStore'
-import Xbutton from '@/global-ui/Xbutton.vue'
 import TaskListArea from '@/global-components/task-list-area/TaskListArea.vue'
+import BaseButton from '@/global-ui/BaseButton.vue'
+import Xbutton from '@/global-ui/Xbutton.vue'
 
 const emit = defineEmits(['open'])
 const props = defineProps<{ goal: Goal }>()
@@ -88,7 +103,13 @@ const removeMilestone = (msId: number) => {
 }
 
 const deleteGoal = (id: number) => {
-  store.removeGoal(id)
+  if (
+    confirm(
+      '이 목표를 삭제하시겠습니까? (연결된 마일스톤과 할 일도 삭제됩니다)'
+    )
+  ) {
+    store.removeGoal(id)
+  }
 }
 </script>
 
@@ -99,8 +120,8 @@ const deleteGoal = (id: number) => {
 .goal-card {
   display: flex;
   flex-direction: column;
-  height: 260px; /* 기존 380px에서 대폭 축소 */
-  padding: 16px 18px; /* 여백 축소 */
+  height: 260px;
+  padding: 16px 18px;
   background-color: var(--bg-card, #ffffff);
   border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 16px;
@@ -143,7 +164,7 @@ const deleteGoal = (id: number) => {
 }
 
 .title-area h4 {
-  font-size: 15px; /* 타이틀 크기 축소 */
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-main);
   margin: 0 0 2px 0;
@@ -165,19 +186,31 @@ const deleteGoal = (id: number) => {
 }
 
 .pct-text {
-  font-size: 18px; /* 포인트 텍스트 크기 조정 */
+  font-size: 18px;
   font-weight: 800;
   color: var(--color-primary, #007aff);
   letter-spacing: -0.02em;
 }
 
-.btn-delete {
-  opacity: 0.3;
-  transform: scale(0.85);
-  transition: all 0.2s;
+/* 🌟 카드 우측 액션 버튼 스타일링 */
+.action-buttons-group {
+  display: flex;
+  gap: 2px;
+  opacity: 0; /* 평소엔 숨김 */
+  transform: translateX(5px);
+  transition: all 0.2s ease;
 }
-.goal-card:hover .btn-delete {
+
+/* 카드에 마우스를 올리면 버튼들이 부드럽게 나타남 */
+.goal-card:hover .action-buttons-group {
   opacity: 1;
+  transform: translateX(0);
+}
+
+/* 커스텀 스타일: 삭제 버튼 호버 시 빨간색 강조 */
+.btn-delete:hover {
+  background-color: #ffe5e5 !important;
+  color: #e0352b !important;
 }
 
 /* =======================================
@@ -204,7 +237,6 @@ const deleteGoal = (id: number) => {
   flex: 1;
   position: relative;
   overflow: hidden;
-  /* 스크롤 시 아래쪽 내용이 자연스럽게 사라지도록 그라디언트 마스크 적용 */
   mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
 }
@@ -212,11 +244,9 @@ const deleteGoal = (id: number) => {
 .ms-list {
   height: 100%;
   overflow-y: auto;
-  scrollbar-width: none; /* 파이어폭스 스크롤바 숨김 */
-  display: flex;
-  flex-direction: column;
+  scrollbar-width: none;
 }
 .ms-list::-webkit-scrollbar {
   display: none;
-} /* 크롬 스크롤바 숨김 */
+}
 </style>
