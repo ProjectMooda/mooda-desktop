@@ -1,6 +1,6 @@
 <template>
   <div class="jarvis-wrapper">
-    <Sidebar />
+    <GlobalSidebar />
 
     <main class="main-workspace min-w-0">
       <header class="studio-header shrink-0">
@@ -30,7 +30,7 @@
       </div>
     </main>
 
-    <SettingsModal v-if="sidebarStore.showSettings" />
+    <GlobalSettingsModal v-if="sidebarStore.showSettings" />
   </div>
 </template>
 
@@ -38,17 +38,17 @@
 import { onMounted, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 
-import BaseInput from './global-ui/BaseInput.vue'
+import BaseInput from './base-ui/BaseInput.vue'
 
 // 컴포넌트 임포트
-import Sidebar from './global-components/sidebar/Sidebar.vue'
-import SettingsModal from './global-components/settings/SettingsModal.vue'
-import CalendarPage from '@/pages/calendar1/CalendarPage.vue'
-import GoalPlanner from '@/pages/goalplanner2/GoalPlanner.vue'
+import GlobalSidebar from './global-components/global-sidebar/GlobalSidebar.vue'
+import GlobalSettingsModal from './global-components/global-settings/GlobalSettingsModal.vue'
+import CalendarPage from '@/pages/calendar/CalendarPage.vue'
+import GoalPlanner from '@/pages/goal-planner/GoalPlannerPage.vue'
 
 // 스토어 임포트
-import { useSidebarStore } from './global-components/sidebar/useSidebarStore.ts'
-import { useSettingsStore } from './global-components/settings/useSettingsStore'
+import { useSidebarStore } from './global-components/global-sidebar/useSidebarStore.ts'
+import { useSettingsStore } from './global-components/global-settings/useSettingsStore.ts'
 import { useScheduleStore } from '@/stores/useScheduleStore'
 
 const sidebarStore = useSidebarStore()
