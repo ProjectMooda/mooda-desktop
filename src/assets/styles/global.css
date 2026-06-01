@@ -1,7 +1,10 @@
 /* assets/styles/global.css */
-
 @import './variables.css';
 @import './utilities.css';
+
+* {
+  box-sizing: border-box;
+}
 
 html,
 body,
@@ -12,10 +15,13 @@ body,
   height: 100%;
   overflow: hidden;
   background-color: var(--bg-app);
-}
 
-* {
-  box-sizing: border-box;
+  /* ✅ Variable Font 렌더링 최적화 */
+  font-variation-settings: var(--font-variation);
+  /* 글꼴 크기 변경 시 레이아웃 깨짐 방지를 위한 부드러운 전환 */
+  transition:
+    font-family 0.3s ease,
+    font-size 0.3s ease;
 }
 
 body {
@@ -23,33 +29,29 @@ body {
   font-family: var(--font-family);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.01em;
+  /* 데이터 UI 핵심: 숫자가 바뀔 때 너비가 요동치지 않게 고정 폭 숫자 사용 */
+  font-variant-numeric: tabular-nums;
 }
 
 /* =======================================
-  Custom Scrollbar (전역 통일 버전)
+  Custom Scrollbar (투명 트랙, 알약 손잡이)
 ======================================= */
-/* 1. 스크롤바 전체 너비/높이 (6px로 슬림하게 통일) */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
   height: 6px;
-  scrollbar-gutter: stable; /* 스크롤바가 생기든 안 생기든 4px 공간 고정 */
+  scrollbar-gutter: stable;
 }
 
-/* 2. 스크롤바 손잡이 (Thumb) */
 ::-webkit-scrollbar-thumb {
-  /* 기존에 쓰시던 #d4d4d8, #e4e4e7 느낌과 유사한 반투명 블랙 */
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: var(--radius-xl); /* 완전한 둥근 알약 모양 */
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-xl);
   transition: background var(--transition-base);
 }
 
-/* 3. 스크롤바 손잡이에 마우스를 올렸을 때 */
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.35); /* 살짝 더 진해지면서 직관성 제공 */
+  background: rgba(0, 0, 0, 0.3);
 }
 
-/* 4. 스크롤바 배경(Track) - 투명하게 처리해서 깔끔함 극대화 */
 ::-webkit-scrollbar-track {
   background: transparent;
 }
