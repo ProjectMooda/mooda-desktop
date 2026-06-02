@@ -1,6 +1,5 @@
 <template>
   <div class="goal-list-view relative">
-    <!-- 좌측: 목표(Goal) 기본 정보 -->
     <div class="info-section">
       <div class="form-group">
         <label>목표 타이틀</label>
@@ -13,72 +12,18 @@
         />
       </div>
 
-      <!-- 🌟 트렌디한 통합형 목표 기간 설정 레이아웃 -->
       <div class="form-group relative">
         <label>목표 기간</label>
-        <div class="date-range-picker" :class="{ 'is-active': activeCalendar }">
-          <button
-            class="date-btn"
-            :class="{ 'active-tab': activeCalendar === 'start' }"
-            @click="activeCalendar = 'start'"
-          >
-            {{ goal?.startDate || '시작일 선택' }}
-          </button>
-          <span class="date-divider">→</span>
-          <button
-            class="date-btn"
-            :class="{ 'active-tab': activeCalendar === 'end' }"
-            @click="activeCalendar = 'end'"
-          >
-            {{ goal?.endDate || '미정' }}
-          </button>
-        </div>
-
-        <div
-          v-if="activeCalendar"
-          class="overlay-backdrop"
-          @click="activeCalendar = null"
-        ></div>
-
-        <div v-if="activeCalendar" class="compact-calendar-dropdown">
-          <div class="dropdown-tabs">
-            <button
-              :class="{ 'is-selected': activeCalendar === 'start' }"
-              @click="activeCalendar = 'start'"
-            >
-              시작일
-            </button>
-            <button
-              :class="{ 'is-selected': activeCalendar === 'end' }"
-              @click="activeCalendar = 'end'"
-            >
-              종료일
-            </button>
-          </div>
-
-          <div class="calendar-render-area">
-            <GlobalPopupCalendar
-              v-if="activeCalendar === 'start'"
-              :model-value="goal?.startDate || ''"
-              @update:model-value="
-                (val) => {
-                  updateGoalField('startDate', val)
-                  activeCalendar = 'end'
-                }
-              "
-            />
-            <GlobalPopupCalendar
-              v-if="activeCalendar === 'end'"
-              :model-value="goal?.endDate || ''"
-              @update:model-value="
-                (val) => {
-                  updateGoalField('endDate', val)
-                  activeCalendar = null
-                }
-              "
-            />
-          </div>
-        </div>
+        <GlobalDateRangePicker
+          :start-date="goal?.startDate || ''"
+          :end-date="goal?.endDate || ''"
+          size="lg"
+          align="left"
+          placeholder-start="시작일 선택"
+          placeholder-end="미정"
+          @update:start-date="(val) => updateGoalField('startDate', val)"
+          @update:end-date="(val) => updateGoalField('endDate', val)"
+        />
       </div>
 
       <div class="form-group">
@@ -101,7 +46,7 @@
           <span
             class="pct-text"
             :style="{
-              color: goal?.color || '#4f46e5',
+              color: goal?.color || 'var(--color-primary)',
               fontVariantNumeric: 'tabular-nums'
             }"
             >{{ calculateProgress }}%</span
@@ -112,22 +57,21 @@
             class="progress-fill"
             :style="{
               width: calculateProgress + '%',
-              backgroundColor: goal?.color || '#4f46e5'
+              backgroundColor: goal?.color || 'var(--color-primary)'
             }"
           ></div>
         </div>
       </div>
     </div>
 
-    <!-- 우측: 마일스톤 영역 -->
     <div class="ms-section relative">
       <div class="view-container">
-        <div class="ms-header-row mb-4">
-          <div class="flex-row gap-2 items-center">
+        <div class="ms-header-row mb-16">
+          <div class="flex-row gap-8 items-center">
             <label>마일스톤 (기간별 목표)</label>
-            <span class="ms-count" style="font-variant-numeric: tabular-nums"
-              >총 {{ goalMilestones.length }}개</span
-            >
+            <span class="ms-count" style="font-variant-numeric: tabular-nums">
+              총 {{ goalMilestones.length }}개
+            </span>
           </div>
           <button class="btn-primary" @click="$emit('open-create')">
             마일스톤 추가
@@ -137,7 +81,7 @@
         <GlobalSearchInput
           v-model="searchQuery"
           placeholder="마일스톤 타이틀 검색..."
-          class="mb-4"
+          class="mb-16"
         />
 
         <div class="ms-list-container">
@@ -145,12 +89,14 @@
             v-for="ms in filteredMilestones"
             :key="ms.id"
             class="ms-card cursor-pointer"
-            @click="$emit('open-detail', ms)"
+            @click.stop="$emit('open-detail', ms)"
           >
             <div class="ms-summary">
               <div
                 class="ms-color-bar"
-                :style="{ backgroundColor: goal?.color || '#3b82f6' }"
+                :style="{
+                  backgroundColor: goal?.color || 'var(--color-primary)'
+                }"
               ></div>
               <div class="ms-content min-w-0">
                 <div class="ms-meta">
@@ -170,10 +116,9 @@
                     {{ getTotalTaskCount(ms.id) }}
                   </span>
                 </div>
-                <!-- 🚨 인터페이스 변경에 따라 ms.summary -> ms.title 로 수정 -->
                 <div class="ms-title">{{ ms.title }}</div>
               </div>
-              <div class="ms-actions shrink-0 text-gray-400">〉</div>
+              <div class="ms-actions shrink-0">〉</div>
             </div>
           </div>
           <div v-if="filteredMilestones.length === 0" class="empty-state">
@@ -188,7 +133,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
-import GlobalPopupCalendar from '@/global-components/global-calendar/GlobalPopupCalendar.vue'
+import GlobalDateRangePicker from '@/global-components/global-calendar/GlobalDateRangePicker.vue' // 🌟 변경됨
 import GlobalSearchInput from '@/global-components/global-search-input/GlobalSearchInput.vue'
 import BaseInput from '@/base-ui/BaseInput.vue'
 
@@ -196,21 +141,19 @@ const props = defineProps<{ goal: Goal }>()
 defineEmits(['open-detail', 'open-create'])
 const store = useScheduleStore()
 
-const activeCalendar = ref<'start' | 'end' | null>(null)
 const searchQuery = ref('')
 
 const palette = [
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-  '#71717a'
+  '#ff3b30', // danger
+  '#ff9500',
+  '#ffcc00',
+  '#34c759',
+  '#5e81a3', // primary
+  '#5856d6',
+  '#ff2d55',
+  '#8e8e93' // sub text
 ]
 
-// 날짜 undefined 방어용 포맷터
 const formatSafeDate = (dateStr?: string) => {
   if (!dateStr) return '미정'
   return dateStr.slice(5).replace('-', '/')
@@ -234,7 +177,6 @@ const calculateProgress = computed(() => {
   return Math.round((tasks.filter((t) => t.done).length / tasks.length) * 100)
 })
 
-// 🚨 schedules 배열 대신 새롭게 분리된 store.milestones 배열을 직접 참조
 const goalMilestones = computed(() => {
   const milestones = store.milestones || []
   return milestones.filter((m) => m && m.goalId === props.goal?.id)
@@ -243,7 +185,6 @@ const goalMilestones = computed(() => {
 const filteredMilestones = computed(() => {
   if (!searchQuery.value) return goalMilestones.value
   return goalMilestones.value.filter((m) =>
-    // 🚨 summary 대신 title로 검색
     m.title?.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
@@ -264,205 +205,90 @@ const getCompletedCount = (msId: number) => {
 </script>
 
 <style scoped>
-/* 공통 유틸리티 */
-.flex-1 {
-  flex: 1;
-}
-.shrink-0 {
-  flex-shrink: 0;
-}
+/* =======================================
+   공통 유틸리티 (글로벌과 겹치지 않는 특수 속성만 남김)
+======================================= */
 .cursor-pointer {
   cursor: pointer;
 }
-.mb-4 {
-  margin-bottom: 16px;
-}
 .mt-auto {
   margin-top: auto;
-}
-.gap-2 {
-  gap: 8px;
-}
-.items-center {
-  align-items: center;
-}
-.flex-row {
-  display: flex;
 }
 .relative {
   position: relative;
 }
 
-/* 레이아웃 */
+/* =======================================
+   레이아웃
+======================================= */
 .goal-list-view {
   display: flex;
   height: 100%;
-  gap: 32px;
-  background: #fafafa;
+  gap: var(--space-8);
+  background: var(--bg-app);
   overflow: hidden;
-  border-radius: 0 0 16px 16px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
+
 .info-section {
   flex: 0 0 380px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  padding: 32px;
-  background: #fff;
-  border-right: 1px solid #f4f4f5;
+  gap: var(--space-6);
+  padding: var(--space-8);
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-color);
 }
+
 .ms-section {
   flex: 1;
-  padding: 32px 32px 32px 0;
+  padding: var(--space-8) var(--space-8) var(--space-8) 0;
   min-width: 0;
   min-height: 0;
 }
+
 .view-container {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
 }
+
 .form-group label {
   display: block;
-  font-size: 13px;
-  font-weight: 700;
-  color: #52525b;
-  margin-bottom: 8px;
-}
-
-/* =======================================
-   🌟 트렌디한 통합형 날짜 선택 버튼 그룹
-======================================= */
-.date-range-picker {
-  display: flex;
-  align-items: center;
-  background: #fff;
-  border: 1px solid #e4e4e7;
-  border-radius: 10px;
-  padding: 4px;
-  transition: all 0.2s;
-}
-.date-range-picker.is-active {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-.date-btn {
-  flex: 1;
-  background: transparent;
-  border: none;
-  padding: 10px;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #27272a;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.date-btn:hover {
-  background: #f4f4f5;
-}
-.date-btn.active-tab {
-  background: #eef2ff;
-  color: #4f46e5;
-  font-weight: 700;
-}
-.date-divider {
-  color: #a1a1aa;
-  padding: 0 8px;
-  font-weight: bold;
-}
-
-/* =======================================
-   🌟 1:1 비율의 콤팩트 캘린더 드롭다운
-======================================= */
-.overlay-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 90;
-  cursor: default;
-}
-.compact-calendar-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  width: 100%;
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  z-index: 100;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column; /* 탭과 캘린더 영역을 위아래로 분리 */
-}
-
-/* 팝업 내부 탭 */
-.dropdown-tabs {
-  display: flex;
-  border-bottom: 1px solid #e4e4e7;
-  background: #fafafa;
-}
-.dropdown-tabs button {
-  flex: 1;
-  padding: 12px;
-  background: none;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: #a1a1aa;
-  cursor: pointer;
-}
-.dropdown-tabs button.is-selected {
-  color: #4f46e5;
-  background: #fff;
-  border-bottom: 2px solid #4f46e5;
-}
-
-/* 달력이 렌더링되는 영역 (스크롤 추가) */
-.calendar-render-area {
-  padding: 16px;
-
-  /* 🌟 핵심: 최대 높이를 지정하고, 달력이 이보다 길어지면 내부 스크롤 생성 */
-  max-height: 300px; /* 노트북 등 작은 화면에서도 안 잘리도록 제한 (필요시 조절) */
-  overflow-y: auto;
-  scrollbar-gutter: stable; /* 스크롤바 생성 시 가로 덜컹거림 방지 */
-}
-
-/* 내부 달력 컴포넌트가 정사각형 영역을 꽉 채우도록 설정 */
-:deep(.calendar-render-area > *) {
-  width: 100%;
-  height: 100%;
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--text-sub);
+  margin-bottom: var(--space-2);
 }
 
 /* =======================================
    나머지 폼 요소 & 마일스톤 리스트
+   (🌟 팝업 캘린더 관련 잡다한 CSS 대거 삭제 완료!)
 ======================================= */
-/* ✨ BaseInput을 타이틀의 묵직한 느낌에 맞게 커스텀 */
 .goal-title-input {
   margin-bottom: 0 !important;
 }
 
 .goal-title-input :deep(.base-input) {
-  font-size: 16px;
-  font-weight: 700; /* 타이틀에 맞게 두꺼운 폰트 적용 */
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
 }
 
 .btn-primary {
-  background: #27272a;
-  color: #fff;
+  background: var(--text-main);
+  color: var(--bg-card);
   border: none;
-  padding: 10px 18px;
-  border-radius: 8px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-weight: 600;
-  transition: 0.2s;
-  font-size: 13px;
+  font-weight: var(--font-semibold);
+  transition: opacity var(--transition-fast);
+  font-size: var(--text-sm);
 }
+
 .btn-primary:hover {
-  background: #3f3f46;
+  opacity: 0.85;
 }
 
 .ms-header-row {
@@ -470,108 +296,126 @@ const getCompletedCount = (msId: number) => {
   justify-content: space-between;
   align-items: center;
 }
+
 .ms-header-row label {
-  font-size: 16px;
-  font-weight: 800;
-  color: #27272a;
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  color: var(--text-main);
   margin: 0;
 }
+
 .ms-count {
-  font-size: 13px;
-  font-weight: 600;
-  color: #71717a;
-  background: #e4e4e7;
-  padding: 4px 10px;
-  border-radius: 20px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-sub);
+  background: var(--bg-hover);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xl);
 }
+
 .ms-list-container {
   flex: 1;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding-right: 8px;
+  padding-right: var(--space-2);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 0;
 }
+
 .ms-card {
-  background: #fff;
-  border: 1px solid #e4e4e7;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  transition: 0.2s;
+  transition: all var(--transition-base);
 }
+
 .ms-card:hover {
-  border-color: #d4d4d8;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  border-color: var(--text-muted);
+  box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
+
 .ms-summary {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
-  gap: 14px;
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
 }
+
 .ms-color-bar {
   width: 4px;
   height: 36px;
-  border-radius: 2px;
+  border-radius: var(--space-1);
 }
+
 .ms-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   flex: 1;
 }
+
 .ms-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
+
 .ms-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  padding: 2px var(--space-1);
+  border-radius: var(--space-1);
 }
+
 .bg-gray {
-  background: #f4f4f5;
-  color: #52525b;
+  background: var(--bg-hover);
+  color: var(--text-sub);
 }
+
 .ms-date {
-  font-size: 12px;
-  font-weight: 700;
-  color: #71717a;
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: var(--text-sub);
 }
+
 .ms-task-count {
-  font-size: 12px;
-  font-weight: 600;
-  color: #3b82f6;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-primary);
   margin-left: auto;
 }
+
 .ms-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #27272a;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-main);
 }
+
 .ms-actions {
-  font-size: 12px;
-  color: #a1a1aa;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
+
 .empty-state {
   text-align: center;
-  padding: 40px 0;
-  color: #a1a1aa;
-  font-size: 14px;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px dashed #e4e4e7;
+  padding: var(--space-10) 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-color);
 }
+
 .color-picker {
   display: flex;
-  gap: 10px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
+
 .color-swatch {
   width: 28px;
   height: 28px;
@@ -579,38 +423,44 @@ const getCompletedCount = (msId: number) => {
   border: 2px solid transparent;
   cursor: pointer;
   padding: 0;
-  transition: 0.2s;
+  transition: transform var(--transition-fast);
 }
+
 .color-swatch.active {
-  outline: 2px solid #27272a;
+  outline: 2px solid var(--text-main);
   outline-offset: 2px;
 }
+
 .progress-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
+
 .progress-header label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #52525b;
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--text-sub);
   margin: 0;
 }
+
 .pct-text {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
   line-height: 1;
 }
+
 .progress-track {
-  height: 12px;
-  background: #f4f4f5;
-  border-radius: 6px;
+  height: var(--space-3);
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
+
 .progress-fill {
   height: 100%;
   transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 </style>
