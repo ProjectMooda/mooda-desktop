@@ -1,25 +1,34 @@
 <template>
-  <div class="custom-time-picker" :class="{ 'is-empty': !timeObj.hasTime }">
+  <div
+    class="base-time-picker"
+    :class="[
+      `ui-size-${size}`,
+      { 'is-empty': !timeObj.hasTime },
+      { 'is-active': openDropdown !== null }
+    ]"
+  >
     <div
       v-if="openDropdown"
       class="dropdown-overlay"
       @click.stop="openDropdown = null"
     ></div>
 
-    <!-- 🌟 값이 없을 때 (미정 상태) -->
-    <div v-if="!timeObj.hasTime" class="empty-state" @click="initTime">
+    <div
+      v-if="!timeObj.hasTime"
+      class="empty-state flex-1 flex-center w-full"
+      @click="initTime"
+    >
       미정
     </div>
 
-    <!-- 🌟 시간이 설정되었을 때 -->
     <template v-else>
-      <button class="ampm-toggle" @click.stop="toggleAmPm">
+      <button class="ampm-toggle shrink-0" @click.stop="toggleAmPm">
         {{ timeObj.ampm }}
       </button>
 
-      <div class="time-select-group">
+      <div class="time-select-group flex-1 flex-center">
         <div
-          class="custom-select-box time-box"
+          class="time-box flex-center"
           :class="{ 'is-active': openDropdown === 'hour' }"
           @click="openDropdown = 'hour'"
         >
@@ -40,10 +49,10 @@
           </ul>
         </div>
 
-        <span class="colon">:</span>
+        <span class="colon flex-center shrink-0">:</span>
 
         <div
-          class="custom-select-box time-box"
+          class="time-box flex-center"
           :class="{ 'is-active': openDropdown === 'minute' }"
           @click="openDropdown = 'minute'"
         >
@@ -65,8 +74,11 @@
         </div>
       </div>
 
-      <!-- 🌟 초기화(삭제) 버튼 추가 -->
-      <button class="clear-btn" title="시간 초기화" @click.stop="clearTime">
+      <button
+        class="clear-btn flex-center shrink-0"
+        title="시간 초기화"
+        @click.stop="clearTime"
+      >
         ✕
       </button>
     </template>
@@ -76,9 +88,16 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue'
 
-const props = defineProps<{
-  modelValue?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue?: string
+    size?: 1 | 2 | 3 | 4 | 5 // ✨ 1~5 스케일 연동
+  }>(),
+  {
+    modelValue: '',
+    size: 3 // 기본 크기 (Medium)
+  }
+)
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
@@ -86,7 +105,6 @@ const emit = defineEmits<{
 
 const openDropdown = ref<'hour' | 'minute' | null>(null)
 
-// 🌟 hasTime 속성 추가하여 '미정' 상태 구분
 const timeObj = reactive({
   hasTime: false,
   ampm: '오전',
@@ -96,12 +114,7 @@ const timeObj = reactive({
 
 const parseTime = (timeStr?: string) => {
   if (!timeStr) {
-    return {
-      hasTime: false,
-      ampm: '오전',
-      hour: 9,
-      minute: 0
-    }
+    return { hasTime: false, ampm: '오전', hour: 9, minute: 0 }
   }
 
   const [hStr, mStr] = timeStr.split(':')
@@ -116,12 +129,7 @@ const parseTime = (timeStr?: string) => {
     h = 12
   }
 
-  return {
-    hasTime: true,
-    ampm,
-    hour: h,
-    minute
-  }
+  return { hasTime: true, ampm, hour: h, minute }
 }
 
 const emitTime = () => {
@@ -129,20 +137,11 @@ const emitTime = () => {
     emit('update:modelValue', '')
     return
   }
-
   let h = timeObj.hour
+  if (timeObj.ampm === '오후' && h !== 12) h += 12
+  if (timeObj.ampm === '오전' && h === 12) h = 0
 
-  if (timeObj.ampm === '오후' && h !== 12) {
-    h += 12
-  }
-  if (timeObj.ampm === '오전' && h === 12) {
-    h = 0
-  }
-
-  const timeStr =
-    `${String(h).padStart(2, '0')}:` +
-    `${String(timeObj.minute).padStart(2, '0')}`
-
+  const timeStr = `${String(h).padStart(2, '0')}:${String(timeObj.minute).padStart(2, '0')}`
   emit('update:modelValue', timeStr)
 }
 
@@ -154,7 +153,6 @@ watch(
   { immediate: true }
 )
 
-// 🌟 '미정' 버튼 클릭 시 09:00으로 설정하며 입력 시작
 const initTime = () => {
   timeObj.hasTime = true
   timeObj.ampm = '오전'
@@ -163,10 +161,9 @@ const initTime = () => {
   emitTime()
 }
 
-// 🌟 '✕' 버튼 클릭 시 '미정'으로 초기화
 const clearTime = () => {
   timeObj.hasTime = false
-  emitTime() // '' (빈 문자열) 방출
+  emitTime()
 }
 
 const toggleAmPm = () => {
@@ -182,107 +179,87 @@ const setTime = (type: 'hour' | 'minute', val: number) => {
 </script>
 
 <style scoped>
+/* =======================================
+   컨테이너 (BaseInput과 동일한 룩앤필)
+======================================= */
+.base-time-picker {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-1);
+  position: relative;
+  transition: all var(--transition-base);
+  user-select: none;
+}
+
+/* 포커스 또는 드롭다운이 열렸을 때 BaseInput과 똑같이 파란 테두리 */
+.base-time-picker.is-active,
+.base-time-picker:focus-within {
+  border-color: var(--color-primary);
+  box-shadow:
+    0 0 0 3px var(--color-primary-light),
+    var(--shadow-2);
+}
+
 .dropdown-overlay {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-dropdown); /* 전역 Z-Index 변수 활용 */
 }
 
-.custom-time-picker {
-  display: flex;
-  align-items: center;
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md, 10px);
-  padding: var(--space-1-5, 6px) var(--space-2, 8px);
-  flex: 1;
-  gap: var(--space-2, 8px);
-  position: relative;
-  min-height: 36px; /* 버튼 높이에 맞춰서 고정 */
-}
-
-/* 🌟 미정 상태 텍스트 스타일 */
+/* =======================================
+   내부 컴포넌트들 (ui-size-N의 폰트/패딩 비율을 따라감)
+======================================= */
 .empty-state {
-  width: 100%;
-  text-align: center;
-  color: var(--text-muted, #9ca3af);
-  font-size: var(--text-sm, 14px);
+  color: var(--text-muted);
   font-weight: var(--font-bold);
   cursor: pointer;
-  transition: color var(--transition-fast) ease;
+  transition: color var(--transition-fast);
 }
 .empty-state:hover {
-  color: var(--color-primary, #3b82f6);
+  color: var(--color-primary);
 }
 
-/* 🌟 초기화(삭제) 버튼 스타일 */
 .clear-btn {
   background: transparent;
   border: none;
-  color: var(--text-muted, #9ca3af);
-  font-size: var(--text-xs, 12px);
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 0 4px;
-  margin-left: 2px;
-  transition: color var(--transition-fast) ease;
-  z-index: 95;
+  padding: 0 var(--space-1);
+  font-size: 0.8em; /* 부모(ui-size-N) 폰트 대비 80% 크기 유지 */
+  transition: all var(--transition-fast);
 }
 .clear-btn:hover {
-  color: var(--text-danger, #ef4444);
+  color: var(--color-danger);
+  transform: scale(1.1); /* XButton 텐션 */
 }
 
-/* 아래는 작성해주신 기존 코드 그대로입니다 */
+/* 오전/오후 토글 버튼 */
 .ampm-toggle {
-  position: relative;
-  z-index: 95;
-  background: var(--color-primary-pale, #eff6ff);
-  border: 1px solid var(--color-primary-light, #bfdbfe);
-  padding: var(--space-1-5, 6px) var(--space-2-5, 10px);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xxs, 12px);
-  font-weight: var(--font-bold);
+  background: var(--color-primary-pale);
+  border: 1px solid var(--color-primary-light);
   color: var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 0.85em;
+  font-weight: var(--font-bold);
   cursor: pointer;
-  transition: all var(--transition-fast) ease;
-  flex-shrink: 0;
+  transition: all var(--transition-fast);
 }
 .ampm-toggle:hover {
   background: var(--color-primary-light);
-  border-color: var(--color-primary-muted);
 }
 
-.time-select-group {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  justify-content: center;
-  position: relative;
-  z-index: 95;
-}
-.colon {
-  font-size: var(--text-base, 15px);
-  font-weight: var(--font-bold);
-  color: var(--text-muted);
-  padding-bottom: var(--space-0-5, 2px);
-  margin: 0 var(--space-1, 4px);
-}
-
-.custom-select-box {
+/* 시간, 분 박스 */
+.time-box {
   position: relative;
   border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
+  padding: 2px 6px;
   font-weight: var(--font-bold);
   cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  user-select: none;
-  transition: all var(--transition-fast) ease;
-}
-.time-box {
-  padding: var(--space-1, 4px) var(--space-2, 8px);
-  min-width: 36px;
   border: 1px solid transparent;
+  transition: all var(--transition-fast);
 }
 .time-box:hover {
   background: var(--bg-hover);
@@ -290,36 +267,45 @@ const setTime = (type: 'hour' | 'minute', val: number) => {
 .time-box.is-active {
   border-color: var(--color-primary);
   background: var(--color-primary-pale);
+  color: var(--color-primary);
 }
 
+.colon {
+  font-weight: var(--font-bold);
+  color: var(--text-muted);
+}
+
+/* =======================================
+   드롭다운 메뉴
+======================================= */
 .dropdown-menu {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + var(--space-2));
   left: 50%;
   transform: translateX(-50%);
-  background: var(--bg-card, #fff);
+
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md, 12px);
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+
   max-height: 160px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  pointer-events: auto;
   list-style: none;
-  padding: var(--space-1-5, 6px);
+  padding: var(--space-1);
   margin: 0;
-  z-index: 100;
-  min-width: 50px;
-  text-align: center;
+  z-index: calc(var(--z-dropdown) + 1); /* 오버레이보다 한 칸 위 */
+  min-width: 56px;
 }
 
 .dropdown-menu li {
-  padding: var(--space-2, 8px) var(--space-3, 12px);
-  font-size: var(--text-xs, 13px);
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.9em;
   color: var(--text-sub);
-  border-radius: var(--radius-sm, 6px);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 .dropdown-menu li:hover {
   background: var(--bg-hover);

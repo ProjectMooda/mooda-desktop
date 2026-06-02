@@ -1,61 +1,75 @@
 <template>
   <button
     type="button"
-    class="pin-btn"
-    :class="{ 'is-pinned': isPinned }"
+    :class="[
+      'base-pin-btn',
+      `ui-size-${size}`,
+      'is-icon-only',
+      { 'is-pinned': isPinned }
+    ]"
     @click.stop="$emit('toggle')"
   >
-    <!-- 나중에 📌 이모지 대신 SVG 아이콘으로 바꿀 때 여기만 수정하면 됩니다! -->
-    📌
+    <slot>📌</slot>
   </button>
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  isPinned?: boolean // 고정 여부
-}>()
+withDefaults(
+  defineProps<{
+    isPinned?: boolean
+    size?: 1 | 2 | 3 | 4 | 5
+  }>(),
+  {
+    isPinned: false,
+    size: 2 // 핀 버튼은 카드 구석이나 리스트에 작게 들어가는 경우가 많아 Size 2를 기본값으로 추천합니다.
+  }
+)
 
-defineEmits(['toggle']) // 클릭 이벤트 (상위로 전달)
+defineEmits<{
+  (e: 'toggle'): void
+}>()
 </script>
+
 <style scoped>
-.pin-btn {
+/* =======================================
+   BASE STYLE (크기/레이아웃 전역 시스템 위임)
+======================================= */
+.base-pin-btn {
   background: transparent;
   border: none;
+  outline: none;
   cursor: pointer;
+  margin: 0;
 
-  /* 초기 상태: 애플 서브 텍스트 컬러 및 반투명 처리 */
   color: var(--text-sub);
   opacity: 0.4;
 
-  /* 공통 유틸리티 속성 내재화 및 패딩 변수화 */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-1); /* 4px */
-
-  /* 둥근 모서리 및 배경 호버 효과를 위한 세팅 */
-  border-radius: var(--radius-sm);
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast),
-    opacity var(--transition-fast);
+  /* 개별 transition을 all로 묶어서 간결화 */
+  transition: all var(--transition-fast);
 }
 
-/* 마우스 호버 시: 과한 크기 변화 대신 은은한 배경색과 선명도 제공 */
-.pin-btn:hover {
+/* BaseButton, XButton과 동일한 쫀득한 클릭 피드백 통일 */
+.base-pin-btn:active {
+  transform: scale(0.92);
+}
+
+/* =======================================
+   HOVER & PINNED STATES
+======================================= */
+.base-pin-btn:hover {
   background-color: var(--bg-hover);
   color: var(--text-main);
   opacity: 0.8;
 }
 
-/* 핀이 활성화(고정)되었을 때: 애플 시그니처 블루 컬러 적용 및 선명도 100% */
-.pin-btn.is-pinned {
+.base-pin-btn.is-pinned {
   color: var(--color-primary);
   opacity: 1;
 }
 
-/* 핀이 활성화된 상태에서 호버했을 때 굳이 배경이 회색으로 바뀌지 않도록 처리 */
-.pin-btn.is-pinned:hover {
-  background-color: transparent;
+.base-pin-btn.is-pinned:hover {
+  /* 기존에 주신 transparent도 좋지만, 
+     애플 테마에 맞춰 아주 연한 블루 배경을 주면 클릭 영역 인지가 더 명확해집니다. */
+  background-color: var(--color-primary-pale);
 }
 </style>
