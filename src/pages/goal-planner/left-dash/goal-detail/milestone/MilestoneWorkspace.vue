@@ -11,28 +11,83 @@
           @update:model-value="onTitleChange"
         />
       </div>
+
       <div class="header-right">
-        <div class="workspace-date-edit">
-          <input
-            type="date"
-            :value="activeMilestone?.startDate || ''"
-            class="s-input-sm"
-            @change="(e) => updateMilestoneDate('startDate', e)"
-          />
-          <span>~</span>
-          <input
-            type="date"
-            :value="activeMilestone?.endDate || ''"
-            class="s-input-sm"
-            @change="(e) => updateMilestoneDate('endDate', e)"
-          />
+        <!-- 🌟 수정된 날짜 선택부 (네이티브 Input 제거, 팝업 캘린더 버튼화) -->
+        <div class="workspace-date-edit relative">
+          <button
+            class="date-pill"
+            :class="{ 'is-active': activeCalendar === 'start' }"
+            @click="activeCalendar = 'start'"
+          >
+            {{ activeMilestone?.startDate || '시작일' }}
+          </button>
+          <span class="date-arrow">~</span>
+          <button
+            class="date-pill"
+            :class="{ 'is-active': activeCalendar === 'end' }"
+            @click="activeCalendar = 'end'"
+          >
+            {{ activeMilestone?.endDate || '종료일' }}
+          </button>
+
+          <!-- 🌟 미니멀 팝업 캘린더 드롭다운 -->
+          <div
+            v-if="activeCalendar"
+            class="overlay-backdrop invisible-backdrop"
+            @click="activeCalendar = null"
+          ></div>
+          <transition name="popover">
+            <div v-if="activeCalendar" class="compact-calendar-popover">
+              <!-- 이전 요청사항이 반영된 네모 박스 없는 미니멀 탭 -->
+              <div class="segmented-control">
+                <button
+                  :class="{ 'is-selected': activeCalendar === 'start' }"
+                  @click="activeCalendar = 'start'"
+                >
+                  시작일
+                </button>
+                <button
+                  :class="{ 'is-selected': activeCalendar === 'end' }"
+                  @click="activeCalendar = 'end'"
+                >
+                  종료일
+                </button>
+              </div>
+
+              <div class="calendar-render-area">
+                <GlobalPopupCalendar
+                  v-if="activeCalendar === 'start'"
+                  :model-value="activeMilestone?.startDate || ''"
+                  @update:model-value="
+                    (val) => {
+                      updateMilestoneDate('startDate', val)
+                      activeCalendar = 'end'
+                    }
+                  "
+                />
+                <GlobalPopupCalendar
+                  v-if="activeCalendar === 'end'"
+                  :model-value="activeMilestone?.endDate || ''"
+                  @update:model-value="
+                    (val) => {
+                      updateMilestoneDate('endDate', val)
+                      activeCalendar = null
+                    }
+                  "
+                />
+              </div>
+            </div>
+          </transition>
         </div>
+
         <button class="btn-text-danger ml-4" @click="removeMilestone">
           마일스톤 삭제
         </button>
       </div>
     </div>
 
+    <!-- ... 이하 본문부 (기존과 동일) ... -->
     <div class="ms-workspace-body">
       <div class="cal-panel">
         <GlobalCalendar
@@ -238,6 +293,7 @@ import {
   type Milestone
 } from '@/stores/useScheduleStore'
 import GlobalCalendar from '@/global-components/global-calendar/GlobalCalendar.vue'
+import GlobalPopupCalendar from '@/global-components/global-calendar/GlobalPopupCalendar.vue' // 🌟 팝업 캘린더 컴포넌트 추가
 import GlobalMilestoneCard from '@/global-components/global-card/GlobalMilestoneCard.vue'
 import GlobalTaskCard from '@/global-components/global-card/GlobalTaskCard.vue'
 import GlobalScheduleDetailModal from '@/global-components/global-modal/global-schedule-detail-modal/GlobalScheduleDetailModal.vue'
@@ -253,6 +309,9 @@ const todayString = new Date().toISOString().slice(0, 10)
 
 const isFullAddOpen = ref(false)
 const isFocused = ref(false)
+
+// 🌟 달력 팝업 상태 관리
+const activeCalendar = ref<'start' | 'end' | null>(null)
 
 const activeMilestone = computed(
   () => store.milestones.find((m) => m.id === props.milestoneId) || null
@@ -279,7 +338,6 @@ const removeMilestone = () => {
   emit('back')
 }
 
-// 🌟 커스텀 에러 모달 상태
 const showAlert = ref(false)
 const alertMessage = ref('')
 
@@ -306,24 +364,21 @@ const validateMilestoneDates = (msStart: string, msEnd: string) => {
   return true
 }
 
-const updateMilestoneDate = (field: 'startDate' | 'endDate', event: Event) => {
+// 🌟 파라미터를 Event 기반에서 String 값 직접 수신으로 리팩토링
+const updateMilestoneDate = (field: 'startDate' | 'endDate', val: string) => {
   if (!activeMilestone.value) return
-  const newVal = (event.target as HTMLInputElement).value || undefined
 
   const tempStart =
-    field === 'startDate' ? newVal || '' : activeMilestone.value.startDate || ''
+    field === 'startDate' ? val : activeMilestone.value.startDate || ''
   const tempEnd =
-    field === 'endDate' ? newVal || '' : activeMilestone.value.endDate || ''
+    field === 'endDate' ? val : activeMilestone.value.endDate || ''
 
+  // 조건이 맞을 때만 상태 업데이트
   if (validateMilestoneDates(tempStart, tempEnd)) {
-    handleMilestoneUpdate(field, newVal)
-  } else {
-    ;(event.target as HTMLInputElement).value =
-      activeMilestone.value[field] || ''
+    handleMilestoneUpdate(field, val)
   }
 }
 
-// --- 삭제 로직 관련 상태 ---
 const showDeleteOptions = ref(false)
 const taskPendingDelete = ref<ScheduleItem | null>(null)
 
@@ -352,11 +407,9 @@ const cancelDelete = () => {
   taskPendingDelete.value = null
 }
 
-// --- 할 일(Task) 관련 상태 및 로직 ---
 const showCompleted = ref(false)
 const newTaskText = ref('')
 
-// 선택된 날짜에 해당하는 모든 일정
 const allTasksForSelectedDate = computed(() => {
   if (!selectedMsDate.value) return []
   const targetDate = selectedMsDate.value
@@ -386,7 +439,6 @@ const otherTasks = computed(() =>
   )
 )
 
-// 🌟 드래그 앤 드롭용 로컬 리스트 분배
 const localPendingTasks = ref<ScheduleItem[]>([])
 const localOtherTasks = ref<ScheduleItem[]>([])
 
@@ -413,14 +465,12 @@ watch(
 const handleAddTask = () => {
   const text = newTaskText.value
   if (!text) return
-
   addTaskToSelectedDate(text)
   newTaskText.value = ''
 }
 
 const addTaskToSelectedDate = (text: string) => {
   if (!activeMilestone.value || !selectedMsDate.value) return
-
   store.addSchedule({
     id: Date.now(),
     type: 'task',
@@ -432,7 +482,6 @@ const addTaskToSelectedDate = (text: string) => {
   })
 }
 
-// 카드 컴포넌트들에서 올라오는 @update 이벤트 처리
 const handleItemUpdate = (item: ScheduleItem, patch: Partial<ScheduleItem>) => {
   store.updateSchedule(item.id, patch)
 }
@@ -441,7 +490,6 @@ const handleItemTogglePin = (item: ScheduleItem) => {
   store.togglePin(item.id)
 }
 
-// 드래그 종료 시 인덱스 저장
 const onPendingDragEnd = () => {
   localPendingTasks.value.forEach((item, index) => {
     store.updateSchedule(item.id, { orderIndex: index })
@@ -493,16 +541,11 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 .h-full {
   height: 100%;
 }
+.relative {
+  position: relative;
+}
 
 /* 상단 버튼 및 인풋 */
-.s-input-sm {
-  border: none;
-  background: transparent;
-  font-size: 13px;
-  color: #3f3f46;
-  outline: none;
-  width: 110px;
-}
 .btn-text-danger {
   background: transparent;
   color: #ef4444;
@@ -554,12 +597,12 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   background: #e4e4e7;
   color: #18181b;
 }
+
 .workspace-title-base-input {
   width: 100%;
   max-width: 400px;
   margin-bottom: 0 !important;
 }
-
 .workspace-title-base-input :deep(.input-container) {
   background: transparent !important;
   border: none !important;
@@ -568,7 +611,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   border-bottom: 2px solid transparent !important;
   border-radius: 0 !important;
 }
-
 .workspace-title-base-input.is-focused :deep(.input-container),
 .workspace-title-base-input:focus-within :deep(.input-container) {
   border-bottom-color: #6366f1 !important;
@@ -579,13 +621,110 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   display: flex;
   align-items: center;
 }
+
+/* 🌟 수정된 팝업 연동형 날짜 버튼 (Date Pill) */
 .workspace-date-edit {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: #f4f4f5;
+  gap: 6px;
+}
+
+.date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
+  background-color: #f4f4f5;
   border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3f3f46;
+  font-variant-numeric: tabular-nums;
+}
+
+.date-pill:hover {
+  background-color: #e4e4e7;
+}
+.date-pill.is-active {
+  background-color: #eef2ff;
+  border-color: #4f46e5;
+  color: #4f46e5;
+}
+
+.date-arrow {
+  color: #a1a1aa;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* 🌟 팝업 캘린더 스타일 */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: transparent !important;
+}
+
+.compact-calendar-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0; /* 우측 정렬 */
+  width: 280px;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  transform-origin: top right;
+}
+
+/* 🌟 미니멀 세그먼트 컨트롤 탭 (박스 없음) */
+.segmented-control {
+  display: flex;
+  border-bottom: 1px solid #e4e4e7;
+  background: transparent;
+}
+.segmented-control button {
+  flex: 1;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a1a1aa;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.segmented-control button:hover {
+  color: #71717a;
+}
+.segmented-control button.is-selected {
+  color: #4f46e5;
+  border-bottom: 2px solid #4f46e5;
+}
+
+.calendar-render-area {
+  padding: 16px;
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.popover-enter-active,
+.popover-leave-active {
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.popover-enter-from,
+.popover-leave-to {
+  opacity: 0;
+  transform: scale(0.96) translateY(-4px);
 }
 
 /* 바디 레이아웃 */
@@ -630,7 +769,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   border-radius: 20px;
 }
 
-/* 🌟 드래그 앤 드롭 및 새로운 리스트 디자인 속성 추가 */
 .task-list-scroll {
   flex: 1;
   overflow-y: auto;
@@ -734,7 +872,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   color: #27272a;
   outline: none;
 }
-
 .quick-input::placeholder {
   color: #a1a1aa;
 }
@@ -757,7 +894,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   transition: all 0.2s;
   white-space: nowrap;
 }
-
 .btn-expand:hover {
   background-color: #f4f4f5;
   color: #18181b;
@@ -779,12 +915,10 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
     transform 0.1s,
     opacity 0.2s;
 }
-
 .btn-submit:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }
-
 .btn-submit:not(:disabled):active {
   transform: scale(0.9);
 }
@@ -794,25 +928,21 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   align-items: center;
   margin: 24px 0 12px 0;
 }
-
 .divider-line {
   flex: 1;
   height: 1px;
   background-color: #e4e4e7;
 }
-
 .divider-text {
   font-size: 12px;
   font-weight: 600;
   color: #a1a1aa;
   padding: 0 12px;
 }
-
 .other-tasks-section {
   transition: opacity 0.2s ease;
   opacity: 0.7;
 }
-
 .other-tasks-section:hover {
   opacity: 1;
 }

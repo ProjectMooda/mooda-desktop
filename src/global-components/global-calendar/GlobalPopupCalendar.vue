@@ -1,10 +1,8 @@
-<!-- src/global-components/calendar/PopupCalendar.vue -->
 <template>
   <div class="popup-calendar">
     <div class="card-head">
       <button class="icon-btn" @click="changeMonth(-1)">‹</button>
 
-      <!-- 분리한 MonthPicker 컴포넌트 사용 -->
       <div class="title-wrapper">
         <button class="title-btn" @click="showMonthPicker = true">
           {{ currentYear }}. {{ String(currentMonth + 1).padStart(2, '0') }}
@@ -23,7 +21,6 @@
       <button class="icon-btn" @click="changeMonth(1)">›</button>
     </div>
 
-    <!-- 팝업용 핵심 그리드 -->
     <div class="cal-grid">
       <div v-for="day in weekDays" :key="day" class="cal-day">
         {{ day }}
@@ -38,11 +35,12 @@
             selected: modelValue === date.full,
             dimmed: !date.currentMonth,
             today: date.isToday,
-            'in-range': date.inRange
+            'in-range': date.inRange,
+            'out-range':
+              props.restrictRange && !date.inRange && date.currentMonth // 🌟 추가: 선택 불가 날짜 클래스
           }
         ]"
-        :disabled="!date.currentMonth"
-        @click="selectDate(date.full)"
+        @click="selectDate(date)"
       >
         <span class="date-num">{{ date.day }}</span>
       </button>
@@ -58,9 +56,10 @@ const props = defineProps<{
   modelValue?: string
   rangeStart?: string
   rangeEnd?: string
+  restrictRange?: boolean
 }>()
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'error'])
 
 interface CalendarDate {
   day: string | number
@@ -78,10 +77,8 @@ const currentYear = computed(() => viewDate.value.getFullYear())
 const currentMonth = computed(() => viewDate.value.getMonth())
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// 월/년도 선택기 팝업 상태
 const showMonthPicker = ref(false)
 
-// 🌟 선택기에서 넘어온 데이터 처리
 const handleMonthSelect = ({
   year,
   month
@@ -111,7 +108,6 @@ const isDateInRange = (dateStr: string) => {
   return dateStr >= start && dateStr <= end
 }
 
-// 달력 그리드 계산 (항상 42칸 고정)
 const calendarDates = computed<CalendarDate[]>(() => {
   const y = currentYear.value
   const m = currentMonth.value
@@ -157,8 +153,14 @@ const calendarDates = computed<CalendarDate[]>(() => {
   return dates
 })
 
-const selectDate = (dateStr: string) => {
-  emit('update:modelValue', dateStr)
+const selectDate = (date: CalendarDate) => {
+  if (!date.currentMonth) return
+
+  if (props.restrictRange && !date.inRange) {
+    emit('error')
+    return
+  }
+  emit('update:modelValue', date.full)
 }
 </script>
 
@@ -176,7 +178,6 @@ const selectDate = (dateStr: string) => {
   margin-bottom: var(--space-4);
 }
 
-/* 🌟 타이틀 버튼 스타일 */
 .title-wrapper {
   position: relative;
   display: flex;
@@ -231,7 +232,6 @@ const selectDate = (dateStr: string) => {
   color: var(--text-main);
 }
 
-/* 팝업에 최적화된 그리드 레이아웃 */
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -259,7 +259,8 @@ const selectDate = (dateStr: string) => {
   padding: 0;
 }
 
-.cal-cell:hover:not(.dimmed) {
+/* 🌟 out-range 상태일 때는 호버 이벤트를 차단 */
+.cal-cell:hover:not(.dimmed):not(.out-range) {
   background: var(--bg-card);
   border-color: var(--border-color);
   box-shadow: var(--shadow-sm);
@@ -279,7 +280,17 @@ const selectDate = (dateStr: string) => {
   pointer-events: none;
 }
 
-.cal-cell.in-range:not(.selected) {
+/* 🌟 선택 불가(out-range) 날짜 스타일 지정 */
+.cal-cell.out-range {
+  cursor: not-allowed; /* 마우스 금지 표시 */
+}
+.cal-cell.out-range .date-num {
+  color: var(--text-muted); /* 숫자를 흐릿한 회색으로 변경 */
+  opacity: 0.5; /* 전체적으로 더 연하게 처리 */
+}
+
+/* in-range이면서 선택이 안 된 상태 배경 (out-range가 아닐 때만) */
+.cal-cell.in-range:not(.selected):not(.out-range) {
   background: var(--color-primary-pale, #eef2ff);
 }
 
@@ -287,6 +298,7 @@ const selectDate = (dateStr: string) => {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--text-main);
+  transition: color var(--transition-fast);
 }
 
 .cal-cell.today .date-num {
