@@ -1,6 +1,6 @@
 <template>
   <div
-    class="base-time-picker"
+    class="base-time-picker w-full"
     :class="[
       `ui-size-${size}`,
       { 'is-empty': !timeObj.hasTime },

@@ -3,6 +3,7 @@
   <Modal
     title="시스템 설정"
     width="400px"
+    :size="3"
     @close="sidebarStore.showSettings = false"
   >
     <!-- BODY 영역 (기본 슬롯) -->

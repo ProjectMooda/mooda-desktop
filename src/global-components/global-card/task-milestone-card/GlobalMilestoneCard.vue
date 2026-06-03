@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
-import Card from './components/Card.vue' // 경로 확인 필요
+import Card from '../task-milestone-card/components/Card.vue' // 경로 확인 필요
 import { useFormatter } from '@/utils/useFormatter'
 
 const { truncateText } = useFormatter()

@@ -1,71 +1,92 @@
 <template>
-  <div class="task-list-container">
-    <slot name="header"></slot>
+  <!-- 루트를 BaseCard로 교체 (그림자 제거, 패딩은 내부 요소에서 제어) -->
+  <BaseCard shadow="none" no-padding class="task-list-container">
+    <!-- 1. Header Slot -->
+    <template v-if="$slots.header" #header>
+      <slot name="header"></slot>
+    </template>
 
-    <div v-if="!items || items.length === 0" class="empty-message">
-      {{ emptyMessage }}
+    <!-- 2. Body (기존 리스트 내용 변경 X) -->
+    <div class="task-list-content flex-col gap-8">
+      <div
+        v-if="!items || items.length === 0"
+        class="empty-message text-xs text-muted"
+      >
+        {{ emptyMessage }}
+      </div>
+
+      <ul v-else class="task-list flex-col gap-8">
+        <template v-for="item in items" :key="item.id">
+          <slot name="item" :item="item">
+            <li
+              class="task-item items-center gap-8"
+              :class="{
+                'is-completed-style': isCompletedStyle,
+                'is-readonly': readonly
+              }"
+              @click.stop="$emit('item-click', item)"
+            >
+              <label class="checkbox-wrapper shrink-0 flex-center" @click.stop>
+                <BaseCheckBox
+                  :model-value="item.done"
+                  :disabled="readonly"
+                  @update:model-value="
+                    (val) => {
+                      if (!readonly) handleCheckChange(item, val)
+                    }
+                  "
+                />
+              </label>
+
+              <div class="task-text-wrapper flex-1 min-w-0">
+                <input
+                  v-if="editable && !readonly"
+                  :value="item[textKey]"
+                  type="text"
+                  class="task-input text-sm w-full"
+                  :class="item.done ? 'is-done text-muted' : 'text-main'"
+                  @change="
+                    (e) =>
+                      handleTextChange(
+                        item,
+                        (e.target as HTMLInputElement).value
+                      )
+                  "
+                  @click.stop
+                />
+                <span
+                  v-else
+                  class="task-text text-sm w-full"
+                  :class="item.done ? 'is-done text-muted' : 'text-main'"
+                >
+                  {{ item[textKey] }}
+                </span>
+              </div>
+
+              <BaseDeleteButton
+                v-if="!readonly"
+                variant="rounded"
+                @click.stop="$emit('delete', item.id)"
+              />
+            </li>
+          </slot>
+        </template>
+      </ul>
     </div>
 
-    <ul v-else class="task-list">
-      <template v-for="item in items" :key="item.id">
-        <slot name="item" :item="item">
-          <li
-            class="task-item"
-            :class="{
-              'is-completed-style': isCompletedStyle,
-              'is-readonly': readonly
-            }"
-            @click.stop="$emit('item-click', item)"
-          >
-            <label class="checkbox-wrapper" @click.stop>
-              <BaseCheckBox
-                :model-value="item.done"
-                :disabled="readonly"
-                @update:model-value="
-                  (val) => {
-                    if (!readonly) handleCheckChange(item, val)
-                  }
-                "
-              />
-            </label>
-
-            <div class="task-text-wrapper">
-              <input
-                v-if="editable && !readonly"
-                :value="item[textKey]"
-                type="text"
-                class="task-input"
-                :class="{ 'is-done': item.done }"
-                @change="
-                  (e) =>
-                    handleTextChange(item, (e.target as HTMLInputElement).value)
-                "
-                @click.stop
-              />
-              <span v-else class="task-text" :class="{ 'is-done': item.done }">
-                {{ item[textKey] }}
-              </span>
-            </div>
-
-            <BaseDeleteButton
-              v-if="!readonly"
-              variant="rounded"
-              @click.stop="$emit('delete', item.id)"
-            />
-          </li>
-        </slot>
-      </template>
-    </ul>
-
-    <slot name="footer"></slot>
-  </div>
+    <!-- 3. Footer Slot -->
+    <template v-if="$slots.footer" #footer>
+      <slot name="footer"></slot>
+    </template>
+  </BaseCard>
 </template>
 
 <script setup lang="ts" generic="T extends Record<string, any>">
 import BaseDeleteButton from '@/base-ui/BaseDeleteButton.vue'
 import BaseCheckBox from '@/base-ui/BaseCheckBox.vue'
+// ✨ BaseCard import 추가
+import BaseCard from '@/base-ui/BaseCard.vue'
 
-// 1. 제네릭 T를 활용하여 any를 제거하고 타입을 명확히 합니다.
 const props = withDefaults(
   defineProps<{
     items?: T[]
@@ -73,7 +94,7 @@ const props = withDefaults(
     emptyMessage?: string
     editable?: boolean
     isCompletedStyle?: boolean
-    readonly?: boolean // 🌟 읽기 전용 모드 Prop 추가
+    readonly?: boolean
   }>(),
   {
     items: () => [],
@@ -81,7 +102,7 @@ const props = withDefaults(
     emptyMessage: '항목이 없습니다.',
     editable: false,
     isCompletedStyle: false,
-    readonly: false // 기본값은 활성화
+    readonly: false
   }
 )
 
@@ -101,77 +122,73 @@ const handleTextChange = (item: T, newValue: string) => {
 </script>
 
 <style scoped>
+/* =======================================
+   Container & Messages
+======================================= */
+/* 겉을 감싸는 BaseCard가 쪼그라들지 않도록 방어 */
 .task-list-container {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2, 8px);
+  flex-shrink: 0;
 }
+
 .empty-message {
-  font-size: var(--text-xs, 13px);
-  color: var(--text-muted);
-  padding: var(--space-4, 16px) var(--space-2, 8px);
+  padding: 24px 12px;
   text-align: center;
 }
+
+/* 갭(gap)을 없애서 리스트가 촘촘하게 붙도록 수정 */
 .task-list {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2, 8px);
+  gap: 0;
 }
+/* =======================================
+   Task Item (이중 카드 느낌 제거, 플랫한 리스트형)
+======================================= */
 .task-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2-5, 10px);
-  background: var(--bg-card, #fff);
-  padding: var(--space-2, 8px) var(--space-3, 12px);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
+  background: transparent; /* 배경 투명하게 */
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border-color); /* 밑줄만 남겨서 리스트처럼 보이게 */
+  border-radius: 0; /* 둥근 모서리 제거 */
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast);
 }
 
-.task-item:hover {
+/* 마지막 아이템은 밑줄 제거해서 BaseCard 푸터와 겹치지 않게 */
+.task-item:last-child {
+  border-bottom: none;
+}
+
+/* hover 시 그림자 없이 배경색만 살짝 변하도록 수정 */
+.task-item:not(.is-readonly):hover {
   background: var(--bg-hover);
-  border-color: var(--border-color);
-  box-shadow: var(--shadow-sm);
-}
-
-/* 🌟 읽기 전용일 때는 마우스 오버 효과나 커서를 다르게 줘서 시각적 힌트 제공 */
-.task-item.is-readonly {
-  cursor: default; /* 클릭해서 수정 불가능한 느낌 (상세 모달을 띄우려면 pointer 유지해도 됨) */
-}
-.task-item.is-readonly:hover {
-  background: var(--bg-card, #fff);
-  border-color: var(--border-color);
   box-shadow: none;
 }
 
+.task-item.is-readonly {
+  cursor: default;
+}
+
+/* 완료된 스타일 (기존 유지) */
 .task-item.is-completed-style {
   background: transparent;
   border-color: transparent;
-  box-shadow: none;
-  padding-left: var(--space-1, 4px);
+  padding-left: 16px;
 }
 
-.task-text-wrapper {
-  flex: 1;
-  min-width: 0;
-}
-.task-text,
-.task-input {
-  font-size: var(--text-sm);
-  color: var(--text-main);
-  width: 100%;
-}
+/* =======================================
+   Inputs & Texts
+======================================= */
 .task-input {
   border: none;
   background: transparent;
   outline: none;
 }
+
 .is-done {
   text-decoration: line-through;
-  color: var(--text-muted);
 }
 </style>

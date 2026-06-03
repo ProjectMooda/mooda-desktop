@@ -6,8 +6,7 @@
         class="modal-overlay flex-center"
         @click.self="handleClose"
       >
-        <div class="modal-container" :style="modalStyle">
-          <!-- HEADER -->
+        <div class="modal-container shadow-3" :class="`modal-size-${size}`">
           <header v-if="showHeader" class="modal-header shrink-0">
             <slot name="header">
               <h2 class="modal-title">
@@ -16,14 +15,13 @@
 
               <BaseDeleteButton
                 variant="circle"
-                size="md"
+                :size="2"
                 intent="close"
                 @click="handleClose"
               />
             </slot>
           </header>
 
-          <!-- BODY -->
           <div
             class="modal-body flex-1 min-h-0"
             :class="{ 'no-padding': noPadding }"
@@ -31,7 +29,6 @@
             <slot />
           </div>
 
-          <!-- FOOTER -->
           <footer v-if="$slots.footer" class="modal-footer shrink-0">
             <slot name="footer" />
           </footer>
@@ -42,15 +39,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import BaseDeleteButton from '@/base-ui/BaseDeleteButton.vue'
 
 const props = withDefaults(
   defineProps<{
     modelValue?: boolean
     title?: string
-    width?: string
-    height?: string
+    size?: 1 | 2 | 3 // ✨ 기존 width, height를 제거하고 1~3단계 스케일로 통합
     showHeader?: boolean
     noPadding?: boolean
     closeOnOverlay?: boolean
@@ -59,8 +55,7 @@ const props = withDefaults(
   {
     modelValue: true,
     title: '',
-    width: '400px',
-    height: 'auto',
+    size: 2, // 기본 모달 크기 (600px - 일반 입력 폼 용도)
     showHeader: true,
     noPadding: false,
     closeOnOverlay: true,
@@ -74,31 +69,22 @@ const emit = defineEmits<{
 }>()
 
 /* =======================================
-   MODAL STYLE
+   CLOSE LOGIC
 ======================================= */
-
-const modalStyle = computed(() => ({
-  width: props.width,
-  height: props.height
-}))
-
-/* =======================================
-   CLOSE
-======================================= */
-
 function handleClose() {
+  // closeOnOverlay 옵션이 false면 배경을 눌러도 닫히지 않게 방어
+  if (!props.closeOnOverlay) return
+
   emit('update:modelValue', false)
   emit('close')
 }
 
 /* =======================================
-   ESC CLOSE
+   ESC CLOSE LOGIC
 ======================================= */
-
 function handleKeydown(event: KeyboardEvent) {
   if (!props.closeOnEsc) return
-
-  if (event.key === 'Escape') {
+  if (event.key === 'Escape' && props.modelValue) {
     handleClose()
   }
 }
@@ -119,8 +105,7 @@ onUnmounted(() => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  /* 기존 9999 대신 변수로 관리하여 Z-index 꼬임 방지 */
-  z-index: var(--z-modal);
+  z-index: var(--z-modal-bg); /* 배경 딤 전용 Z-index */
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -134,55 +119,49 @@ onUnmounted(() => {
   flex-direction: column;
   background: var(--bg-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  border: 1px solid rgba(0, 0, 0, 0.04); /* 모달 특유의 아주 얇은 외곽선 유지 */
+
+  /* 모달 특유의 아주 얇은 외곽선 유지 */
+  border: 1px solid rgba(0, 0, 0, 0.04);
+
   overflow: hidden;
   max-width: 95vw;
   max-height: 95vh;
+  z-index: var(--z-modal);
 }
 
 /* =======================================
-   HEADER
+   내부 영역 (Header / Body / Footer)
 ======================================= */
 .modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* 20px 24px -> 변수 매핑 */
   padding: var(--space-5) var(--space-6);
   border-bottom: 1px solid var(--border-color);
 }
 
 .modal-title {
   margin: 0;
-  /* 18px 700 -> 변수 매핑 */
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
   color: var(--text-main);
 }
 
-/* =======================================
-   BODY
-======================================= */
 .modal-body {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  /* 24px -> 변수 매핑 */
   padding: var(--space-6);
 }
 
-.no-padding {
+.modal-body.no-padding {
   padding: 0;
 }
 
-/* =======================================
-   FOOTER
-======================================= */
 .modal-footer {
-  /* 20px 24px -> 변수 매핑 */
   padding: var(--space-5) var(--space-6);
   border-top: 1px solid var(--border-color);
+  background-color: var(--bg-app); /* 푸터 영역 배경 살짝 다르게 */
 }
 
 /* =======================================
@@ -190,13 +169,12 @@ onUnmounted(() => {
 ======================================= */
 .modal-fade-enter-active,
 .modal-fade-leave-active {
-  /* 0.25s -> 시스템 공통 전환 속도로 통일 */
   transition: opacity var(--transition-base);
 }
 
 .modal-fade-enter-active .modal-container,
 .modal-fade-leave-active .modal-container {
-  /* 큐빅 베지어(부드러운 텐션)는 모달 고유의 느낌을 위해 유지하되, 시간은 변수화 */
+  /* 큐빅 베지어(부드러운 텐션) 유지 */
   transition: transform var(--transition-base) cubic-bezier(0.16, 1, 0.3, 1);
 }
 

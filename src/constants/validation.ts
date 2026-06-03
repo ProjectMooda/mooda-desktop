@@ -20,6 +20,5 @@ export const INPUT_MAX_LENGTH = {
   goalTitle: 30,
 
   // 아직 미정
-  memo: 100,
   category: 15
 } as const

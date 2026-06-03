@@ -71,6 +71,110 @@
 }
 
 /* =======================================
+   📏 Card Global Classes (1~5단계 - 고밀도 최적화 버전)
+======================================= */
+/* Size 1: Micro (초소형 통계, 미니 스케줄 카드 / 패딩 8px) */
+.card-size-1 {
+  border-radius: var(--radius-sm);
+}
+.card-size-1 .card-header {
+  padding: var(--space-1) var(--space-2);
+}
+.card-size-1 .card-body {
+  padding: var(--space-2);
+}
+.card-size-1 .card-footer {
+  padding: var(--space-1) var(--space-2);
+}
+.card-size-1 .card-title {
+  font-size: var(--text-xs);
+}
+
+/* Size 2: Compact (사이드바 메뉴, 작은 설정 위젯 / 패딩 12px) */
+.card-size-2 {
+  border-radius: var(--radius-sm);
+}
+.card-size-2 .card-header {
+  padding: var(--space-2) var(--space-3);
+}
+.card-size-2 .card-body {
+  padding: var(--space-3);
+}
+.card-size-2 .card-footer {
+  padding: var(--space-2) var(--space-3);
+}
+.card-size-2 .card-title {
+  font-size: var(--text-sm);
+}
+
+/* Size 3: Base (일반 대시보드 위젯, 기본 폼 / 패딩 16px) */
+.card-size-3 {
+  border-radius: var(--radius-md);
+}
+.card-size-3 .card-header {
+  padding: var(--space-3) var(--space-4);
+}
+.card-size-3 .card-body {
+  padding: var(--space-4);
+}
+.card-size-3 .card-footer {
+  padding: var(--space-3) var(--space-4);
+}
+.card-size-3 .card-title {
+  font-size: var(--text-base);
+}
+
+/* Size 4: Large (복잡한 설정 화면, 메인 모달 뼈대 / 패딩 20px) */
+.card-size-4 {
+  border-radius: var(--radius-lg);
+}
+.card-size-4 .card-header {
+  padding: var(--space-4) var(--space-5);
+}
+.card-size-4 .card-body {
+  padding: var(--space-5);
+}
+.card-size-4 .card-footer {
+  padding: var(--space-4) var(--space-5);
+}
+.card-size-4 .card-title {
+  font-size: var(--text-lg);
+}
+
+/* Size 5: X-Large (화면 전체를 차지하는 래퍼 / 패딩 24px) */
+.card-size-5 {
+  border-radius: var(--radius-xl);
+}
+.card-size-5 .card-header {
+  padding: var(--space-5) var(--space-6);
+}
+.card-size-5 .card-body {
+  padding: var(--space-6);
+}
+.card-size-5 .card-footer {
+  padding: var(--space-5) var(--space-6);
+}
+.card-size-5 .card-title {
+  font-size: var(--text-xl);
+}
+
+/* =======================================
+   🌟 Shadow Utilities (카드 그림자 제어용)
+======================================= */
+.shadow-none {
+  box-shadow: none !important;
+}
+.shadow-1 {
+  box-shadow: var(--shadow-1);
+}
+.shadow-2 {
+  box-shadow: var(--shadow-2);
+}
+.shadow-3 {
+  box-shadow: var(--shadow-3);
+}
+
+/* =======================================
    🔲 Modal Global Classes (1~3단계)
 ======================================= */
 .modal-size-1 {

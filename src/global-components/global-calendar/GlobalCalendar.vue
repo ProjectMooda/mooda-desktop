@@ -1,9 +1,11 @@
 <template>
-  <section class="studio-card cal-section">
+  <section
+    class="global-calendar"
+    :class="mode === 'popup' ? 'popup-calendar' : 'studio-card'"
+  >
     <div class="card-head">
       <button class="icon-btn" @click="changeMonth(-1)">‹</button>
 
-      <!-- 🌟 분리된 MonthPicker 컴포넌트 적용 -->
       <div class="title-wrapper">
         <button class="title-btn" @click="showMonthPicker = true">
           {{ currentYear }}. {{ String(currentMonth + 1).padStart(2, '0') }}
@@ -45,16 +47,16 @@
       >
         <span class="date-num">{{ date.day }}</span>
 
-        <div v-if="date.currentMonth" class="dot-wrap">
+        <div v-if="mode === 'inline' && date.currentMonth" class="dot-wrap">
           <div
             v-for="item in getDailyIndicators(date.full).slice(0, 6)"
             :key="item.color"
             class="dot-item"
           >
             <div class="dot" :style="{ backgroundColor: item.color }"></div>
-            <span class="dot-count">{{
-              item.count >= 10 ? '9+' : item.count
-            }}</span>
+            <span class="dot-count">
+              {{ item.count >= 10 ? '9+' : item.count }}
+            </span>
           </div>
         </div>
       </div>
@@ -64,19 +66,24 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useScheduleStore } from '@/stores/useScheduleStore'
 import MonthPicker from './components/MonthPicker.vue'
+import { useScheduleStore } from '@/stores/useScheduleStore'
 
+const props = withDefaults(
+  defineProps<{
+    modelValue?: string
+    rangeStart?: string
+    rangeEnd?: string
+    restrictRange?: boolean
+    mode?: 'inline' | 'popup'
+  }>(),
+  {
+    mode: 'inline'
+  }
+)
+
+const emit = defineEmits(['update:modelValue', 'error'])
 const scheduleStore = useScheduleStore()
-
-const props = defineProps<{
-  modelValue?: string
-  rangeStart?: string
-  rangeEnd?: string
-  restrictRange?: boolean
-}>()
-
-const emit = defineEmits(['update:modelValue'])
 
 interface CalendarDate {
   day: string | number
@@ -86,13 +93,15 @@ interface CalendarDate {
   inRange: boolean
 }
 
+// 오늘 날짜 계산 (로케일 차이 방지를 위해 명확히 문자열 조합)
 const now = new Date()
-const currentYear = ref(now.getFullYear())
-const currentMonth = ref(now.getMonth())
-const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
-// 🌟 월/년도 선택기 상태 및 핸들러
+const viewDate = ref(props.modelValue ? new Date(props.modelValue) : new Date())
+const currentYear = computed(() => viewDate.value.getFullYear())
+const currentMonth = computed(() => viewDate.value.getMonth())
+const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
 const showMonthPicker = ref(false)
 
 const handleMonthSelect = ({
@@ -102,22 +111,20 @@ const handleMonthSelect = ({
   year: number
   month: number
 }) => {
-  currentYear.value = year
-  currentMonth.value = month
+  viewDate.value = new Date(year, month, 1)
   showMonthPicker.value = false
 }
 
 watch(
   () => props.modelValue,
   (newVal) => {
-    if (newVal) {
-      const d = new Date(newVal)
-      currentYear.value = d.getFullYear()
-      currentMonth.value = d.getMonth()
-    }
-  },
-  { immediate: true }
+    if (newVal) viewDate.value = new Date(newVal)
+  }
 )
+
+const changeMonth = (diff: number) => {
+  viewDate.value = new Date(currentYear.value, currentMonth.value + diff, 1)
+}
 
 const isDateInRange = (dateStr: string) => {
   if (!props.rangeStart && !props.rangeEnd) return false
@@ -127,12 +134,10 @@ const isDateInRange = (dateStr: string) => {
 }
 
 const calendarDates = computed<CalendarDate[]>(() => {
-  const firstDay = new Date(currentYear.value, currentMonth.value, 1).getDay()
-  const lastDate = new Date(
-    currentYear.value,
-    currentMonth.value + 1,
-    0
-  ).getDate()
+  const y = currentYear.value
+  const m = currentMonth.value
+  const firstDay = new Date(y, m, 1).getDay()
+  const lastDate = new Date(y, m + 1, 0).getDate()
   const dates: CalendarDate[] = []
 
   for (let i = 0; i < firstDay; i++) {
@@ -146,7 +151,7 @@ const calendarDates = computed<CalendarDate[]>(() => {
   }
 
   for (let i = 1; i <= lastDate; i++) {
-    const full = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`
+    const full = `${y}-${String(m + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`
     dates.push({
       day: i,
       full,
@@ -156,9 +161,8 @@ const calendarDates = computed<CalendarDate[]>(() => {
     })
   }
 
-  const TOTAL_CELLS = 42
-  const remainingCells = TOTAL_CELLS - dates.length
-  for (let i = 0; i < remainingCells; i++) {
+  const remaining = 42 - dates.length
+  for (let i = 0; i < remaining; i++) {
     dates.push({
       day: '',
       full: `empty-end-${i}`,
@@ -171,24 +175,18 @@ const calendarDates = computed<CalendarDate[]>(() => {
   return dates
 })
 
-const changeMonth = (diff: number) => {
-  currentMonth.value += diff
-  if (currentMonth.value > 11) {
-    currentMonth.value = 0
-    currentYear.value++
-  } else if (currentMonth.value < 0) {
-    currentMonth.value = 11
-    currentYear.value--
-  }
-}
-
 const selectDate = (date: CalendarDate) => {
   if (!date.currentMonth) return
-  if (props.restrictRange && !date.inRange) return
+  if (props.restrictRange && !date.inRange) {
+    emit('error')
+    return
+  }
   emit('update:modelValue', date.full)
 }
 
 const getDailyIndicators = (dateStr: string) => {
+  if (props.mode === 'popup') return []
+
   const daySchedules = scheduleStore.schedules.filter((s) => {
     const start = s.startDate || dateStr
     const end = s.endDate || start
@@ -196,9 +194,8 @@ const getDailyIndicators = (dateStr: string) => {
   })
 
   const colorMap = new Map<string, number>()
-
   daySchedules.forEach((s) => {
-    let color = '#3b82f6'
+    let color = 'var(--color-primary)' // 하드코딩 #3b82f6 제거, 변수로 통일
     if (s.goalId) {
       const goal = scheduleStore.goals.find((g) => g.id === s.goalId)
       if (goal && goal.color) color = goal.color
@@ -206,38 +203,24 @@ const getDailyIndicators = (dateStr: string) => {
     colorMap.set(color, (colorMap.get(color) || 0) + 1)
   })
 
-  const indicators = Array.from(colorMap.entries()).map(([color, count]) => ({
-    color,
-    count
-  }))
-
-  return indicators.sort((a, b) => b.count - a.count)
+  return Array.from(colorMap.entries())
+    .map(([color, count]) => ({ color, count }))
+    .sort((a, b) => b.count - a.count)
 }
 </script>
 
 <style scoped>
-/* 카드 및 캘린더 전체 래퍼 */
-.studio-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  box-shadow: var(--shadow-md);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-}
-
+/* =======================================
+   공통 CSS (헤더, 타이틀, 버튼 등)
+======================================= */
 .card-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
   position: relative;
 }
 
-/* 🌟 타이틀 및 팝업 앵커 */
 .title-wrapper {
   position: relative;
   display: flex;
@@ -270,12 +253,11 @@ const getDailyIndicators = (dateStr: string) => {
   transform: translateY(1px);
 }
 
-/* 좌우 이동 버튼 */
 .icon-btn {
   background: var(--bg-hover);
   border: none;
-  width: var(--control-size-md);
-  height: var(--control-size-md);
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-sm);
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
@@ -284,9 +266,7 @@ const getDailyIndicators = (dateStr: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    background var(--transition-fast),
-    color var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 .icon-btn:hover {
   background: var(--border-color);
@@ -294,16 +274,12 @@ const getDailyIndicators = (dateStr: string) => {
 }
 
 /* =======================================
-   ✨ 핵심 그리드 레이아웃
+   공통 그리드 및 셀 베이스 (요일 포함)
 ======================================= */
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: auto repeat(6, minmax(0, 1fr));
-  gap: var(--space-1);
-  flex: 1;
-  min-height: 0;
-  padding-right: var(--space-1);
+  gap: 2px; /* 간격을 살짝 타이트하게 조절 */
 }
 
 .cal-day {
@@ -312,30 +288,92 @@ const getDailyIndicators = (dateStr: string) => {
   font-weight: var(--font-bold);
   color: var(--text-muted);
   padding: var(--space-2) 0;
-  position: sticky;
-  top: 0;
-  background: var(--bg-card);
 }
 
 .cal-cell {
-  background: var(--bg-app);
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 2px;
+  justify-content: flex-start;
   cursor: pointer;
   transition: all var(--transition-fast);
   overflow: hidden;
-  height: 100%;
-}
-.cal-cell:hover:not(.dimmed):not(.out-range) {
-  background: var(--bg-card);
-  border-color: var(--border-color);
-  box-shadow: var(--shadow-sm);
 }
 
+.date-num {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums; /* 폰트 너비 고정 */
+}
+.cal-cell.today .date-num {
+  color: var(--color-primary);
+  font-weight: var(--font-bold);
+}
+
+/* =======================================
+   1️⃣ Inline 모드 전용 스타일 (스케줄 페이지용 메인 캘린더)
+======================================= */
+.studio-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-1);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.studio-card .cal-grid {
+  flex: 1;
+  grid-template-rows: auto repeat(6, minmax(0, 1fr));
+  min-height: 0;
+}
+
+.studio-card .cal-cell {
+  background: var(--bg-app);
+  padding: 6px 2px;
+  height: 100%;
+  min-height: 44px; /* 내용물이 넘쳐도 형태 유지 */
+}
+
+.studio-card .cal-cell:hover:not(.dimmed):not(.out-range) {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+}
+.studio-card .cal-cell.in-range {
+  background: var(--color-primary-pale);
+}
+
+/* =======================================
+   2️⃣ Popup 모드 전용 스타일 (데이트 픽커 내부에 들어갈 때)
+======================================= */
+.popup-calendar {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.popup-calendar .cal-cell {
+  background: transparent;
+  aspect-ratio: 1 / 1;
+  padding: 6px 0 0 0;
+}
+
+.popup-calendar .cal-cell:hover:not(.dimmed):not(.out-range) {
+  background: var(--bg-hover); /* popup은 좁으므로 은은한 hover */
+}
+.popup-calendar .cal-cell.in-range:not(.selected):not(.out-range) {
+  background: var(--color-primary-pale);
+}
+
+/* =======================================
+   상태 유틸리티 (선택, 비활성화 등)
+======================================= */
 .cal-cell.selected {
   background: var(--text-main) !important;
   border-color: var(--text-main) !important;
@@ -348,28 +386,14 @@ const getDailyIndicators = (dateStr: string) => {
   opacity: 0.3;
   pointer-events: none;
 }
-.cal-cell.in-range {
-  background: var(--color-primary-pale);
-}
 .cal-cell.out-range {
   cursor: not-allowed;
   opacity: 0.4;
   background: var(--bg-hover);
 }
 
-.date-num {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--text-main);
-  margin-bottom: var(--space-1);
-}
-.cal-cell.today .date-num {
-  color: var(--color-primary);
-  font-weight: var(--font-bold);
-}
-
 /* =======================================
-   🚥 일일 지표 (Dots)
+   지표(Dots) 스타일 (일정 인디케이터)
 ======================================= */
 .dot-wrap {
   display: grid;
@@ -383,7 +407,7 @@ const getDailyIndicators = (dateStr: string) => {
   align-items: center;
   gap: 2px;
   background: rgba(0, 0, 0, 0.03);
-  padding: 1px var(--space-1);
+  padding: 1px 4px;
   border-radius: 4px;
   justify-content: center;
 }
@@ -398,10 +422,6 @@ const getDailyIndicators = (dateStr: string) => {
   font-weight: var(--font-bold);
   color: var(--text-sub);
   line-height: 1;
-}
-@media (max-width: 1200px) {
-  .dot-wrap {
-    grid-template-columns: 1fr;
-  }
+  font-variant-numeric: tabular-nums;
 }
 </style>

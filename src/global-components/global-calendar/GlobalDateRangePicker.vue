@@ -1,8 +1,9 @@
 <template>
   <div class="global-date-range-picker relative" :class="[`size-${size}`]">
-    <!-- 🌟 에러 발생 시 나타났다 사라지는 Toast 모달 -->
     <transition name="toast-fade">
-      <div v-if="showToast" class="toast-modal">⚠️ {{ toastMessage }}</div>
+      <div v-if="showToast" class="toast-modal flex-center shadow-3">
+        ⚠️ {{ toastMessage }}
+      </div>
     </transition>
 
     <div class="date-picker-group">
@@ -32,7 +33,7 @@
 
     <div
       v-if="activeCalendar"
-      class="overlay-backdrop invisible-backdrop"
+      class="overlay-backdrop"
       @click="activeCalendar = null"
     ></div>
 
@@ -56,23 +57,22 @@
             종료일
           </button>
         </div>
-
         <div class="calendar-render-area">
-          <!-- 🌟 시작일 달력: range-end로 종료일 이후를 막음 -->
-          <GlobalPopupCalendar
+          <GlobalCalendar
             v-if="activeCalendar === 'start'"
+            mode="popup"
             :model-value="startDate"
-            :range-end="endDate"
-            restrict-range
+            :range-end="endDate || undefined"
+            :restrict-range="!!(startDate && endDate)"
             @update:model-value="onUpdateStart"
             @error="handleCalendarError"
           />
-          <!-- 🌟 종료일 달력: range-start로 시작일 이전을 막음 -->
-          <GlobalPopupCalendar
+          <GlobalCalendar
             v-if="activeCalendar === 'end'"
+            mode="popup"
             :model-value="endDate"
-            :range-start="startDate"
-            restrict-range
+            :range-start="startDate || undefined"
+            :restrict-range="!!(startDate && endDate)"
             @update:model-value="onUpdateEnd"
             @error="handleCalendarError"
           />
@@ -84,13 +84,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import GlobalPopupCalendar from '@/global-components/global-calendar/GlobalPopupCalendar.vue'
+import GlobalCalendar from './GlobalCalendar.vue'
 
 const props = withDefaults(
   defineProps<{
     startDate?: string
     endDate?: string
-    size?: 'sm' | 'md' | 'lg'
+    size?: 'sm' | 'md' | 'lg' // ✨ 원래대로 독립적인 사이즈 복구
     align?: 'left' | 'center' | 'right'
     placeholderStart?: string
     placeholderEnd?: string
@@ -116,7 +116,6 @@ const emit = defineEmits<{
 
 const activeCalendar = ref<'start' | 'end' | null>(null)
 
-// 🌟 Toast 모달 상태 관리
 const showToast = ref(false)
 const toastMessage = ref('')
 let toastTimeout: ReturnType<typeof setTimeout> | null = null
@@ -127,10 +126,10 @@ const triggerToast = (msg: string) => {
   if (toastTimeout) clearTimeout(toastTimeout)
   toastTimeout = setTimeout(() => {
     showToast.value = false
-  }, 2500) // 2.5초 뒤 자동 사라짐
+  }, 2500)
 }
 
-// 🌟 달력에서 제한된 날짜를 클릭했을 때의 처리
+// constants 기간 방어 로직
 const handleCalendarError = () => {
   if (activeCalendar.value === 'start') {
     triggerToast('시작일은 종료일보다 늦을 수 없습니다.')
@@ -140,23 +139,13 @@ const handleCalendarError = () => {
 }
 
 const onUpdateStart = (val: string) => {
-  // 컴포넌트 직접 업데이트 등 예외 방어 로직
-  if (props.endDate && val > props.endDate) {
-    triggerToast('시작일은 종료일보다 늦을 수 없습니다.')
-    return
-  }
-  emit('update:startDate', val)
-  activeCalendar.value = 'end'
+  emit('update:startDate', val) // 부모에게 선택된 시작일 전달
+  activeCalendar.value = 'end' // 자동으로 종료일 탭으로 쓱 넘어가기
 }
 
 const onUpdateEnd = (val: string) => {
-  // 컴포넌트 직접 업데이트 등 예외 방어 로직
-  if (props.startDate && val < props.startDate) {
-    triggerToast('종료일은 시작일보다 빠를 수 없습니다.')
-    return
-  }
-  emit('update:endDate', val)
-  activeCalendar.value = null
+  emit('update:endDate', val) // 부모에게 선택된 종료일 전달
+  activeCalendar.value = null // 달력 팝업 닫기
 }
 </script>
 
@@ -166,25 +155,24 @@ const onUpdateEnd = (val: string) => {
 }
 
 /* =======================================
-   🌟 에러 토스트(Toast) 모달 디자인
+   🌟 에러 토스트 모달 (색상/Z-index 변수화)
 ======================================= */
 .toast-modal {
   position: absolute;
-  top: -48px; /* 컴포넌트 위쪽으로 띄움 */
+  top: -48px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  color: #fff;
+  color: var(--bg-card);
   padding: 10px 18px;
   border-radius: var(--radius-lg);
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
   white-space: nowrap;
-  z-index: 1000;
-  pointer-events: none; /* 클릭 방해 금지 */
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: var(--z-toast); /* 전역 Z-index */
+  pointer-events: none;
 }
 
 .toast-fade-enter-active,
@@ -200,13 +188,14 @@ const onUpdateEnd = (val: string) => {
 }
 
 /* =======================================
-   크기별 레이아웃 (Size Variants)
+   🌟 자체 크기별 레이아웃 롤백 (망가짐 방지)
 ======================================= */
 .date-picker-group {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
+
 .date-pill {
   display: inline-flex;
   align-items: center;
@@ -222,6 +211,7 @@ const onUpdateEnd = (val: string) => {
   font-weight: var(--font-semibold);
 }
 
+/* 캘린더가 의도한 픽셀(px) 구조 완벽 복구 */
 .size-sm .date-pill {
   padding: 6px 12px;
   font-size: var(--text-xs);
@@ -260,24 +250,24 @@ const onUpdateEnd = (val: string) => {
 }
 
 /* =======================================
-   팝업 캘린더 (정렬 및 애니메이션)
+   🌟 팝업 캘린더 (고정 너비 및 높이 복구)
 ======================================= */
 .overlay-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-dropdown);
   background: transparent !important;
 }
 
 .compact-calendar-popover {
   position: absolute;
   top: calc(100% + 8px);
-  width: 280px;
+  width: 280px; /* ✨ 내부 캘린더가 깨지지 않는 절대 너비 */
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  z-index: 100;
+  box-shadow: var(--shadow-3);
+  z-index: calc(var(--z-dropdown) + 1);
   transition:
     left 0.3s ease,
     right 0.3s ease;

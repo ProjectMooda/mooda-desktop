@@ -1,28 +1,34 @@
 <template>
-  <aside class="studio-sidebar shrink-0">
-    <div class="brand-zone shrink-0">
-      <div class="logo-dot"></div>
-      <h2>MOODA</h2>
+  <aside class="studio-sidebar shrink-0 flex-col">
+    <div class="brand-zone shrink-0 items-center gap-8">
+      <div class="logo-dot shrink-0"></div>
+      <h2 class="text-lg font-bold text-main m-0">MOODA</h2>
     </div>
 
-    <nav class="nav-menu">
+    <nav class="nav-menu flex-1 flex-col gap-4">
       <button
         v-for="(item, idx) in layoutStore.menuItems"
         :key="idx"
-        :class="['nav-btn', { active: layoutStore.currentTab === idx + 1 }]"
+        :class="[
+          'nav-btn w-full ui-size-3 hover-bg', // ✨ 3단계 버튼 스케일 + 호버 효과 적용
+          { active: layoutStore.currentTab === idx + 1 }
+        ]"
         @click="layoutStore.setTab(idx + 1)"
       >
         {{ item.label }}
       </button>
     </nav>
 
-    <div class="user-zone shrink-0">
-      <div class="avatar">W</div>
-      <div class="user-text min-w-0">
-        <span class="name">이원형</span>
-        <span class="role">Admin</span>
+    <div class="user-zone shrink-0 items-center gap-8">
+      <div class="avatar shrink-0 flex-center text-sm font-bold">W</div>
+      <div class="user-text min-w-0 flex-1 flex-col">
+        <span class="name text-xs font-bold text-main">이원형</span>
+        <span class="role text-sub">Admin</span>
       </div>
-      <button class="btn-settings shrink-0" @click="layoutStore.openSettings">
+      <button
+        class="btn-settings shrink-0 ui-size-2 is-icon-only hover-bg"
+        @click="layoutStore.openSettings"
+      >
         ⚙️
       </button>
     </div>
@@ -34,117 +40,96 @@ import { useSidebarStore } from './useSidebarStore'
 
 const layoutStore = useSidebarStore()
 </script>
+
 <style scoped>
-/* 사이드바 전용 스타일 */
+/* =======================================
+   1. Sidebar Layout
+======================================= */
 .studio-sidebar {
-  flex: 0 0 220px;
+  flex-basis: 220px;
   width: 220px;
   background: var(--bg-card);
   border-right: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-7, 28px) var(--space-5, 20px); /* 4px 그리드 시스템 최적화 */
-  /* z-index: var(--z-fixed); 시스템 레이어 관리를 위해 필요한 경우 전역 토큰 대응 가능 */
-  z-index: 10;
+
+  /* 전역 스페이싱 토큰 활용 (24px 20px) */
+  padding: var(--space-6) var(--space-5);
+  z-index: var(--z-elevated);
   overflow-y: auto;
 }
+
+/* =======================================
+   2. Brand Zone
+======================================= */
 .brand-zone {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 8px);
-  margin-bottom: var(--space-9, 36px);
-  padding-left: var(--space-1, 4px);
+  display: flex; /* flex 유틸리티 보조 */
+  margin-bottom: var(--space-8); /* 32px */
+  padding-left: var(--space-1);
 }
+
 .logo-dot {
   width: 12px;
   height: 12px;
   background: var(--color-primary);
-  border-radius: var(--radius-pill, 50%);
+  border-radius: var(--radius-xl);
 }
+
 .brand-zone h2 {
-  font-size: var(--text-lg); /* 18px 스케일 대응 */
-  font-weight: var(--font-bold); /* 800 혹은 볼드 토큰 */
   margin: 0;
 }
 
-.nav-menu {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1, 4px); /* 단정한 네비게이션 간격 조절 */
-}
+/* =======================================
+   3. Navigation Menu
+======================================= */
 .nav-btn {
   text-align: left;
-  padding: var(--space-2, 8px) var(--space-4, 16px);
   background: transparent;
   border: none;
   color: var(--text-sub);
-  font-size: var(--text-sm); /* 14px 스케일 대응 */
-  font-weight: var(--font-semibold); /* 600 혹은 세미볼드 토큰 */
-  border-radius: var(--radius-sm); /* 8px */
   cursor: pointer;
   transition:
-    background var(--transition-fast),
-    color var(--transition-fast);
+    color var(--transition-fast),
+    background-color var(--transition-fast);
 }
-.nav-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-main);
-}
+
 .nav-btn.active {
   background: var(--color-primary-light);
   color: var(--color-primary);
+  font-weight: var(--font-bold);
 }
 
+/* =======================================
+   4. User Profile Zone
+======================================= */
 .user-zone {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 8px);
-  padding: var(--space-4, 16px) 0 0 0;
-  border-top: 1px solid var(--border-color);
+  display: flex; /* flex 유틸리티 보조 */
   margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-color);
 }
+
 .avatar {
+  /* 글로벌 ui-size 규격에 맞추어 32px 사용 (ui-size-3과 유사) */
   width: 32px;
   height: 32px;
   background: var(--text-main);
-  border-radius: var(--radius-sm); /* 8px 통합 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: var(--font-bold);
-  color: var(--bg-card, #fff); /* 전역 시스템 카드 흰색 배경 변수 활용 */
-  font-size: var(--text-sm);
-  flex-shrink: 0;
+  color: var(--bg-card);
+  border-radius: var(--radius-sm);
 }
-.user-text {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
+
 .name {
-  font-size: var(--text-xs); /* 13px 대응 */
-  font-weight: var(--font-bold);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .role {
-  font-size: var(--text-xxs, 11px);
-  color: var(--text-muted);
+  /* text-xs(12px)보다 약간 작은 11px 사이즈 대응 */
+  font-size: calc(var(--text-xs) - 1px);
 }
+
 .btn-settings {
-  background: var(--bg-hover);
+  background: transparent;
   border: none;
-  font-size: var(--text-sm);
   cursor: pointer;
-  padding: var(--space-1, 4px);
-  border-radius: var(--radius-xs, 4px); /* 조금 더 작은 버튼용 둥글기 */
-  transition: background var(--transition-fast);
-  flex-shrink: 0;
-}
-.btn-settings:hover {
-  background: var(--border-color);
 }
 </style>

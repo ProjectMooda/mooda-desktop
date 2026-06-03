@@ -15,10 +15,8 @@
 </template>
 
 <script setup lang="ts">
-/**
- * BaseDeleteButton / XButton
- * 삭제 또는 닫기를 수행하는 공통 아이콘 버튼
- */
+// BaseDeleteButton / XButton
+// 삭제 또는 닫기를 수행하는 공통 아이콘 버튼
 withDefaults(
   defineProps<{
     variant?: 'circle' | 'rounded'
@@ -64,7 +62,7 @@ defineEmits<{
    VARIANT (형태)
 ======================================= */
 .variant-circle {
-  border-radius: 50%; /* 완전한 원형 */
+  border-radius: var(radius-md);
 }
 /* variant-rounded는 ui-size-N의 기본 radius(sm~lg)를 그대로 상속받으므로 생략 가능 */
 

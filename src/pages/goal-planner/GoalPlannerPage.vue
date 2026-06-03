@@ -49,7 +49,6 @@
                 <GlobalDateRangePicker
                   v-model:start-date="newGoal.startDate"
                   v-model:end-date="newGoal.endDate"
-                  size="md"
                   align="right"
                 />
               </div>

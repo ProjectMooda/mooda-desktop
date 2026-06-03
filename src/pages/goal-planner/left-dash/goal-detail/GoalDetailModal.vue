@@ -1,12 +1,6 @@
 <template>
   <div class="goal-detail-modal-root">
-    <Modal
-      title="목표 상세 설정"
-      width="1000px"
-      height="760px"
-      no-padding
-      @close="$emit('close')"
-    >
+    <Modal title="목표 상세 설정" no-padding :size="3" @close="$emit('close')">
       <GoalMilestoneList
         v-if="!activeMilestoneId"
         :goal="goal"

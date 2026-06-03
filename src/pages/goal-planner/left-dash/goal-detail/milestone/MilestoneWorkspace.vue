@@ -13,73 +13,15 @@
       </div>
 
       <div class="header-right">
-        <!-- 🌟 수정된 날짜 선택부 (네이티브 Input 제거, 팝업 캘린더 버튼화) -->
-        <div class="workspace-date-edit relative">
-          <button
-            class="date-pill"
-            :class="{ 'is-active': activeCalendar === 'start' }"
-            @click="activeCalendar = 'start'"
-          >
-            {{ activeMilestone?.startDate || '시작일' }}
-          </button>
-          <span class="date-arrow">~</span>
-          <button
-            class="date-pill"
-            :class="{ 'is-active': activeCalendar === 'end' }"
-            @click="activeCalendar = 'end'"
-          >
-            {{ activeMilestone?.endDate || '종료일' }}
-          </button>
-
-          <!-- 🌟 미니멀 팝업 캘린더 드롭다운 -->
-          <div
-            v-if="activeCalendar"
-            class="overlay-backdrop invisible-backdrop"
-            @click="activeCalendar = null"
-          ></div>
-          <transition name="popover">
-            <div v-if="activeCalendar" class="compact-calendar-popover">
-              <!-- 이전 요청사항이 반영된 네모 박스 없는 미니멀 탭 -->
-              <div class="segmented-control">
-                <button
-                  :class="{ 'is-selected': activeCalendar === 'start' }"
-                  @click="activeCalendar = 'start'"
-                >
-                  시작일
-                </button>
-                <button
-                  :class="{ 'is-selected': activeCalendar === 'end' }"
-                  @click="activeCalendar = 'end'"
-                >
-                  종료일
-                </button>
-              </div>
-
-              <div class="calendar-render-area">
-                <GlobalPopupCalendar
-                  v-if="activeCalendar === 'start'"
-                  :model-value="activeMilestone?.startDate || ''"
-                  @update:model-value="
-                    (val) => {
-                      updateMilestoneDate('startDate', val)
-                      activeCalendar = 'end'
-                    }
-                  "
-                />
-                <GlobalPopupCalendar
-                  v-if="activeCalendar === 'end'"
-                  :model-value="activeMilestone?.endDate || ''"
-                  @update:model-value="
-                    (val) => {
-                      updateMilestoneDate('endDate', val)
-                      activeCalendar = null
-                    }
-                  "
-                />
-              </div>
-            </div>
-          </transition>
-        </div>
+        <!-- 🌟 GlobalDateRangePicker 적용 -->
+        <GlobalDateRangePicker
+          :start-date="activeMilestone?.startDate || ''"
+          :end-date="activeMilestone?.endDate || ''"
+          size="sm"
+          align="right"
+          @update:start-date="(val) => updateMilestoneDate('startDate', val)"
+          @update:end-date="(val) => updateMilestoneDate('endDate', val)"
+        />
 
         <button class="btn-text-danger ml-4" @click="removeMilestone">
           마일스톤 삭제
@@ -87,14 +29,16 @@
       </div>
     </div>
 
-    <!-- ... 이하 본문부 (기존과 동일) ... -->
+    <!-- ... 이하 본문부 ... -->
     <div class="ms-workspace-body">
       <div class="cal-panel">
         <GlobalCalendar
           v-model="selectedMsDate"
-          :range-start="activeMilestone?.startDate"
-          :range-end="activeMilestone?.endDate"
-          restrict-range
+          :range-start="activeMilestone?.startDate || undefined"
+          :range-end="activeMilestone?.endDate || undefined"
+          :restrict-range="
+            !!(activeMilestone?.startDate && activeMilestone?.endDate)
+          "
           class="h-full"
         />
       </div>
@@ -274,6 +218,7 @@
       @cancel="cancelDelete"
     />
 
+    <!-- 목표 기간 제한 오류 표시용 Alert -->
     <GlobalDeleteAlert
       v-model="showAlert"
       title="날짜 설정 오류"
@@ -293,12 +238,13 @@ import {
   type Milestone
 } from '@/stores/useScheduleStore'
 import GlobalCalendar from '@/global-components/global-calendar/GlobalCalendar.vue'
-import GlobalPopupCalendar from '@/global-components/global-calendar/GlobalPopupCalendar.vue' // 🌟 팝업 캘린더 컴포넌트 추가
-import GlobalMilestoneCard from '@/global-components/global-card/GlobalMilestoneCard.vue'
-import GlobalTaskCard from '@/global-components/global-card/GlobalTaskCard.vue'
-import GlobalScheduleDetailModal from '@/global-components/global-modal/global-schedule-detail-modal/GlobalScheduleDetailModal.vue'
+// 🌟 통합된 DateRangePicker 임포트 (경로는 프로젝트에 맞게 수정하세요)
+import GlobalDateRangePicker from '@/global-components/global-calendar/GlobalDateRangePicker.vue'
+import GlobalMilestoneCard from '@/global-components/global-card/task-milestone-card/GlobalMilestoneCard.vue'
+import GlobalTaskCard from '@/global-components/global-card/task-milestone-card/GlobalTaskCard.vue'
+import GlobalScheduleDetailModal from '@/global-components/global-modal/global-detail-modal/GlobalScheduleDetailModal.vue'
 import BaseInput from '@/base-ui/BaseInput.vue'
-import GlobalFullScheduleAddModal from '@/global-components/global-modal/global-full-schedule-add-modal/GlobalFullScheduleAddModal.vue'
+import GlobalFullScheduleAddModal from '@/global-components/global-modal/global-detail-modal/GlobalFullScheduleAddModal.vue'
 import GlobalDeleteAlert from '@/global-components/global-modal/global-modal-alert/GlobalDeleteAlert.vue'
 
 const props = defineProps<{ goal: Goal; milestoneId: number }>()
@@ -310,8 +256,7 @@ const todayString = new Date().toISOString().slice(0, 10)
 const isFullAddOpen = ref(false)
 const isFocused = ref(false)
 
-// 🌟 달력 팝업 상태 관리
-const activeCalendar = ref<'start' | 'end' | null>(null)
+// 🌟 Picker 내부로 로직이 이동했으므로 activeCalendar 불필요 (삭제됨)
 
 const activeMilestone = computed(
   () => store.milestones.find((m) => m.id === props.milestoneId) || null
@@ -347,6 +292,7 @@ const showError = (msg: string) => {
   return false
 }
 
+// 부모(목표) 기간 제한은 DateRangePicker가 알 수 없으므로 여기서 유효성 검사 유지
 const validateMilestoneDates = (msStart: string, msEnd: string) => {
   if (!msStart) return showError('시작일은 필수입니다.')
 
@@ -364,7 +310,6 @@ const validateMilestoneDates = (msStart: string, msEnd: string) => {
   return true
 }
 
-// 🌟 파라미터를 Event 기반에서 String 값 직접 수신으로 리팩토링
 const updateMilestoneDate = (field: 'startDate' | 'endDate', val: string) => {
   if (!activeMilestone.value) return
 
@@ -373,12 +318,13 @@ const updateMilestoneDate = (field: 'startDate' | 'endDate', val: string) => {
   const tempEnd =
     field === 'endDate' ? val : activeMilestone.value.endDate || ''
 
-  // 조건이 맞을 때만 상태 업데이트
+  // 조건이 맞을 때만 Store 업데이트
   if (validateMilestoneDates(tempStart, tempEnd)) {
     handleMilestoneUpdate(field, val)
   }
 }
 
+// --- 이하 삭제 로직 및 Task 목록 로직 (기존과 동일) ---
 const showDeleteOptions = ref(false)
 const taskPendingDelete = ref<ScheduleItem | null>(null)
 
@@ -622,110 +568,7 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   align-items: center;
 }
 
-/* 🌟 수정된 팝업 연동형 날짜 버튼 (Date Pill) */
-.workspace-date-edit {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.date-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background-color: #f4f4f5;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 13px;
-  font-weight: 600;
-  color: #3f3f46;
-  font-variant-numeric: tabular-nums;
-}
-
-.date-pill:hover {
-  background-color: #e4e4e7;
-}
-.date-pill.is-active {
-  background-color: #eef2ff;
-  border-color: #4f46e5;
-  color: #4f46e5;
-}
-
-.date-arrow {
-  color: #a1a1aa;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-/* 🌟 팝업 캘린더 스타일 */
-.overlay-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: transparent !important;
-}
-
-.compact-calendar-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0; /* 우측 정렬 */
-  width: 280px;
-  background: #fff;
-  border: 1px solid #e4e4e7;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  z-index: 100;
-  transform-origin: top right;
-}
-
-/* 🌟 미니멀 세그먼트 컨트롤 탭 (박스 없음) */
-.segmented-control {
-  display: flex;
-  border-bottom: 1px solid #e4e4e7;
-  background: transparent;
-}
-.segmented-control button {
-  flex: 1;
-  padding: 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #a1a1aa;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.segmented-control button:hover {
-  color: #71717a;
-}
-.segmented-control button.is-selected {
-  color: #4f46e5;
-  border-bottom: 2px solid #4f46e5;
-}
-
-.calendar-render-area {
-  padding: 16px;
-  max-height: 300px;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-}
-
-.popover-enter-active,
-.popover-leave-active {
-  transition:
-    opacity 0.2s,
-    transform 0.2s;
-}
-.popover-enter-from,
-.popover-leave-to {
-  opacity: 0;
-  transform: scale(0.96) translateY(-4px);
-}
+/* 🌟 Picker 관련 코드가 내부로 이동하면서 기존 CSS (.workspace-date-edit 등) 전면 삭제됨! 코드가 매우 가벼워집니다. */
 
 /* 바디 레이아웃 */
 .ms-workspace-body {

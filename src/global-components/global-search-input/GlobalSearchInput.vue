@@ -3,6 +3,7 @@
     :model-value="modelValue"
     field="search"
     :placeholder="placeholder"
+    :size="size"
     class="custom-search-input"
     @update:model-value="$emit('update:modelValue', $event)"
   >
@@ -23,6 +24,11 @@ defineProps({
   placeholder: {
     type: String,
     default: '검색어를 입력하세요...'
+  },
+  // 2. BaseInput과 동일한 타입으로 size prop을 정의합니다.
+  size: {
+    type: Number as () => 1 | 2 | 3 | 4 | 5,
+    default: 3
   }
 })
 
@@ -30,14 +36,10 @@ defineEmits(['update:modelValue'])
 </script>
 
 <style scoped>
-/* 절대 위치(position: absolute)나 여백 계산이 더 이상 필요 없습니다! */
+/* BaseInput에서 이미 모든 레이아웃, 여백, 폰트 상속(inherit)을 처리하므로,
+  아이콘의 색상 정도만 지정해주면 됩니다. */
 .search-icon {
-  font-size: var(--text-sm);
   color: var(--text-muted);
-  /* BaseInput 내부 gap이 있으므로 별도의 마진을 줄 필요가 없습니다 */
-}
-
-.custom-search-input :deep(.base-input) {
-  font-size: var(--text-sm);
+  /* 돋보기 아이콘 크기도 BaseInput의 font-size: inherit 영향으로 자동 조절됩니다. */
 }
 </style>
