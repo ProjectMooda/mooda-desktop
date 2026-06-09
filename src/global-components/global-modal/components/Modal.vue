@@ -6,7 +6,11 @@
         class="modal-overlay flex-center"
         @click.self="handleClose"
       >
-        <div class="modal-container shadow-3" :class="`modal-size-${size}`">
+        <div
+          class="modal-container shadow-3"
+          :class="`modal-size-${size}`"
+          :style="{ height: fixedHeight, width: width }"
+        >
           <header v-if="showHeader" class="modal-header shrink-0">
             <slot name="header">
               <h2 class="modal-title">
@@ -47,6 +51,8 @@ const props = withDefaults(
     modelValue?: boolean
     title?: string
     size?: 1 | 2 | 3 // ✨ 기존 width, height를 제거하고 1~3단계 스케일로 통합
+    width?: string
+    fixedHeight?: string
     showHeader?: boolean
     noPadding?: boolean
     closeOnOverlay?: boolean
@@ -120,13 +126,17 @@ onUnmounted(() => {
   background: var(--bg-card);
   border-radius: var(--radius-xl);
 
-  /* 모달 특유의 아주 얇은 외곽선 유지 */
-  border: 1px solid rgba(0, 0, 0, 0.04);
-
-  overflow: hidden;
   max-width: 95vw;
   max-height: 95vh;
   z-index: var(--z-modal);
+
+  /* fixedHeight prop이 전달되지 않았을 때의 기본값 */
+  height: auto;
+}
+/* 고정 높이 모드일 때만 적용 */
+.modal-container.is-fixed-height {
+  height: 80vh; /* 원하는 고정 비율 혹은 픽셀 값 */
+  /* 혹은 height: calc(100% - 40px); 등 */
 }
 
 /* =======================================
@@ -147,11 +157,15 @@ onUnmounted(() => {
   color: var(--text-main);
 }
 
+/* 모달 바디 영역에 대한 처리 */
 .modal-body {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   padding: var(--space-6);
+
+  /* 핵심: 내부 컨텐츠가 넘칠 때만 스크롤되도록 설정 */
+  min-height: 0;
 }
 
 .modal-body.no-padding {

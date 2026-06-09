@@ -162,6 +162,7 @@ const calendarDates = computed<CalendarDate[]>(() => {
   }
 
   const remaining = 42 - dates.length
+
   for (let i = 0; i < remaining; i++) {
     dates.push({
       day: '',

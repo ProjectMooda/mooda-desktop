@@ -417,15 +417,22 @@ const handleAddTask = () => {
 
 const addTaskToSelectedDate = (text: string) => {
   if (!activeMilestone.value || !selectedMsDate.value) return
+
   store.addSchedule({
-    id: Date.now(),
+    // id: Date.now(), <-- Store 내부 로직에 위임하는 것을 권장 (제거)
     type: 'task',
     creationMode: 'single',
     goalId: props.goal.id,
     milestoneId: activeMilestone.value.id,
     summary: text,
-    startDate: selectedMsDate.value
+    startDate: selectedMsDate.value,
+    endDate: selectedMsDate.value, // 기간 비교(endDate || startDate) 에러 방지를 위해 추가
+    done: false, // 명시적으로 미완료 상태 지정
+    isPinned: false // 명시적으로 고정 안 됨 상태 지정
   })
+
+  // (선택 사항) 일정을 추가한 날짜로 Studio Card의 기준 날짜도 동기화하고 싶다면
+  // store.selectedDate = selectedMsDate.value
 }
 
 const handleItemUpdate = (item: ScheduleItem, patch: Partial<ScheduleItem>) => {
@@ -569,28 +576,45 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 }
 
 /* 🌟 Picker 관련 코드가 내부로 이동하면서 기존 CSS (.workspace-date-edit 등) 전면 삭제됨! 코드가 매우 가벼워집니다. */
-
 /* 바디 레이아웃 */
 .ms-workspace-body {
   display: flex;
   flex: 1;
-  min-height: 0;
+  min-height: 0; /* 중요: 부모가 flex일 때 자식이 높이를 가질 수 있게 함 */
   padding: 32px;
   gap: 32px;
+  overflow: hidden; /* 영역 밖으로 나가는 것 방지 */
 }
+
 .cal-panel {
-  flex: 1 1 450px;
-  max-width: 450px;
-  min-width: 300px;
+  flex: 0 0 350px; /* 고정 크기(350px)로 설정하여 왼쪽 비율 보장 */
   display: flex;
   flex-direction: column;
 }
+
 .task-panel {
-  flex: 1;
+  flex: 1; /* 나머지 공간을 꽉 채움 */
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  min-width: 0; /* 중요: 내부 인풋 등이 길어져도 레이아웃 깨짐 방지 */
+  height: 100%;
 }
+
+.task-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* 중요: 스크롤 영역이 짤리지 않게 함 */
+}
+
+/* 짤림 현상 방지: 입력 영역이 항상 상단에 고정되도록 */
+.smart-quick-add {
+  flex-shrink: 0; /* 입력창은 찌그러지지 않게 함 */
+  margin-bottom: 16px;
+}
+
 .task-panel-header {
   display: flex;
   justify-content: space-between;
