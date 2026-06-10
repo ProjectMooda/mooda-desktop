@@ -30,40 +30,49 @@
         </ul>
       </div>
 
-      <input
-        ref="titleInput"
-        v-model="newTitle"
-        type="text"
-        class="quick-input"
-        placeholder="새로운 일정을 입력하세요 (Enter)"
-        @focus="isFocused = true"
-        @blur="isFocused = false"
-        @keyup.enter="handleQuickAdd"
-      />
+      <div class="input-wrapper">
+        <input
+          ref="titleInput"
+          v-model="newTitle"
+          type="text"
+          class="quick-input"
+          placeholder="새로운 일정을 입력하세요 (Enter)"
+          maxlength="20"
+          @focus="isFocused = true"
+          @blur="isFocused = false"
+          @keyup.enter="handleQuickAdd"
+        />
+
+        <span class="char-count"> {{ newTitle.length }}/20 </span>
+      </div>
 
       <div class="action-buttons">
-        <button
-          class="btn-expand"
+        <BaseButton
+          :size="2"
+          variant="ghost"
           title="상세 일정 추가 (기간, 반복)"
           @click="$emit('open-full-add')"
         >
           ⤢ 상세
-        </button>
-        <button
-          class="btn-submit"
+        </BaseButton>
+
+        <BaseButton
+          :size="2"
+          variant="primary"
           :disabled="!newTitle.trim()"
+          iconOnly
           @click="handleQuickAdd"
         >
-          ↑
-        </button>
+          ↵
+        </BaseButton>
       </div>
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useScheduleStore } from '@/stores/useScheduleStore'
+import BaseButton from '@/base-ui/BaseButton.vue'
 
 const scheduleStore = useScheduleStore()
 const emit = defineEmits(['close', 'open-full-add'])
@@ -72,10 +81,8 @@ const newTitle = ref('')
 const isFocused = ref(false)
 const isDropdownOpen = ref(false)
 
-// 🌟 선택된 마일스톤 ID (null이면 일반 Task)
 const selectedMilestoneId = ref<number | null>(null)
 
-// 현재 스토어에 있는 완료되지 않은 마일스톤만 필터링
 const activeMilestones = computed(() => {
   return scheduleStore.milestones.filter((m) => !m.done)
 })
@@ -95,14 +102,12 @@ const titleInput = ref<HTMLInputElement | null>(null)
 const selectMilestone = (id: number | null) => {
   selectedMilestoneId.value = id
   isDropdownOpen.value = false
-
   titleInput.value?.focus()
 }
 
 const handleQuickAdd = () => {
   if (!newTitle.value.trim()) return
 
-  // 🌟 마일스톤이 선택되었다면 해당 마일스톤의 하위 Task로, 아니면 일반 Task로 저장
   scheduleStore.addSchedule({
     type: 'task',
     summary: newTitle.value,
@@ -112,16 +117,14 @@ const handleQuickAdd = () => {
           ?.goalId
       : null,
     startDate: scheduleStore.selectedDate,
-    endDate: undefined // 퀵 애드는 무조건 당일 일정
+    endDate: undefined
   })
 
-  // 초기화 후 닫기
   newTitle.value = ''
   selectedMilestoneId.value = null
   emit('close')
 }
 </script>
-
 <style scoped>
 /* =======================================
    OVERLAY
@@ -164,6 +167,8 @@ const handleQuickAdd = () => {
   position: relative;
   margin-right: var(--space-2);
   z-index: 100;
+
+  flex-shrink: 0;
 }
 
 .ms-badge {
@@ -226,20 +231,39 @@ const handleQuickAdd = () => {
 /* =======================================
    INPUT FIELD
 ======================================= */
-.quick-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  padding: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--text-main);
-  outline: none;
-}
 
 .quick-input::placeholder {
   color: var(--text-muted);
 }
 
+.input-wrapper {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.quick-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: var(--space-2);
+  padding-right: 48px; /* 카운터 공간 확보 */
+  font-size: var(--text-sm);
+  color: var(--text-main);
+  outline: none;
+}
+
+.char-count {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
 /* =======================================
    ACTIONS
 ======================================= */
@@ -247,47 +271,11 @@ const handleQuickAdd = () => {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-}
 
-.btn-expand {
-  background: transparent;
-  border: none;
-  color: var(--text-sub);
-  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+/* 💡 TIP: BaseButton 내부의 세부 레이아웃 보정이 필요하다면 여기서 제어합니다. */
+:deep(.base-button) {
   font-weight: var(--font-bold);
-  cursor: pointer;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-}
-
-.btn-expand:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-main);
-}
-
-.btn-submit {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background-color: var(--text-main);
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-weight: bold;
-  transition:
-    transform 0.1s,
-    opacity 0.2s;
-}
-
-.btn-submit:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.btn-submit:not(:disabled):active {
-  transform: scale(0.9);
 }
 </style>
