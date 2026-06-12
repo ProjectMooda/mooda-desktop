@@ -1,38 +1,39 @@
 <template>
   <div class="global-date-range-picker relative" :class="[`size-${size}`]">
-    <!-- 🌟 에러 발생 시 나타났다 사라지는 Toast 모달 -->
     <transition name="toast-fade">
-      <div v-if="showToast" class="toast-modal">⚠️ {{ toastMessage }}</div>
+      <div v-if="showToast" class="toast-modal flex-center shadow-3">
+        ⚠️ {{ toastMessage }}
+      </div>
     </transition>
 
     <div class="date-picker-group">
-      <button
-        class="date-pill"
+      <!-- 🌟 날짜 선택 버튼에 BaseButton 적용 (secondary 테마) -->
+      <BaseButton
+        variant="secondary"
         :class="{ 'is-active': activeCalendar === 'start' }"
         @click="activeCalendar = 'start'"
       >
-        <span v-if="showIcon" class="pill-icon">🗓️</span>
         <span class="date-text">{{ startDate || placeholderStart }}</span>
-      </button>
+      </BaseButton>
 
       <span class="date-arrow">{{ arrowText }}</span>
 
-      <button
-        class="date-pill"
+      <!-- 🌟 날짜 선택 버튼에 BaseButton 적용 (secondary 테마) -->
+      <BaseButton
+        variant="secondary"
         :class="{
           'is-empty': !endDate,
           'is-active': activeCalendar === 'end'
         }"
         @click="activeCalendar = 'end'"
       >
-        <span v-if="showIcon" class="pill-icon">🏁</span>
         <span class="date-text">{{ endDate || placeholderEnd }}</span>
-      </button>
+      </BaseButton>
     </div>
 
     <div
       v-if="activeCalendar"
-      class="overlay-backdrop invisible-backdrop"
+      class="overlay-backdrop"
       @click="activeCalendar = null"
     ></div>
 
@@ -42,37 +43,40 @@
         class="compact-calendar-popover"
         :class="`align-${align}`"
       >
-        <div class="segmented-control">
-          <button
+        <div class="segment-group">
+          <BaseButton
+            variant="ghost"
+            class="segment-btn"
             :class="{ 'is-selected': activeCalendar === 'start' }"
             @click="activeCalendar = 'start'"
           >
             시작일
-          </button>
-          <button
+          </BaseButton>
+          <BaseButton
+            variant="ghost"
+            class="segment-btn"
             :class="{ 'is-selected': activeCalendar === 'end' }"
             @click="activeCalendar = 'end'"
           >
             종료일
-          </button>
+          </BaseButton>
         </div>
-
         <div class="calendar-render-area">
-          <!-- 🌟 시작일 달력: range-end로 종료일 이후를 막음 -->
-          <GlobalPopupCalendar
+          <GlobalCalendar
             v-if="activeCalendar === 'start'"
+            mode="popup"
             :model-value="startDate"
-            :range-end="endDate"
-            restrict-range
+            :range-end="endDate || undefined"
+            :restrict-range="!!endDate"
             @update:model-value="onUpdateStart"
             @error="handleCalendarError"
           />
-          <!-- 🌟 종료일 달력: range-start로 시작일 이전을 막음 -->
-          <GlobalPopupCalendar
+          <GlobalCalendar
             v-if="activeCalendar === 'end'"
+            mode="popup"
             :model-value="endDate"
-            :range-start="startDate"
-            restrict-range
+            :range-start="startDate || undefined"
+            :restrict-range="!!startDate"
             @update:model-value="onUpdateEnd"
             @error="handleCalendarError"
           />
@@ -84,7 +88,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import GlobalPopupCalendar from '@/global-components/global-calendar/GlobalPopupCalendar.vue'
+import GlobalCalendar from './GlobalCalendar.vue'
+import BaseButton from '@/base-ui/BaseButton.vue' // 🌟 BaseButton 추가
 
 const props = withDefaults(
   defineProps<{
@@ -116,7 +121,6 @@ const emit = defineEmits<{
 
 const activeCalendar = ref<'start' | 'end' | null>(null)
 
-// 🌟 Toast 모달 상태 관리
 const showToast = ref(false)
 const toastMessage = ref('')
 let toastTimeout: ReturnType<typeof setTimeout> | null = null
@@ -127,10 +131,9 @@ const triggerToast = (msg: string) => {
   if (toastTimeout) clearTimeout(toastTimeout)
   toastTimeout = setTimeout(() => {
     showToast.value = false
-  }, 2500) // 2.5초 뒤 자동 사라짐
+  }, 2500)
 }
 
-// 🌟 달력에서 제한된 날짜를 클릭했을 때의 처리
 const handleCalendarError = () => {
   if (activeCalendar.value === 'start') {
     triggerToast('시작일은 종료일보다 늦을 수 없습니다.')
@@ -140,21 +143,11 @@ const handleCalendarError = () => {
 }
 
 const onUpdateStart = (val: string) => {
-  // 컴포넌트 직접 업데이트 등 예외 방어 로직
-  if (props.endDate && val > props.endDate) {
-    triggerToast('시작일은 종료일보다 늦을 수 없습니다.')
-    return
-  }
   emit('update:startDate', val)
   activeCalendar.value = 'end'
 }
 
 const onUpdateEnd = (val: string) => {
-  // 컴포넌트 직접 업데이트 등 예외 방어 로직
-  if (props.startDate && val < props.startDate) {
-    triggerToast('종료일은 시작일보다 빠를 수 없습니다.')
-    return
-  }
   emit('update:endDate', val)
   activeCalendar.value = null
 }
@@ -166,25 +159,24 @@ const onUpdateEnd = (val: string) => {
 }
 
 /* =======================================
-   🌟 에러 토스트(Toast) 모달 디자인
+   🌟 에러 토스트 모달
 ======================================= */
 .toast-modal {
   position: absolute;
-  top: -48px; /* 컴포넌트 위쪽으로 띄움 */
+  top: -48px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  color: #fff;
+  color: var(--bg-card);
   padding: 10px 18px;
   border-radius: var(--radius-lg);
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
   white-space: nowrap;
-  z-index: 1000;
-  pointer-events: none; /* 클릭 방해 금지 */
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: var(--z-toast);
+  pointer-events: none;
 }
 
 .toast-fade-enter-active,
@@ -200,53 +192,14 @@ const onUpdateEnd = (val: string) => {
 }
 
 /* =======================================
-   크기별 레이아웃 (Size Variants)
+   🌟 BaseButton 결합 및 크기 레이아웃 보존
 ======================================= */
 .date-picker-group {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-.date-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 8px 14px;
-  background-color: var(--bg-hover);
-  border-radius: var(--radius-xl);
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  color: var(--text-main);
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-}
 
-.size-sm .date-pill {
-  padding: 6px 12px;
-  font-size: var(--text-xs);
-  border-radius: var(--radius-lg);
-}
-.size-sm .date-arrow {
-  font-size: 12px;
-}
-
-.size-lg .date-pill {
-  padding: 10px 18px;
-  font-size: var(--text-base);
-}
-
-.date-pill:hover {
-  background-color: var(--border-color);
-}
-.date-pill.is-active {
-  background-color: var(--color-primary-light);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-.date-pill.is-empty {
-  color: var(--text-sub);
-}
 .date-arrow {
   color: var(--text-muted);
   font-size: var(--text-sm);
@@ -255,17 +208,14 @@ const onUpdateEnd = (val: string) => {
 .date-text {
   font-variant-numeric: tabular-nums;
 }
-.pill-icon {
-  font-size: 1.1em;
-}
 
 /* =======================================
-   팝업 캘린더 (정렬 및 애니메이션)
+   🌟 팝업 캘린더 (고정 너비/높이)
 ======================================= */
 .overlay-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-dropdown);
   background: transparent !important;
 }
 
@@ -276,8 +226,8 @@ const onUpdateEnd = (val: string) => {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  z-index: 100;
+  box-shadow: var(--shadow-3);
+  z-index: calc(var(--z-dropdown) + 1);
   transition:
     left 0.3s ease,
     right 0.3s ease;
@@ -297,32 +247,6 @@ const onUpdateEnd = (val: string) => {
   transform-origin: top center;
 }
 
-.segmented-control {
-  display: flex;
-  border-bottom: 1px solid var(--border-color);
-  background: transparent;
-}
-.segmented-control button {
-  flex: 1;
-  padding: var(--space-3);
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--text-muted);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-.segmented-control button:hover {
-  color: var(--text-sub);
-}
-.segmented-control button.is-selected {
-  color: var(--color-primary);
-  border-bottom: 2px solid var(--color-primary);
-}
-
 .calendar-render-area {
   padding: var(--space-4);
   max-height: 300px;
@@ -339,5 +263,37 @@ const onUpdateEnd = (val: string) => {
 .popover-leave-to {
   opacity: 0;
   transform: scale(0.96) translateY(-4px);
+}
+
+/* =======================================
+   🌟 세그먼트(탭) 버튼 스타일
+======================================= */
+.segment-group {
+  display: flex;
+  border-bottom: 1px solid var(--border-color, #e2e8f0); /* 캘린더 영역과 구분선 */
+}
+
+.segment-btn {
+  flex: 1;
+  justify-content: center;
+  height: 45px;
+  border-radius: 0 !important; /* BaseButton의 기본 둥근 모서리 무효화 */
+  color: var(--text-muted, #64748b);
+  font-size: var(--text-sm, 14px);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.segment-btn:hover {
+  color: var(--text-primary, #1e293b);
+  background-color: rgba(0, 0, 0, 0.03); /* 살짝 호버 효과 */
+}
+
+/* 선택된 탭: 달력 본문과 자연스럽게 이어지는 스타일 */
+.segment-btn.is-selected {
+  color: var(--text-primary, #0f172a);
+  font-weight: bold;
+  box-shadow: none; /* 떠보이는 그림자 제거 */
+  border-bottom: 2px solid var(--text-primary, #0f172a); /* 선택된 탭 하단 강조선 */
 }
 </style>

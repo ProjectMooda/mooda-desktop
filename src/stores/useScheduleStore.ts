@@ -10,7 +10,6 @@ export interface ScheduleItem {
   goalId?: number | null
   milestoneId?: number | null
   summary?: string
-  memo?: string
   done: boolean
   startDate: string // ✅ 필수로 변경 (모든 일정은 시작일이 있음)
   endDate?: string // 하루짜리나 단일 태스크는 undefined
@@ -117,7 +116,6 @@ export const useScheduleStore = defineStore('schedule', () => {
       creationMode: item.creationMode || 'single', // 생성 모드 (기본 single)
       type: item.type || 'task',
       summary: item.summary || '',
-      memo: item.memo || '',
       done: false,
       startDate: item.startDate || today, // 최소한 오늘 날짜 보장
       endDate: item.endDate,

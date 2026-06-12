@@ -8,14 +8,16 @@
     @delete="$emit('delete')"
     @toggle-pin="$emit('toggle-pin')"
   >
-    <template #context>
+    <!-- v-if="!isMini" 를 추가하여 미니 모드가 아닐 때만 컨텍스트를 렌더링 -->
+    <template #context v-if="!isMini">
       <span v-if="goalTitle" class="context-goal">{{ goalTitle }}</span>
       <span v-if="goalTitle && parentMilestoneTitle" class="context-divider"
         >/</span
       >
 
       <span v-if="parentMilestoneTitle" class="context-name">
-        {{ truncateText(parentMilestoneTitle, isMini ? 6 : 10) }}
+        <!-- 이제 미니 모드에서는 아예 렌더링되지 않으므로 truncate 조건도 단순화할 수 있습니다 -->
+        {{ truncateText(parentMilestoneTitle, 10) }}
       </span>
     </template>
   </Card>
@@ -24,7 +26,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
-import Card from './components/Card.vue' // 경로 확인 필요
+import Card from '../task-milestone-card/components/Card.vue' // 경로 확인 필요
 import { useFormatter } from '@/utils/useFormatter'
 
 const { truncateText } = useFormatter()
@@ -68,12 +70,12 @@ const dynamicStyle = computed(() => {
 }
 
 .context-goal {
-  font-weight: 800;
+  font-weight: var(--font-bold);
   color: var(--color-primary, #3b82f6);
 }
 
 .context-name {
-  font-weight: 600;
+  font-weight: var(--font-bold);
 }
 
 .context-divider {

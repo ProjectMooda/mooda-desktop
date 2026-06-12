@@ -2,19 +2,13 @@ module.exports = {
   extends: ['@commitlint/config-conventional'],
 
   rules: {
+    // 괄호 안에 대문자가 가능하게 함
+    'subject-case': [0],
     // 허용 타입
     'type-enum': [
       2,
       'always',
-      [
-        'feat',
-        'fix',
-        'docs',
-        'style',
-        'refactor',
-        'test',
-        'chore'
-      ]
+      ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore']
     ],
 
     // scope 강제
@@ -29,4 +23,4 @@ module.exports = {
     // 최대 길이
     'header-max-length': [2, 'always', 100]
   }
-};
+}

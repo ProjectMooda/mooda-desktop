@@ -3,17 +3,29 @@
     <div class="info-section">
       <div class="form-group">
         <label>목표 타이틀</label>
+
         <BaseInput
           :model-value="goal?.title || ''"
           field="goalTitle"
           placeholder="목표 타이틀을 입력하세요"
-          class="goal-title-input"
+          variant="inline"
+          class="goal-title-inline-input"
           @update:model-value="(val) => updateGoalField('title', val)"
         />
       </div>
 
       <div class="form-group relative">
-        <label>목표 기간</label>
+        <div class="flex-row justify-between items-center mb-8">
+          <label style="margin-bottom: 0">목표 기간</label>
+          <BaseButton
+            v-if="goal?.startDate || goal?.endDate"
+            :size="1"
+            variant="ghost"
+            @click="clearDates"
+          >
+            초기화
+          </BaseButton>
+        </div>
         <GlobalDateRangePicker
           :start-date="goal?.startDate || ''"
           :end-date="goal?.endDate || ''"
@@ -73,15 +85,15 @@
               총 {{ goalMilestones.length }}개
             </span>
           </div>
-          <button class="btn-primary" @click="$emit('open-create')">
+          <BaseButton variant="primary" :size="3" @click="$emit('open-create')">
             마일스톤 추가
-          </button>
+          </BaseButton>
         </div>
 
         <GlobalSearchInput
           v-model="searchQuery"
           placeholder="마일스톤 타이틀 검색..."
-          class="mb-16"
+          class="mb-16 ms-search-input"
         />
 
         <div class="ms-list-container">
@@ -125,33 +137,58 @@
             등록된 마일스톤이 없거나 검색 결과가 없습니다.
           </div>
         </div>
+
+        <div class="flex-row justify-end mt-16 shrink-0">
+          <BaseButton
+            variant="danger"
+            :size="2"
+            @click="showDeleteModal = true"
+          >
+            목표 삭제하기
+          </BaseButton>
+        </div>
       </div>
     </div>
+
+    <GlobalDeleteAlert
+      v-model="showDeleteModal"
+      title="목표 삭제"
+      message="정말로 이 목표를 삭제하시겠습니까?
+관련된 마일스톤과 Task가 모두 삭제되며 복구할 수 없습니다."
+      confirm-text="삭제하기"
+      cancel-text="취소"
+      :show-cancel="true"
+      :is-danger="true"
+      @confirm="executeDeleteGoal"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useScheduleStore, type Goal } from '@/stores/useScheduleStore'
-import GlobalDateRangePicker from '@/global-components/global-calendar/GlobalDateRangePicker.vue' // 🌟 변경됨
+import GlobalDateRangePicker from '@/global-components/global-calendar/GlobalDateRangePicker.vue'
 import GlobalSearchInput from '@/global-components/global-search-input/GlobalSearchInput.vue'
+import GlobalDeleteAlert from '@/global-components/global-modal/global-modal-alert/GlobalDeleteAlert.vue'
 import BaseInput from '@/base-ui/BaseInput.vue'
+import BaseButton from '@/base-ui/BaseButton.vue'
 
 const props = defineProps<{ goal: Goal }>()
-defineEmits(['open-detail', 'open-create'])
+const emit = defineEmits(['open-detail', 'open-create', 'close'])
 const store = useScheduleStore()
 
 const searchQuery = ref('')
+const showDeleteModal = ref(false)
 
 const palette = [
-  '#ff3b30', // danger
+  '#ff3b30',
   '#ff9500',
   '#ffcc00',
   '#34c759',
-  '#5e81a3', // primary
+  '#5e81a3',
   '#5856d6',
   '#ff2d55',
-  '#8e8e93' // sub text
+  '#8e8e93'
 ]
 
 const formatSafeDate = (dateStr?: string) => {
@@ -166,6 +203,20 @@ const updateGoalField = (field: keyof Goal, value: any) => {
     ;(targetGoal as any)[field] = value
     store.saveData()
   }
+}
+
+const clearDates = () => {
+  updateGoalField('startDate', '')
+  updateGoalField('endDate', '')
+}
+
+// 🌟 삭제 로직 완벽 보강
+const executeDeleteGoal = () => {
+  if (!props.goal) return
+
+  store.removeGoal(props.goal.id)
+  showDeleteModal.value = false // 1. 모달창 확실히 닫기
+  emit('close') // 2. 부모 컴포넌트에게 디테일 창 전체를 닫으라고 알림!
 }
 
 const calculateProgress = computed(() => {
@@ -206,7 +257,7 @@ const getCompletedCount = (msId: number) => {
 
 <style scoped>
 /* =======================================
-   공통 유틸리티 (글로벌과 겹치지 않는 특수 속성만 남김)
+   공통 유틸리티
 ======================================= */
 .cursor-pointer {
   cursor: pointer;
@@ -216,6 +267,35 @@ const getCompletedCount = (msId: number) => {
 }
 .relative {
   position: relative;
+}
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+.justify-between {
+  justify-content: space-between;
+}
+.justify-end {
+  justify-content: flex-end;
+}
+.items-center {
+  align-items: center;
+}
+.shrink-0 {
+  flex-shrink: 0;
+}
+
+.gap-8 {
+  gap: 8px;
+}
+.mb-8 {
+  margin-bottom: 8px;
+}
+.mb-16 {
+  margin-bottom: 16px;
+}
+.mt-16 {
+  margin-top: 16px;
 }
 
 /* =======================================
@@ -263,34 +343,17 @@ const getCompletedCount = (msId: number) => {
 }
 
 /* =======================================
-   나머지 폼 요소 & 마일스톤 리스트
-   (🌟 팝업 캘린더 관련 잡다한 CSS 대거 삭제 완료!)
+   🌟 목표 타이틀 인라인 에디트 위치 보정
 ======================================= */
-.goal-title-input {
+.goal-title-inline-input {
   margin-bottom: 0 !important;
+  margin-left: -12px;
+  width: calc(100% + 24px);
 }
 
-.goal-title-input :deep(.base-input) {
-  font-size: var(--text-base);
-  font-weight: var(--font-bold);
-}
-
-.btn-primary {
-  background: var(--text-main);
-  color: var(--bg-card);
-  border: none;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-weight: var(--font-semibold);
-  transition: opacity var(--transition-fast);
-  font-size: var(--text-sm);
-}
-
-.btn-primary:hover {
-  opacity: 0.85;
-}
-
+/* =======================================
+   마일스톤 리스트 & 폼 하단
+======================================= */
 .ms-header-row {
   display: flex;
   justify-content: space-between;
@@ -316,15 +379,21 @@ const getCompletedCount = (msId: number) => {
 .ms-list-container {
   flex: 1;
   overflow-y: auto;
-  scrollbar-gutter: stable;
-  padding-right: var(--space-2);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   min-height: 0;
+  width: 100%;
+}
+
+.ms-search-input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .ms-card {
+  width: 100%;
+  box-sizing: border-box;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);

@@ -139,12 +139,12 @@
 import { ref, computed, watch } from 'vue'
 import draggable from 'vuedraggable'
 import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
-import GlobalMilestoneCard from '@/global-components/global-card/GlobalMilestoneCard.vue'
-import GlobalTaskCard from '@/global-components/global-card/GlobalTaskCard.vue'
+import GlobalMilestoneCard from '@/global-components/global-card/task-milestone-card/GlobalMilestoneCard.vue'
+import GlobalTaskCard from '@/global-components/global-card/task-milestone-card/GlobalTaskCard.vue'
 import StudioCardHeader from './StudioCardHeader.vue'
 import StudioQuickAdd from './StudioQuickAdd.vue'
 import BasePinButton from '@/base-ui/BasePinButton.vue'
-import GlobalFullScheduleAddModal from '@/global-components/global-modal/global-full-schedule-add-modal/GlobalFullScheduleAddModal.vue'
+import GlobalFullScheduleAddModal from '@/global-components/global-modal/global-detail-modal/GlobalFullScheduleAddModal.vue'
 import GlobalDeleteAlert from '@/global-components/global-modal/global-modal-alert/GlobalDeleteAlert.vue'
 
 const scheduleStore = useScheduleStore()
@@ -322,7 +322,7 @@ const progressPercent = computed(() => {
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   color: var(--text-sub);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
   display: flex;
   align-items: center;
   gap: var(--space-1);

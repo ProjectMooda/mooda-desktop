@@ -2,7 +2,10 @@
   <div class="goal-detail-view">
     <div class="ms-workspace-header">
       <div class="header-left">
-        <button class="btn-back" @click="$emit('back')">〈 목록으로</button>
+        <BaseButton variant="secondary" :size="2" @click="$emit('back')">
+          〈 목록으로
+        </BaseButton>
+
         <BaseInput
           :model-value="activeMilestone?.title || ''"
           field="goalTitle"
@@ -13,88 +16,35 @@
       </div>
 
       <div class="header-right">
-        <!-- 🌟 수정된 날짜 선택부 (네이티브 Input 제거, 팝업 캘린더 버튼화) -->
-        <div class="workspace-date-edit relative">
-          <button
-            class="date-pill"
-            :class="{ 'is-active': activeCalendar === 'start' }"
-            @click="activeCalendar = 'start'"
-          >
-            {{ activeMilestone?.startDate || '시작일' }}
-          </button>
-          <span class="date-arrow">~</span>
-          <button
-            class="date-pill"
-            :class="{ 'is-active': activeCalendar === 'end' }"
-            @click="activeCalendar = 'end'"
-          >
-            {{ activeMilestone?.endDate || '종료일' }}
-          </button>
+        <GlobalDateRangePicker
+          :start-date="activeMilestone?.startDate || ''"
+          :end-date="activeMilestone?.endDate || ''"
+          size="sm"
+          align="right"
+          @update:start-date="(val) => updateMilestoneDate('startDate', val)"
+          @update:end-date="(val) => updateMilestoneDate('endDate', val)"
+        />
 
-          <!-- 🌟 미니멀 팝업 캘린더 드롭다운 -->
-          <div
-            v-if="activeCalendar"
-            class="overlay-backdrop invisible-backdrop"
-            @click="activeCalendar = null"
-          ></div>
-          <transition name="popover">
-            <div v-if="activeCalendar" class="compact-calendar-popover">
-              <!-- 이전 요청사항이 반영된 네모 박스 없는 미니멀 탭 -->
-              <div class="segmented-control">
-                <button
-                  :class="{ 'is-selected': activeCalendar === 'start' }"
-                  @click="activeCalendar = 'start'"
-                >
-                  시작일
-                </button>
-                <button
-                  :class="{ 'is-selected': activeCalendar === 'end' }"
-                  @click="activeCalendar = 'end'"
-                >
-                  종료일
-                </button>
-              </div>
-
-              <div class="calendar-render-area">
-                <GlobalPopupCalendar
-                  v-if="activeCalendar === 'start'"
-                  :model-value="activeMilestone?.startDate || ''"
-                  @update:model-value="
-                    (val) => {
-                      updateMilestoneDate('startDate', val)
-                      activeCalendar = 'end'
-                    }
-                  "
-                />
-                <GlobalPopupCalendar
-                  v-if="activeCalendar === 'end'"
-                  :model-value="activeMilestone?.endDate || ''"
-                  @update:model-value="
-                    (val) => {
-                      updateMilestoneDate('endDate', val)
-                      activeCalendar = null
-                    }
-                  "
-                />
-              </div>
-            </div>
-          </transition>
-        </div>
-
-        <button class="btn-text-danger ml-4" @click="removeMilestone">
+        <BaseButton
+          variant="danger"
+          :size="2"
+          class="ml-4"
+          @click="removeMilestone"
+        >
           마일스톤 삭제
-        </button>
+        </BaseButton>
       </div>
     </div>
 
-    <!-- ... 이하 본문부 (기존과 동일) ... -->
     <div class="ms-workspace-body">
       <div class="cal-panel">
         <GlobalCalendar
           v-model="selectedMsDate"
-          :range-start="activeMilestone?.startDate"
-          :range-end="activeMilestone?.endDate"
-          restrict-range
+          :range-start="activeMilestone?.startDate || undefined"
+          :range-end="activeMilestone?.endDate || undefined"
+          :restrict-range="
+            !!(activeMilestone?.startDate && activeMilestone?.endDate)
+          "
           class="h-full"
         />
       </div>
@@ -104,7 +54,15 @@
           <h4>
             📅 {{ selectedMsDate.slice(5).replace('-', '월 ') }}일 세부 일정
           </h4>
-          <span class="ms-count">{{ pendingTasks.length }}개 남음</span>
+
+          <BaseButton
+            variant="secondary"
+            :size="1"
+            class="ms-count-badge"
+            tabindex="-1"
+          >
+            {{ pendingTasks.length }}개 남음
+          </BaseButton>
         </div>
 
         <div class="task-list-scroll">
@@ -127,20 +85,25 @@
               />
 
               <div class="action-buttons">
-                <button
-                  class="btn-expand"
+                <BaseButton
+                  variant="ghost"
+                  :size="1"
                   title="상세 일정 추가"
                   @click="isFullAddOpen = true"
                 >
                   ⤢ 상세
-                </button>
-                <button
-                  class="btn-submit"
+                </BaseButton>
+
+                <BaseButton
+                  variant="primary"
+                  :size="1"
+                  iconOnly
+                  class="circle-submit-btn"
                   :disabled="!newTaskText.trim()"
                   @click="handleAddTask"
                 >
-                  ↑
-                </button>
+                  ↵
+                </BaseButton>
               </div>
             </div>
           </div>
@@ -183,14 +146,16 @@
               v-if="completedTasks.length > 0"
               class="completed-section mt-4"
             >
-              <button
+              <BaseButton
+                variant="ghost"
+                :size="2"
                 class="toggle-completed-btn"
                 @click="showCompleted = !showCompleted"
               >
                 {{ showCompleted ? '▼' : '▶' }} 완료된 항목 ({{
                   completedTasks.length
                 }})
-              </button>
+              </BaseButton>
 
               <div v-show="showCompleted" class="completed-tasks-group">
                 <GlobalMilestoneCard
@@ -292,13 +257,16 @@ import {
   type ScheduleItem,
   type Milestone
 } from '@/stores/useScheduleStore'
-import GlobalCalendar from '@/global-components/global-calendar/GlobalCalendar.vue'
-import GlobalPopupCalendar from '@/global-components/global-calendar/GlobalPopupCalendar.vue' // 🌟 팝업 캘린더 컴포넌트 추가
-import GlobalMilestoneCard from '@/global-components/global-card/GlobalMilestoneCard.vue'
-import GlobalTaskCard from '@/global-components/global-card/GlobalTaskCard.vue'
-import GlobalScheduleDetailModal from '@/global-components/global-modal/global-schedule-detail-modal/GlobalScheduleDetailModal.vue'
+
+// 🌟 BaseButton 임포트 추가됨
+import BaseButton from '@/base-ui/BaseButton.vue'
 import BaseInput from '@/base-ui/BaseInput.vue'
-import GlobalFullScheduleAddModal from '@/global-components/global-modal/global-full-schedule-add-modal/GlobalFullScheduleAddModal.vue'
+import GlobalCalendar from '@/global-components/global-calendar/GlobalCalendar.vue'
+import GlobalDateRangePicker from '@/global-components/global-calendar/GlobalDateRangePicker.vue'
+import GlobalMilestoneCard from '@/global-components/global-card/task-milestone-card/GlobalMilestoneCard.vue'
+import GlobalTaskCard from '@/global-components/global-card/task-milestone-card/GlobalTaskCard.vue'
+import GlobalScheduleDetailModal from '@/global-components/global-modal/global-detail-modal/GlobalScheduleDetailModal.vue'
+import GlobalFullScheduleAddModal from '@/global-components/global-modal/global-detail-modal/GlobalFullScheduleAddModal.vue'
 import GlobalDeleteAlert from '@/global-components/global-modal/global-modal-alert/GlobalDeleteAlert.vue'
 
 const props = defineProps<{ goal: Goal; milestoneId: number }>()
@@ -309,9 +277,6 @@ const todayString = new Date().toISOString().slice(0, 10)
 
 const isFullAddOpen = ref(false)
 const isFocused = ref(false)
-
-// 🌟 달력 팝업 상태 관리
-const activeCalendar = ref<'start' | 'end' | null>(null)
 
 const activeMilestone = computed(
   () => store.milestones.find((m) => m.id === props.milestoneId) || null
@@ -347,6 +312,7 @@ const showError = (msg: string) => {
   return false
 }
 
+// 부모(목표) 기간 제한은 DateRangePicker가 알 수 없으므로 여기서 유효성 검사 유지
 const validateMilestoneDates = (msStart: string, msEnd: string) => {
   if (!msStart) return showError('시작일은 필수입니다.')
 
@@ -364,7 +330,6 @@ const validateMilestoneDates = (msStart: string, msEnd: string) => {
   return true
 }
 
-// 🌟 파라미터를 Event 기반에서 String 값 직접 수신으로 리팩토링
 const updateMilestoneDate = (field: 'startDate' | 'endDate', val: string) => {
   if (!activeMilestone.value) return
 
@@ -373,7 +338,7 @@ const updateMilestoneDate = (field: 'startDate' | 'endDate', val: string) => {
   const tempEnd =
     field === 'endDate' ? val : activeMilestone.value.endDate || ''
 
-  // 조건이 맞을 때만 상태 업데이트
+  // 조건이 맞을 때만 Store 업데이트
   if (validateMilestoneDates(tempStart, tempEnd)) {
     handleMilestoneUpdate(field, val)
   }
@@ -471,14 +436,17 @@ const handleAddTask = () => {
 
 const addTaskToSelectedDate = (text: string) => {
   if (!activeMilestone.value || !selectedMsDate.value) return
+
   store.addSchedule({
-    id: Date.now(),
     type: 'task',
     creationMode: 'single',
     goalId: props.goal.id,
     milestoneId: activeMilestone.value.id,
     summary: text,
-    startDate: selectedMsDate.value
+    startDate: selectedMsDate.value,
+    endDate: selectedMsDate.value,
+    done: false,
+    isPinned: false
   })
 }
 
@@ -545,19 +513,21 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   position: relative;
 }
 
-/* 상단 버튼 및 인풋 */
-.btn-text-danger {
-  background: transparent;
-  color: #ef4444;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px;
-  border-radius: 6px;
+/* =======================================
+   🌟 BaseButton 커스텀 유틸리티 클래스
+======================================= */
+/* 뱃지처럼 동작하게 만드는 스타일 */
+.ms-count-badge {
+  pointer-events: none; /* 클릭 안 됨 */
 }
-.btn-text-danger:hover {
-  background: #fee2e2;
+
+/* 퀵 폼 엔터(화살표) 버튼의 원형 복원 */
+
+/* 완료 토글 버튼 좌측 정렬 패딩 리셋 */
+.toggle-completed-btn {
+  padding-left: 0;
+  padding-right: 0;
+  margin-bottom: var(--space-2);
 }
 
 /* 레이아웃 */
@@ -581,21 +551,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   align-items: center;
   gap: 20px;
   flex: 1;
-}
-.btn-back {
-  background: #f4f4f5;
-  border: none;
-  font-size: 13px;
-  font-weight: 700;
-  color: #52525b;
-  cursor: pointer;
-  padding: 8px 14px;
-  border-radius: 8px;
-  transition: 0.2s;
-}
-.btn-back:hover {
-  background: #e4e4e7;
-  color: #18181b;
 }
 
 .workspace-title-base-input {
@@ -622,111 +577,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   align-items: center;
 }
 
-/* 🌟 수정된 팝업 연동형 날짜 버튼 (Date Pill) */
-.workspace-date-edit {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.date-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background-color: #f4f4f5;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 13px;
-  font-weight: 600;
-  color: #3f3f46;
-  font-variant-numeric: tabular-nums;
-}
-
-.date-pill:hover {
-  background-color: #e4e4e7;
-}
-.date-pill.is-active {
-  background-color: #eef2ff;
-  border-color: #4f46e5;
-  color: #4f46e5;
-}
-
-.date-arrow {
-  color: #a1a1aa;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-/* 🌟 팝업 캘린더 스타일 */
-.overlay-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: transparent !important;
-}
-
-.compact-calendar-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0; /* 우측 정렬 */
-  width: 280px;
-  background: #fff;
-  border: 1px solid #e4e4e7;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  z-index: 100;
-  transform-origin: top right;
-}
-
-/* 🌟 미니멀 세그먼트 컨트롤 탭 (박스 없음) */
-.segmented-control {
-  display: flex;
-  border-bottom: 1px solid #e4e4e7;
-  background: transparent;
-}
-.segmented-control button {
-  flex: 1;
-  padding: 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #a1a1aa;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.segmented-control button:hover {
-  color: #71717a;
-}
-.segmented-control button.is-selected {
-  color: #4f46e5;
-  border-bottom: 2px solid #4f46e5;
-}
-
-.calendar-render-area {
-  padding: 16px;
-  max-height: 300px;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-}
-
-.popover-enter-active,
-.popover-leave-active {
-  transition:
-    opacity 0.2s,
-    transform 0.2s;
-}
-.popover-enter-from,
-.popover-leave-to {
-  opacity: 0;
-  transform: scale(0.96) translateY(-4px);
-}
-
 /* 바디 레이아웃 */
 .ms-workspace-body {
   display: flex;
@@ -734,20 +584,24 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   min-height: 0;
   padding: 32px;
   gap: 32px;
+  overflow: hidden;
 }
+
 .cal-panel {
-  flex: 1 1 450px;
-  max-width: 450px;
-  min-width: 300px;
-  display: flex;
-  flex-direction: column;
-}
-.task-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
+
+.task-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
 .task-panel-header {
   display: flex;
   justify-content: space-between;
@@ -760,14 +614,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   color: #27272a;
   margin: 0;
 }
-.ms-count {
-  font-size: 13px;
-  font-weight: 600;
-  color: #71717a;
-  background: #e4e4e7;
-  padding: 4px 10px;
-  border-radius: 20px;
-}
 
 .task-list-scroll {
   flex: 1;
@@ -778,6 +624,7 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   padding-right: 4px;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .empty-msg {
@@ -799,24 +646,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   transition: transform 0.2s;
 }
 
-/* 완료된 항목 토글 버튼 */
-.toggle-completed-btn {
-  background: none;
-  border: none;
-  font-size: 13px;
-  font-weight: 700;
-  color: #71717a;
-  cursor: pointer;
-  padding: 4px 0;
-  transition: color 0.2s;
-  display: flex;
-  align-items: center;
-  margin-top: 16px;
-  margin-bottom: 8px;
-}
-.toggle-completed-btn:hover {
-  color: #27272a;
-}
 .completed-tasks-group {
   opacity: 0.6;
   transition: opacity 0.2s ease;
@@ -827,6 +656,7 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 
 /* SMART QUICK ADD */
 .smart-quick-add {
+  flex-shrink: 0;
   margin-bottom: 16px;
 }
 
@@ -880,47 +710,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.btn-expand {
-  background: transparent;
-  border: none;
-  color: #71717a;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 6px;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-.btn-expand:hover {
-  background-color: #f4f4f5;
-  color: #18181b;
-}
-
-.btn-submit {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background-color: #27272a;
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-weight: bold;
-  transition:
-    transform 0.1s,
-    opacity 0.2s;
-}
-.btn-submit:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-.btn-submit:not(:disabled):active {
-  transform: scale(0.9);
 }
 
 .section-divider {

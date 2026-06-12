@@ -16,25 +16,31 @@
     </div>
 
     <div class="head-actions">
-      <button
-        class="btn-icon"
+      <BaseButton
+        :size="3"
+        variant="secondary"
+        :icon-only="true"
         title="완료된 항목 보기"
         @click="$emit('toggle-completed')"
       >
         {{ showCompleted ? '👀' : '🙈' }}
-      </button>
-      <button
-        class="btn-add"
-        :class="{ active: showAddForm }"
+      </BaseButton>
+
+      <BaseButton
+        :size="3"
+        :variant="showAddForm ? 'danger' : 'primary'"
+        :icon-only="true"
         @click="$emit('toggle-add-form')"
       >
         {{ showAddForm ? '✕' : '+' }}
-      </button>
+      </BaseButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import BaseButton from '@/base-ui/BaseButton.vue'
+
 defineProps<{
   formattedDate: string
   totalItems: number
@@ -45,6 +51,7 @@ defineProps<{
 
 defineEmits(['toggle-completed', 'toggle-add-form'])
 </script>
+
 <style scoped>
 /* =======================================
    HEADER LAYOUT
@@ -52,15 +59,15 @@ defineEmits(['toggle-completed', 'toggle-add-form'])
 .card-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--space-6); /* 24px */
+  align-items: center;
+  gap: var(--space-3);
 }
-
 .head-title-group {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2); /* 8px */
+  gap: var(--space-2);
   flex: 1;
+  min-width: 0;
 }
 
 .card-head h3 {
@@ -80,6 +87,7 @@ defineEmits(['toggle-completed', 'toggle-add-form'])
   display: flex;
   flex-direction: column;
   gap: var(--space-1); /* 4px */
+  min-width: 0;
 }
 
 .progress-text {
@@ -113,73 +121,12 @@ defineEmits(['toggle-completed', 'toggle-add-form'])
 }
 
 /* =======================================
-   ACTIONS & BUTTONS
+   ACTIONS
 ======================================= */
 .head-actions {
   display: flex;
   align-items: center;
   gap: var(--space-2); /* 8px */
-}
-
-/* 아이콘 버튼 공통 (기존 선언 규칙 준수) */
-.btn-icon {
-  background-color: var(--bg-hover);
-  border: none;
-  width: var(--control-size-md); /* 32px */
-  height: var(--control-size-md);
-  border-radius: var(--radius-sm); /* 애플 표준 둥글기 감성 */
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm); /* 14px */
-  color: var(--text-main);
-  outline: none;
-  transition: background-color var(--transition-fast);
-}
-
-.btn-icon:hover {
-  background-color: var(--border-color); /* 호버 시 조금 더 짙어지게 */
-}
-
-/* 추가 버튼 (기본형) */
-.btn-add {
-  background-color: var(--text-main); /* 메인 먹색을 배경으로 활용 */
-  color: #ffffff;
-  border: none;
-  width: var(--control-size-md); /* 32px */
-  height: var(--control-size-md);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: var(--text-lg); /* 18px '+' 기호용 크기 */
-  font-weight: var(--font-medium);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  outline: none;
-
-  /* 과한 트랜스폼(scale)을 제거하고 쫀득한 active-scale 유틸 연동 준비 */
-  transition:
-    background-color var(--transition-fast),
-    transform var(--transition-fast);
-}
-
-.btn-add:hover {
-  background-color: #3a3a3c; /* 애플 시스템 그레이 호버 톤 */
-}
-
-/* 유저가 클릭하는 순간 미세하게 눌리는 효과 제공 (선택사항) */
-.btn-add:active {
-  transform: scale(0.96);
-}
-
-/* 활성화 / 취소 상태 (is-active 혹은 active) */
-.btn-add.active {
-  background-color: var(--color-danger); /* iOS 시스템 레드 */
-  transform: rotate(45deg); /* '+' 기호를 'x' 모양으로 센스 있게 회전 */
-}
-
-.btn-add.active:hover {
-  background-color: #e0352b; /* 대인저 호버용 딥 레드 */
+  flex-shrink: 0;
 }
 </style>

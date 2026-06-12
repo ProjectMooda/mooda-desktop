@@ -1,54 +1,89 @@
 /* assets/styles/variables.css */
 :root {
-  /* 🍎 Apple Signature Colors */
-  --color-primary: #5e81a3; /* 애플 스토어 및 시스템 기본 블루 */
-  --color-primary-light: #e8f2fc; /* 아주 연한 블루 배경 (선택 상태 등) */
-  --color-primary-pale: #f5f9fd; /* 은은한 마일스톤 카드 배경 */
+  /* --------------------------------------
+     🎨 1. Colors (Apple Style & State Indicators)
+  -------------------------------------- */
+  /* Main Brand */
+  --color-primary: #5e81a3;
+  --color-primary-light: #e8f2fc;
 
-  /* 🚨 System Danger */
-  --color-danger: #ff3b30; /* iOS 시스템 레드 */
+  /* State Indicators (명확한 상태 인지용) */
+  --color-danger: #ff3b30;
   --color-danger-light: #ffeceb;
+  --color-success: #34c759;
+  --color-success-light: #e8f8ec;
+  --color-warning: #ffcc00;
+  --color-warning-light: #fff9e6;
 
-  /* 🖋 Typography Colors (완전 블랙이 아닌 애플 특유의 먹색) */
-  --text-main: #1d1d1f; /* 애플 텍스트 메인 컬러 */
-  --text-sub: #86868b; /* 애플 서브 텍스트 (System Gray) */
-  --text-muted: #aeaeb2; /* 비활성 텍스트 */
+  /* Typography */
+  --text-main: #1d1d1f;
+  --text-sub: #86868b;
+  --text-muted: #aeaeb2;
 
-  /* ⬜️ Backgrounds & Borders (극도로 깔끔한 그레이 톤) */
-  --bg-app: #f5f5f7; /* 애플 웹사이트/설정 화면의 고유 배경색 */
-  --bg-card: #ffffff; /* 카드 배경은 순백색으로 대비감 부여 */
-  --bg-hover: #f2f2f7; /* 목록 호버 시 (System Gray 6) */
-  --border-color: #d2d2d7; /* 선명하지만 튀지 않는 연한 테두리 */
-
-  /* 폰트: 애플 기기에서는 SF Pro, 그 외는 맑은 고딕/프리텐다드 폴백 */
-  --font-family:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
-    'Pretendard', 'Segoe UI', sans-serif;
+  /* Backgrounds & Borders */
+  --bg-app: #f5f5f7;
+  --bg-card: #ffffff;
+  --bg-hover: #f2f2f7;
+  --border-color: #d2d2d7;
 
   /* --------------------------------------
-     🔤 Typography Scale (추가)
+     🔤 2. Typography (사용자 커스텀 대비)
   -------------------------------------- */
-  --text-xs: 12px; /* 캡션, 뱃지, 미니 라벨 */
-  --text-sm: 14px; /* 보조 텍스트, 설명문, 인풋 입력값 */
-  --text-base: 16px; /* 본문 기본 크기, 일반 버튼 */
-  --text-lg: 18px; /* 컴포넌트 헤더, 소제목 */
-  --text-xl: 20px; /* 일반 모달 타이틀, 중간 제목 */
-  --text-2xl: 24px; /* 대제목, 대시보드 메인 위젯 */
-  --text-3xl: 32px; /* 히어로 타이틀, 랜딩 텍스트 */
+  /* ✅ JS로 덮어씌울 타겟 변수 (기본값 설정) */
+  --user-font-family:
+    'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui,
+    sans-serif;
+  --user-font-scale: 1; /* 폰트 크기 확대/축소 배율용 */
 
-  /* Font Weights (애플 UI에서 선호되는 두께감) */
+  /* 실제 앱에 적용되는 폰트 (사용자 폰트를 바라보게 함) */
+  --font-family: var(--user-font-family);
+
+  /* 폰트 크기에 배율(scale) 곱하기 (기본값은 1이라 그대로 px 유지) 
+     calc()를 사용해두면 나중에 사용자가 "글씨 크게 보기"를 눌렀을 때 --user-font-scale만 1.2로 바꾸면 전체가 커짐 */
+  --text-xs: calc(12px * var(--user-font-scale));
+  --text-sm: calc(14px * var(--user-font-scale));
+  --text-base: calc(16px * var(--user-font-scale));
+  --text-lg: calc(18px * var(--user-font-scale));
+  --text-xl: calc(20px * var(--user-font-scale));
+  --text-2xl: calc(24px * var(--user-font-scale));
+
+  /* Variable Font (가변 폰트) 지원을 위한 Weight 설정 
+     가변 폰트를 쓸 경우 100~900 사이의 숫자를 그대로 인식합니다 */
   --font-regular: 400;
   --font-medium: 500;
   --font-semibold: 600;
   --font-bold: 700;
 
-  /* Line Heights (가독성을 위한 행간 제어) */
-  --leading-tight: 1.25; /* 제목용 */
-  --leading-normal: 1.5; /* 본문용 */
-  --leading-loose: 1.7; /* 본문 긴 글용 */
+  /* 가변 폰트 미세 조정 (원한다면 추가 - 자간이나 굵기 등) */
+  --font-variation: 'wght' var(--font-regular);
 
   /* --------------------------------------
-     📐 Spacing (4px Base System - 추가)
+     🎛 3. UI Control Scale (1~5단계 통일)
+     - 버튼, 인풋, 셀렉트 박스 등 모든 조작계 공통
+  -------------------------------------- */
+  /* 높이 (Height) */
+  --control-h-1: 24px;
+  --control-h-2: 28px;
+  --control-h-3: 34px; /* Base */
+  --control-h-4: 42px;
+  --control-h-5: 48px;
+
+  /* 좌우 여백 (Padding X) */
+  --control-px-1: 8px;
+  --control-px-2: 12px;
+  --control-px-3: 16px;
+  --control-px-4: 18px;
+  --control-px-5: 24px;
+
+  /* --------------------------------------
+     🔲 4. Layout & Modal Scale (1~3단계 통일)
+  -------------------------------------- */
+  --modal-w-1: 340px; /* 소형: Alert, 삭제 확인 등 */
+  --modal-w-2: 500px; /* 중형: 일반 설정, 폼 입력 */
+  --modal-w-3: 860px; /* 대형: 고밀도 데이터/대시보드 뷰 */
+
+  /* --------------------------------------
+     📐 5. Spacing System (4px Base)
   -------------------------------------- */
   --space-1: 4px;
   --space-2: 8px;
@@ -58,38 +93,29 @@
   --space-6: 24px;
   --space-8: 32px;
   --space-10: 40px;
-  --space-12: 48px;
 
-  /* 🎛 Control Size */
-  --control-size-xs: 20px;
-  --control-size-sm: 24px;
-  --control-size-md: 32px;
-  --control-size-lg: 40px;
-
-  /* 애플 특유의 부드러운 둥글기 (Squircle 느낌) */
+  /* --------------------------------------
+     ✨ 6. Effects (Radius, Shadow, Transition)
+  -------------------------------------- */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
 
-  /* 애플 스타일의 은은하게 퍼지는 그림자 */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-3: 0 8px 24px rgba(0, 0, 0, 0.08);
 
-  /* --------------------------------------
-     🥞 Z-Index Scale (추가)
-  -------------------------------------- */
-  --z-elevated: 10; /* 카드 위에 살짝 뜨는 요소 */
-  --z-dropdown: 100; /* 셀렉트 박스, 유저 메뉴 드롭다운 */
-  --z-sticky: 200; /* 상단 고정 네비게이션 바 */
-  --z-modal-bg: 900; /* 모달 배경 딤(Dim) 레이어 */
-  --z-modal: 1000; /* 모달 윈도우 창 */
-  --z-toast: 2000; /* 최상단 알림 토스트 */
-
-  /* --------------------------------------
-     ⚡️ Transitions (추가)
-  -------------------------------------- */
   --transition-fast: 0.15s ease-in-out;
-  --transition-base: 0.25s cubic-bezier(0.25, 1, 0.5, 1); /* 애플 특유의 부드러운 아웃 효과 */
+  --transition-base: 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* --------------------------------------
+     🥞 7. Z-Index
+  -------------------------------------- */
+  --z-elevated: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal-bg: 900;
+  --z-modal: 1000;
+  --z-toast: 2000;
 }

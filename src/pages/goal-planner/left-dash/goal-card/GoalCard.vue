@@ -1,61 +1,72 @@
 <template>
-  <article class="studio-card goal-card">
-    <div class="card-top shrink-0">
-      <div class="goal-header">
-        <div class="title-area min-w-0" @click="$emit('open')">
-          <h4>{{ goal.title }}</h4>
-          <span class="date-range" style="font-variant-numeric: tabular-nums">
-            {{ goal.startDate }} ~ {{ goal.endDate || '미정' }}
+  <article
+    class="goal-card"
+    @mouseenter="hovered = true"
+    @mouseleave="hovered = false"
+  >
+    <!-- 헤더 -->
+    <div class="g-head">
+      <div class="g-meta" @click="$emit('open')">
+        <div class="g-title-row">
+          <h4 class="g-title">{{ goal.title }}</h4>
+          <span class="g-status-pill" :class="statusPillClass">
+            <i :class="statusIcon" aria-hidden="true"></i>
+            {{ statusLabel }}
           </span>
         </div>
-
-        <div class="header-actions">
-          <div
-            class="pct-text shrink-0"
-            style="font-variant-numeric: tabular-nums"
+        <div class="g-date-row">
+          <i class="ti ti-calendar g-date-icon" aria-hidden="true"></i>
+          <span class="g-date"
+            >{{ goal.startDate }} – {{ goal.endDate || '미정' }}</span
           >
-            {{ progressPercent }}%
-          </div>
-
-          <div class="action-buttons-group">
-            <BaseButton
-              :size="1"
-              variant="ghost"
-              icon-only
-              title="보관함으로 이동"
-              class="card-action-btn"
-              @click.stop.prevent="store.toggleGoalArchive(goal.id)"
-            >
-              📥
-            </BaseButton>
-
-            <BaseDeleteButton
-              variant="rounded"
-              class="btn-delete"
-              @click.stop.prevent="openDeleteAlert"
-            />
-          </div>
         </div>
-      </div>
-
-      <div class="progress-track">
-        <div
-          class="progress-fill"
-          :style="{ width: progressPercent + '%' }"
-        ></div>
       </div>
     </div>
 
-    <div class="ms-list-wrapper min-h-0">
-      <div class="ms-list">
-        <GlobalTaskListArea
-          :items="goalMilestones"
-          text-key="title"
-          empty-message="등록된 마일스톤이 없습니다."
-          @update="handleMilestoneUpdate"
-          @delete="removeMilestone"
-        />
+    <!-- 진행바 -->
+    <div class="g-bar-block">
+      <div class="g-bar-header">
+        <span class="g-bar-label">진행률</span>
+        <span class="g-bar-stat">
+          {{ doneCount }} / {{ totalCount }} 완료 · {{ progressPercent }}%
+        </span>
       </div>
+      <div class="g-bar-track">
+        <div class="g-bar-fill" :style="{ width: progressPercent + '%' }" />
+      </div>
+    </div>
+
+    <!-- 마일스톤 리스트 -->
+    <div class="g-list-wrap">
+      <GlobalTaskListArea
+        :items="displayMilestones"
+        text-key="title"
+        empty-message="마일스톤이 없습니다"
+        list-type="category"
+        @update="handleMilestoneUpdate"
+        @delete="removeMilestone"
+        @item-click="handleMilestoneClick"
+      />
+    </div>
+
+    <!-- 푸터: 항상 노출 -->
+    <div class="g-footer">
+      <button
+        class="g-btn g-btn-archive"
+        title="보관함으로 이동"
+        @click.stop.prevent="store.toggleGoalArchive(goal.id)"
+      >
+        <i class="ti ti-archive" aria-hidden="true"></i>
+        보관하기
+      </button>
+      <button
+        class="g-btn g-btn-danger"
+        title="목표 삭제"
+        @click.stop.prevent="openDeleteAlert"
+      >
+        <i class="ti ti-trash" aria-hidden="true"></i>
+        삭제
+      </button>
     </div>
 
     <GlobalDeleteAlert
@@ -71,35 +82,74 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue' // 🌟 ref 추가
+import { ref, computed } from 'vue'
 import {
   useScheduleStore,
   type Goal,
   type Milestone
 } from '@/stores/useScheduleStore'
 import GlobalTaskListArea from '@/global-components/global-task-list-area/GlobalTaskListArea.vue'
-import BaseButton from '@/base-ui/BaseButton.vue'
-import BaseDeleteButton from '@/base-ui/BaseDeleteButton.vue'
 import GlobalDeleteAlert from '@/global-components/global-modal/global-modal-alert/GlobalDeleteAlert.vue'
 
-const emit = defineEmits(['open'])
+// open: 목표 헤더 클릭 → GoalDetailModal 열기 (마일스톤 목록 화면)
+// open-milestone: 마일스톤 아이템 클릭 → GoalDetailModal 열기 (MilestoneWorkspace 화면)
+const emit = defineEmits(['open', 'open-milestone'])
 const props = defineProps<{ goal: Goal }>()
 const store = useScheduleStore()
 
-// 🌟 추가됨: Alert 모달 상태
 const isAlertOpen = ref(false)
+const hovered = ref(false)
 
-const goalMilestones = computed(() => {
-  return store.milestones
+const goalMilestones = computed(() =>
+  store.milestones
     .filter((m) => m.goalId === props.goal.id)
     .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
+)
+
+// 카드에는 최대 3개까지만 노출
+const displayMilestones = computed(() => goalMilestones.value.slice(0, 3))
+
+const goalSchedules = computed(() => {
+  const milestoneIds = goalMilestones.value.map((m) => m.id)
+  return store.schedules.filter(
+    (s) => s.goalId === props.goal.id || milestoneIds.includes(s.milestoneId!)
+  )
 })
 
+const totalCount = computed(() =>
+  goalSchedules.value.length > 0
+    ? goalSchedules.value.length
+    : goalMilestones.value.length
+)
+
+const doneCount = computed(() =>
+  goalSchedules.value.length > 0
+    ? goalSchedules.value.filter((s) => s.done).length
+    : goalMilestones.value.filter((m) => m.done).length
+)
+
 const progressPercent = computed(() => {
-  const total = goalMilestones.value.length
-  if (total === 0) return 0
-  const doneCount = goalMilestones.value.filter((m) => m.done).length
-  return Math.round((doneCount / total) * 100)
+  if (totalCount.value === 0) return 0
+  return Math.round((doneCount.value / totalCount.value) * 100)
+})
+
+// 상태 pill — 0%: 시작 전 / 1~99%: 진행 중 / 100%: 완료
+const statusLabel = computed(() => {
+  if (progressPercent.value === 100) return '완료'
+  if (progressPercent.value === 0) return '시작 전'
+  return '진행 중'
+})
+
+const statusIcon = computed(() => {
+  if (progressPercent.value === 100) return 'ti ti-circle-check'
+  if (progressPercent.value === 0) return 'ti ti-circle-dashed'
+  return 'ti ti-progress'
+})
+
+const statusPillClass = computed(() => {
+  if (progressPercent.value === 100) return 'pill--done'
+  if (progressPercent.value === 0) return 'pill--idle'
+  return 'pill--active'
 })
 
 const handleMilestoneUpdate = (updatedItem: Milestone) => {
@@ -116,137 +166,204 @@ const removeMilestone = (msId: number) => {
   store.saveData()
 }
 
-// 🌟 변경됨: Alert 창 띄우기
+// 마일스톤 아이템 클릭 → 부모로 전달
+const handleMilestoneClick = (milestone: Milestone) => {
+  emit('open-milestone', milestone)
+}
+
 const openDeleteAlert = () => {
   isAlertOpen.value = true
 }
 
-// 🌟 추가됨: Alert에서 확인 버튼을 눌렀을 때 실행될 실제 삭제 로직
 const handleConfirmDelete = () => {
   store.removeGoal(props.goal.id)
 }
 </script>
 
 <style scoped>
-/* 기존 스타일 그대로 유지 */
 .goal-card {
   display: flex;
   flex-direction: column;
-  height: 260px;
-  padding: 16px 18px;
-  background-color: var(--bg-card, #ffffff);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  gap: 14px;
+  min-height: 270px;
+  padding: 18px;
+  background: var(--bg-card, #ffffff);
+  border: 0.5px solid var(--border-color);
   border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-  transition:
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+  transition: border-color 0.18s ease;
 }
-
 .goal-card:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
-  transform: translateY(-2px);
+  border-color: var(--border-color-hover, rgba(0, 0, 0, 0.18));
 }
 
-.card-top {
-  margin-bottom: 16px;
+/* ── 헤더 ── */
+.g-head {
+  cursor: pointer;
+}
+.g-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 3px;
+  margin: -3px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.g-meta:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
 }
 
-.goal-header {
+.g-title-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
+  gap: 8px;
 }
-
-.title-area {
-  cursor: pointer;
+.g-title {
   flex: 1;
-  padding: 4px;
-  margin: -4px;
-  border-radius: 8px;
-  transition: background-color 0.2s;
-}
-
-.title-area:hover {
-  background-color: var(--bg-hover, #f2f2f7);
-}
-
-.title-area h4 {
-  font-size: 15px;
-  font-weight: 700;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--text-main);
-  margin: 0 0 2px 0;
+  letter-spacing: -0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin: 0;
+  line-height: 1.35;
 }
 
-.date-range {
+/* 상태 pill */
+.g-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-sub, #8e8e93);
+  border: 0.5px solid;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.g-status-pill i {
+  font-size: 11px;
 }
 
-.header-actions {
+.pill--active {
+  background: #eeedfe;
+  color: #3c3489;
+  border-color: #afa9ec;
+}
+.pill--done {
+  background: #eaf3de;
+  color: #27500a;
+  border-color: #97c459;
+}
+.pill--idle {
+  background: var(--bg-muted, #f5f5f5);
+  color: var(--text-sub);
+  border-color: var(--border-color);
+}
+
+.g-date-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+}
+.g-date-icon {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+.g-date {
+  font-size: 11px;
+  color: var(--text-sub);
 }
 
-.pct-text {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--color-primary, #007aff);
-  letter-spacing: -0.02em;
-}
-
-.action-buttons-group {
+/* ── 진행바 ── */
+.g-bar-block {
   display: flex;
-  gap: 2px;
-  opacity: 0;
-  transform: translateX(5px);
-  transition: all 0.2s ease;
+  flex-direction: column;
+  gap: 7px;
 }
-
-.goal-card:hover .action-buttons-group {
-  opacity: 1;
-  transform: translateX(0);
+.g-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
 }
-
-.btn-delete:hover {
-  background-color: #ffe5e5 !important;
-  color: #e0352b !important;
+.g-bar-label {
+  font-size: 11px;
+  color: var(--text-sub);
 }
-
-.progress-track {
+.g-bar-stat {
+  font-size: 11px;
+  color: var(--text-sub);
+  font-variant-numeric: tabular-nums;
+}
+.g-bar-track {
   height: 5px;
-  background-color: var(--bg-hover, #f2f2f7);
-  border-radius: 4px;
+  background: var(--border-color);
+  border-radius: 99px;
   overflow: hidden;
 }
-
-.progress-fill {
+.g-bar-fill {
   height: 100%;
-  background-color: var(--color-primary, #007aff);
-  border-radius: 4px;
+  background: #7f77dd;
+  border-radius: 99px;
   transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-.ms-list-wrapper {
+/* ── 마일스톤 리스트 ── */
+.g-list-wrap {
   flex: 1;
-  position: relative;
+  min-height: 80px;
   overflow: hidden;
-  mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  margin: 0 -8px;
 }
 
-.ms-list {
-  height: 100%;
-  overflow-y: auto;
-  scrollbar-width: none;
+/* ── 푸터 ── */
+.g-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--border-color);
+  margin-top: auto;
 }
-.ms-list::-webkit-scrollbar {
-  display: none;
+
+.g-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 0.5px solid transparent;
+  background: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.g-btn i {
+  font-size: 13px;
+}
+
+.g-btn-archive {
+  color: var(--text-sub);
+  border-color: var(--border-color);
+}
+.g-btn-archive:hover {
+  color: var(--text-main);
+  border-color: var(--border-color-hover, rgba(0, 0, 0, 0.2));
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+}
+
+.g-btn-danger {
+  color: var(--color-danger, #a32d2d);
+}
+.g-btn-danger:hover {
+  background: #fcebeb;
+  border-color: #f09595;
 }
 </style>

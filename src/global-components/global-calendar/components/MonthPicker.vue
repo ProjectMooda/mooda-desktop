@@ -1,18 +1,20 @@
-<!-- src/global-components/calendar/MonthPicker.vue -->
 <template>
   <div class="month-picker-wrapper">
-    <!-- 투명 오버레이 (바깥 클릭 시 닫힘) -->
     <div class="overlay-backdrop" @click="$emit('close')"></div>
 
-    <!-- 월 선택 드롭다운 -->
-    <div class="month-picker-popover">
-      <!-- 년도 변경 컨트롤 -->
-      <div class="picker-year">
-        <button class="icon-btn sm" @click="pickerYear--">‹</button>
-        <span class="year-text">{{ pickerYear }}년</span>
-        <button class="icon-btn sm" @click="pickerYear++">›</button>
+    <div class="month-picker-popover shadow-3">
+      <div class="picker-year flex justify-between items-center w-full mb-12">
+        <button class="icon-btn sm flex-center shrink-0" @click="pickerYear--">
+          ‹
+        </button>
+        <span class="year-text text-sm font-bold text-main"
+          >{{ pickerYear }}년</span
+        >
+        <button class="icon-btn sm flex-center shrink-0" @click="pickerYear++">
+          ›
+        </button>
       </div>
-      <!-- 1~12월 그리드 -->
+
       <div class="picker-months">
         <button
           v-for="m in 12"
@@ -40,10 +42,8 @@ const props = defineProps<{
 
 const emit = defineEmits(['select', 'close'])
 
-// 팝업 내부에서 년도를 앞뒤로 넘겨보기 위한 로컬 상태
 const pickerYear = ref(props.currentYear)
 
-// 부모에서 값이 바뀌면 동기화
 watch(
   () => props.currentYear,
   (newVal) => {
@@ -52,64 +52,62 @@ watch(
 )
 
 const selectMonth = (mIndex: number) => {
-  // 선택 완료 시 부모에게 { year, month } 객체 전달
   emit('select', { year: pickerYear.value, month: mIndex })
 }
 </script>
 
 <style scoped>
+/* =======================================
+   오버레이 백드롭
+======================================= */
 .overlay-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 110;
+  inset: 0; /* top, left, width, height를 한 번에 처리 */
+  z-index: var(--z-dropdown);
   cursor: default;
 }
 
+/* =======================================
+   먼스 피커 팝업 레이아웃 (고정 너비 보존)
+======================================= */
 .month-picker-popover {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + var(--space-1));
   left: 50%;
   transform: translateX(-50%);
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--border-color, #e4e4e7);
+
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  padding: 12px;
-  width: 220px;
-  z-index: 120;
+  padding: var(--space-3);
+
+  width: 220px; /* 내부 그리드가 깨지지 않도록 절대 너비 유지 */
+  z-index: calc(var(--z-dropdown) + 1);
 }
 
 .picker-year {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding: 0 4px;
+  padding: 0 var(--space-1);
 }
 
-.year-text {
-  font-size: 14px;
-  font-weight: var(--font-bold);
-  color: var(--text-main);
-}
-
+/* =======================================
+   1~12월 그리드 및 버튼
+======================================= */
 .picker-months {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .month-btn {
   background: var(--bg-app);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  padding: 8px 0;
-  font-size: 13px;
+  padding: var(--space-2) 0;
+
+  font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--text-sub);
+
   cursor: pointer;
   transition: all var(--transition-fast);
 }
@@ -119,6 +117,7 @@ const selectMonth = (mIndex: number) => {
   color: var(--text-main);
 }
 
+/* 현재 선택된 월 (BaseButton의 Primary 테마와 동일하게 맞춤) */
 .month-btn.is-active {
   background: var(--text-main);
   color: var(--bg-card);
@@ -126,19 +125,19 @@ const selectMonth = (mIndex: number) => {
   border-color: var(--text-main);
 }
 
+/* =======================================
+   좌우 화살표 버튼
+======================================= */
 .icon-btn.sm {
   background: transparent;
   border: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
   color: var(--text-sub);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: 0.2s;
+  transition: all var(--transition-fast);
 }
 .icon-btn.sm:hover {
   background: var(--bg-hover);

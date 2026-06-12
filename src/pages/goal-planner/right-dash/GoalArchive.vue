@@ -41,7 +41,6 @@ import BaseButton from '@/base-ui/BaseButton.vue'
 
 const store = useScheduleStore()
 
-// 🌟 스토어에서 isArchived가 true인 목표만 필터링
 const archivedGoals = computed(() => store.goals.filter((g) => g.isArchived))
 </script>
 
@@ -49,8 +48,22 @@ const archivedGoals = computed(() => store.goals.filter((g) => g.isArchived))
 /* =======================================
    보관함 리스트 스타일
 ======================================= */
+/* 🌟 수정됨: 부모의 고정 높이를 꽉 채우고, 넘치면 스크롤되도록 설정 */
 .archive-container {
   width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 4px; /* 스크롤바와 카드 사이의 간격 */
+  scrollbar-width: thin;
+}
+
+/* 🌟 스크롤바 커스텀 */
+.archive-container::-webkit-scrollbar {
+  width: 6px;
+}
+.archive-container::-webkit-scrollbar-thumb {
+  background-color: var(--border-color, #e5e5ea);
+  border-radius: 4px;
 }
 
 .archive-list {
@@ -60,6 +73,8 @@ const archivedGoals = computed(() => store.goals.filter((g) => g.isArchived))
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* 마지막 아이템 아래에 약간의 여백 추가 */
+  padding-bottom: 8px;
 }
 
 .empty-state {
@@ -71,7 +86,6 @@ const archivedGoals = computed(() => store.goals.filter((g) => g.isArchived))
   line-height: 1.6;
 }
 
-/* 보관된 카드 스타일 */
 .archived-goal-card {
   display: flex;
   justify-content: space-between;
@@ -122,6 +136,6 @@ const archivedGoals = computed(() => store.goals.filter((g) => g.isArchived))
 
 .list-fade-leave-active {
   position: absolute;
-  width: 100%;
+  width: calc(100% - 4px); /* 스크롤 패딩 고려 */
 }
 </style>

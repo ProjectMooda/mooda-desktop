@@ -1,56 +1,62 @@
 <template>
   <Teleport to="body">
-    <transition name="alert-fade">
+    <transition name="modal-fade">
       <div
         v-if="modelValue"
-        class="alert-overlay flex-center"
+        class="modal-overlay flex-center"
         @click.self="handleClose"
       >
-        <div class="alert-container" :style="{ width: width }">
-          <div class="alert-header">
-            <h3 v-if="displayTitle" class="alert-title">{{ displayTitle }}</h3>
+        <div
+          class="modal-container shadow-3 modal-size-1"
+          :style="width ? { width: width } : {}"
+        >
+          <div class="modal-header">
+            <h3 v-if="displayTitle" class="modal-title">{{ displayTitle }}</h3>
             <div v-else class="flex-1"></div>
 
             <BaseDeleteButton
               variant="circle"
-              size="md"
+              :size="2"
               intent="close"
-              class="btn-close"
+              class="ml-auto"
               @click="handleClose"
             />
           </div>
 
-          <div class="alert-body">
+          <div class="modal-body">
             <p v-if="displayMessage" class="alert-message">
               {{ displayMessage }}
             </p>
             <slot />
           </div>
 
-          <div class="alert-actions">
-            <button
+          <div class="modal-footer flex justify-end gap-8">
+            <BaseButton
               v-if="showCancel || task"
-              class="btn-action btn-cancel"
+              :size="3"
+              variant="ghost"
               @click="handleSecondary"
             >
               {{ displayCancelText }}
-            </button>
+            </BaseButton>
 
-            <button
-              class="btn-action btn-confirm"
-              :class="{ 'is-danger': isDanger || task }"
+            <BaseButton
+              :size="3"
+              :variant="isDanger || task ? 'danger' : 'primary'"
               @click="handlePrimary"
             >
               {{ displayConfirmText }}
-            </button>
+            </BaseButton>
           </div>
         </div>
       </div>
     </transition>
   </Teleport>
 </template>
+
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
+import BaseButton from '@/base-ui/BaseButton.vue'
 import BaseDeleteButton from '@/base-ui/BaseDeleteButton.vue'
 import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
 
@@ -72,7 +78,7 @@ const props = withDefaults(
     modelValue: false,
     title: '',
     message: '',
-    width: '360px',
+    width: '',
     confirmText: '확인',
     cancelText: '취소',
     showCancel: false,
@@ -93,7 +99,7 @@ const emit = defineEmits<{
 const store = useScheduleStore()
 
 /* =======================================
-   동적 텍스트 계산
+   동적 텍스트 계산 (기존 로직 완벽 유지)
 ======================================= */
 const displayTitle = computed(() => {
   if (props.task) {
@@ -127,7 +133,6 @@ const displayMessage = computed(() => {
   return props.message
 })
 
-// 🌟 기간(period) 일정이면 '전체 삭제', 반복 일정이면 '모든 연결된 일정 삭제'
 const displayConfirmText = computed(() => {
   if (props.task) {
     return props.task.creationMode === 'period'
@@ -137,7 +142,6 @@ const displayConfirmText = computed(() => {
   return props.confirmText
 })
 
-// 🌟 기간(period) 일정이면 단순히 '취소', 반복 일정이면 '이 일정만 삭제'
 const displayCancelText = computed(() => {
   if (props.task) {
     return props.task.creationMode === 'period' ? '취소' : '이 일정만 삭제'
@@ -148,10 +152,9 @@ const displayCancelText = computed(() => {
 /* =======================================
    ACTIONS 핸들러
 ======================================= */
-// 1. 우측 Primary 버튼 (확인 또는 전체 삭제)
 function handlePrimary() {
   if (props.task) {
-    store.smartRemoveSchedule(props.task.id, 'all') // period든 반복이든 모두 all(그룹삭제) 처리
+    store.smartRemoveSchedule(props.task.id, 'all')
     emit('deleted')
   } else {
     emit('confirm')
@@ -159,10 +162,8 @@ function handlePrimary() {
   emit('update:modelValue', false)
 }
 
-// 2. 좌측 Secondary 버튼 (취소 또는 이 일정만 삭제)
 function handleSecondary() {
   if (props.task) {
-    // 🌟 기간 일정일 때 보조 버튼은 삭제를 수행하지 않고 단순 '취소' 역할만 수행
     if (props.task.creationMode === 'period') {
       emit('cancel')
     } else {
@@ -175,15 +176,11 @@ function handleSecondary() {
   emit('update:modelValue', false)
 }
 
-// 3. 완전 취소 (X버튼, 배경, ESC)
 function handleClose() {
   emit('cancel')
   emit('update:modelValue', false)
 }
 
-/* =======================================
-   ESC / ENTER KEY 처리
-======================================= */
 function handleKeydown(event: KeyboardEvent) {
   if (!props.modelValue) return
 
@@ -201,43 +198,44 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 
 <style scoped>
 /* =======================================
-   OVERLAY
+   OVERLAY & CONTAINER
 ======================================= */
-.alert-overlay {
+.modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-modal) + 10);
+  z-index: var(--z-modal-bg);
   background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-/* =======================================
-   CONTAINER
-======================================= */
-.alert-container {
+.modal-container {
   display: flex;
   flex-direction: column;
   background: var(--bg-card);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
   border: 1px solid rgba(0, 0, 0, 0.04);
   overflow: hidden;
   max-width: 90vw;
   text-align: left;
+  z-index: var(--z-modal);
+
+  /* ✨ 처방 1: 가로 대 세로 밸런스가 무너지지 않도록 최소 높이 제한 지탱 */
+  min-height: 180px;
 }
 
 /* =======================================
-   HEADER
+   HEADER, BODY, FOOTER (패딩 및 간격 최적화)
 ======================================= */
-.alert-header {
+.modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-5) var(--space-6) 0;
+  /* 상단 여백을 충분히 확보 */
+  padding: var(--space-6) var(--space-6) 0;
 }
 
-.alert-title {
+.modal-title {
   margin: 0;
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
@@ -245,15 +243,9 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
   line-height: var(--leading-tight);
 }
 
-.btn-close {
-  margin-right: -8px;
-}
-
-/* =======================================
-   BODY
-======================================= */
-.alert-body {
-  padding: var(--space-4) var(--space-6) var(--space-6);
+.modal-body {
+  /* ✨ 처방 2: 상하 여백을 한 단계 늘려(space-5) 세로 볼륨감을 든든하게 채움 */
+  padding: var(--space-5) var(--space-6) var(--space-6);
   color: var(--text-sub);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
@@ -264,83 +256,39 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
   margin: 0;
 }
 
-/* =======================================
-   ACTIONS
-======================================= */
-.alert-actions {
+.modal-footer {
+  /* ✨ CSS 자체에 flex와 우측 정렬(flex-end)을 직접 박아서 무조건 오른쪽으로 보냅니다 */
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-2);
-  padding: var(--space-4) var(--space-6);
+  align-items: center;
+  gap: var(--space-2); /* 버튼 사이 간격 8px */
+
+  padding: var(--space-5) var(--space-6) var(--space-5);
   background: var(--bg-app);
   border-top: 1px solid var(--border-color);
-}
-
-.btn-action {
-  padding: 8px 16px;
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  border: none;
-  transition: all var(--transition-fast);
-}
-
-.btn-cancel {
-  background: transparent;
-  color: var(--text-sub);
-}
-
-.btn-cancel:hover {
-  background: #e4e4e7;
-  color: var(--text-main);
-}
-
-.btn-confirm {
-  background: var(--text-main);
-  color: #fff;
-  box-shadow: var(--shadow-sm);
-}
-
-.btn-confirm:hover {
-  background: #000;
-  transform: translateY(-1px);
-}
-
-.btn-confirm:active {
-  transform: scale(0.97);
-}
-
-.btn-confirm.is-danger {
-  background: var(--color-danger);
-  color: #fff;
-}
-
-.btn-confirm.is-danger:hover {
-  background: #e11d48;
 }
 
 /* =======================================
    ANIMATION
 ======================================= */
-.alert-fade-enter-active,
-.alert-fade-leave-active {
+.modal-fade-enter-active,
+.modal-fade-leave-active {
   transition: opacity var(--transition-base);
 }
 
-.alert-fade-enter-active .alert-container,
-.alert-fade-leave-active .alert-container {
+.modal-fade-enter-active .modal-container,
+.modal-fade-leave-active .modal-container {
   transition: transform var(--transition-base)
     cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.alert-fade-enter-from,
-.alert-fade-leave-to {
+.modal-fade-enter-from,
+.modal-fade-leave-to {
   opacity: 0;
 }
 
-.alert-fade-enter-from .alert-container,
-.alert-fade-leave-to .alert-container {
+.modal-fade-enter-from .modal-container,
+.modal-fade-leave-to .modal-container {
   transform: scale(0.94);
 }
 </style>

@@ -48,16 +48,13 @@ import { ref, computed } from 'vue'
 import { useScheduleStore } from '@/stores/useScheduleStore'
 import BaseButton from '@/base-ui/BaseButton.vue'
 
-// 분리한 하위 컴포넌트 임포트 (경로는 프로젝트 트리에 맞게 수정)
 import GoalArchive from './GoalArchive.vue'
 import FocusTimer from './FocusTimer.vue'
 
 const store = useScheduleStore()
 
-// 탭 상태 관리
 const activeTab = ref<'archive' | 'timer'>('archive')
 
-// 뱃지에 띄워줄 보관함 개수만 스토어에서 계산해서 가져옵니다.
 const archivedCount = computed(
   () => store.goals.filter((g) => g.isArchived).length
 )
@@ -115,12 +112,14 @@ const archivedCount = computed(
   color: #fff;
 }
 
+/* 🌟 수정됨: 고정 높이 지정 (타이머와 보관함 3.5개가 딱 맞는 높이) */
 .tab-content-container {
-  min-height: 280px;
+  height: 310px;
   position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  overflow: hidden; /* 내부 자식이 삐져나가지 않도록 */
 }
 
 /* 탭 전환 부드러운 애니메이션 */

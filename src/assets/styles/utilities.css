@@ -1,19 +1,200 @@
 /* assets/styles/utilities.css */
 
 /* =======================================
-   Layout, Flexbox & Display
+   🎛 UI Control Global Classes (1~5단계)
+   - BaseButton, BaseInput, CheckBox 등에서 사용
 ======================================= */
-.d-block {
-  display: block;
+.ui-size-1 {
+  height: var(--control-h-1);
+  padding: 0 var(--control-px-1);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+  gap: var(--space-1);
 }
-.d-inline-block {
-  display: inline-block;
+.ui-size-1.is-icon-only {
+  width: var(--control-h-1);
+  padding: 0;
+  justify-content: center;
+}
+
+.ui-size-2 {
+  height: var(--control-h-2);
+  padding: 0 var(--control-px-2);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+  gap: var(--space-2);
+}
+.ui-size-2.is-icon-only {
+  width: var(--control-h-2);
+  padding: 0;
+  justify-content: center;
+}
+
+.ui-size-3 {
+  height: var(--control-h-3);
+  padding: 0 var(--control-px-3);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-md);
+  gap: var(--space-2);
+}
+.ui-size-3.is-icon-only {
+  width: var(--control-h-3);
+  padding: 0;
+  justify-content: center;
+}
+
+.ui-size-4 {
+  height: var(--control-h-4);
+  padding: 0 var(--control-px-4);
+  font-size: var(--text-base);
+  border-radius: var(--radius-md);
+  gap: var(--space-3);
+}
+.ui-size-4.is-icon-only {
+  width: var(--control-h-4);
+  padding: 0;
+  justify-content: center;
+}
+
+.ui-size-5 {
+  height: var(--control-h-5);
+  padding: 0 var(--control-px-5);
+  font-size: var(--text-lg);
+  font-weight: var(--font-medium);
+  border-radius: var(--radius-lg);
+  gap: var(--space-3);
+}
+.ui-size-5.is-icon-only {
+  width: var(--control-h-5);
+  padding: 0;
+  justify-content: center;
+}
+
+/* =======================================
+   📏 Card Global Classes (1~5단계 - 고밀도 최적화 버전)
+======================================= */
+/* Size 1: Micro (초소형 통계, 미니 스케줄 카드 / 패딩 8px) */
+.card-size-1 {
+  border-radius: var(--radius-sm);
+}
+.card-size-1 .card-header {
+  padding: var(--space-1) var(--space-2);
+}
+.card-size-1 .card-body {
+  padding: var(--space-2);
+}
+.card-size-1 .card-footer {
+  padding: var(--space-1) var(--space-2);
+}
+.card-size-1 .card-title {
+  font-size: var(--text-xs);
+}
+
+/* Size 2: Compact (사이드바 메뉴, 작은 설정 위젯 / 패딩 12px) */
+.card-size-2 {
+  border-radius: var(--radius-sm);
+}
+.card-size-2 .card-header {
+  padding: var(--space-2) var(--space-3);
+}
+.card-size-2 .card-body {
+  padding: var(--space-3);
+}
+.card-size-2 .card-footer {
+  padding: var(--space-2) var(--space-3);
+}
+.card-size-2 .card-title {
+  font-size: var(--text-sm);
+}
+
+/* Size 3: Base (일반 대시보드 위젯, 기본 폼 / 패딩 16px) */
+.card-size-3 {
+  border-radius: var(--radius-md);
+}
+.card-size-3 .card-header {
+  padding: var(--space-3) var(--space-4);
+}
+.card-size-3 .card-body {
+  padding: var(--space-4);
+}
+.card-size-3 .card-footer {
+  padding: var(--space-3) var(--space-4);
+}
+.card-size-3 .card-title {
+  font-size: var(--text-base);
+}
+
+/* Size 4: Large (복잡한 설정 화면, 메인 모달 뼈대 / 패딩 20px) */
+.card-size-4 {
+  border-radius: var(--radius-lg);
+}
+.card-size-4 .card-header {
+  padding: var(--space-4) var(--space-5);
+}
+.card-size-4 .card-body {
+  padding: var(--space-5);
+}
+.card-size-4 .card-footer {
+  padding: var(--space-4) var(--space-5);
+}
+.card-size-4 .card-title {
+  font-size: var(--text-lg);
+}
+
+/* Size 5: X-Large (화면 전체를 차지하는 래퍼 / 패딩 24px) */
+.card-size-5 {
+  border-radius: var(--radius-xl);
+}
+.card-size-5 .card-header {
+  padding: var(--space-5) var(--space-6);
+}
+.card-size-5 .card-body {
+  padding: var(--space-6);
+}
+.card-size-5 .card-footer {
+  padding: var(--space-5) var(--space-6);
+}
+.card-size-5 .card-title {
+  font-size: var(--text-xl);
+}
+
+/* =======================================
+   🌟 Shadow Utilities (카드 그림자 제어용)
+======================================= */
+.shadow-none {
+  box-shadow: none !important;
+}
+.shadow-1 {
+  box-shadow: var(--shadow-1);
+}
+.shadow-2 {
+  box-shadow: var(--shadow-2);
+}
+.shadow-3 {
+  box-shadow: var(--shadow-3);
+}
+
+/* =======================================
+   🔲 Modal Global Classes (1~3단계)
+======================================= */
+.modal-size-1 {
+  width: var(--modal-w-1);
+}
+.modal-size-2 {
+  width: var(--modal-w-2);
+}
+.modal-size-3 {
+  width: var(--modal-w-3);
+}
+
+/* =======================================
+   Layout & Flexbox
+======================================= */
+.flex-1 {
+  flex: 1;
 }
 .shrink-0 {
   flex-shrink: 0;
-}
-.flex-1 {
-  flex: 1;
 }
 .flex-center {
   display: flex;
@@ -33,21 +214,11 @@
   justify-content: space-between;
 }
 
-/* Min/Max/Fixed Sizing */
 .min-w-0 {
   min-width: 0;
 }
 .min-h-0 {
   min-height: 0;
-}
-.min-w-200 {
-  min-width: 200px;
-}
-.w-110 {
-  width: 110px;
-}
-.w-130 {
-  width: 130px;
 }
 .w-full {
   width: 100%;
@@ -57,35 +228,27 @@
 }
 
 /* =======================================
-   🔤 Typography Utilities (추가)
+   Typography
 ======================================= */
-/* Sizes */
 .text-xs {
   font-size: var(--text-xs);
-  line-height: var(--leading-tight);
 }
 .text-sm {
   font-size: var(--text-sm);
-  line-height: var(--leading-normal);
 }
 .text-base {
   font-size: var(--text-base);
-  line-height: var(--leading-normal);
 }
 .text-lg {
   font-size: var(--text-lg);
-  line-height: var(--leading-tight);
 }
 .text-xl {
   font-size: var(--text-xl);
-  line-height: var(--leading-tight);
 }
 .text-2xl {
   font-size: var(--text-2xl);
-  line-height: var(--leading-tight);
 }
 
-/* Weights */
 .font-regular {
   font-weight: var(--font-regular);
 }
@@ -99,18 +262,6 @@
   font-weight: var(--font-bold);
 }
 
-/* Alignment */
-.text-left {
-  text-align: left;
-}
-.text-center {
-  text-align: center;
-}
-.text-right {
-  text-align: right;
-}
-
-/* Colors */
 .text-main {
   color: var(--text-main);
 }
@@ -128,60 +279,36 @@
 }
 
 /* =======================================
-   📐 Spacing Utilities (변수 기반 수정)
+   Spacing (변수 매핑)
 ======================================= */
-/* Margin Top */
 .mt-4 {
   margin-top: var(--space-1);
 }
 .mt-8 {
   margin-top: var(--space-2);
 }
-.mt-12 {
-  margin-top: var(--space-3);
-}
 .mt-16 {
   margin-top: var(--space-4);
 }
 .mt-24 {
   margin-top: var(--space-6);
-} /* 변수화 완료 */
+}
 
-/* Margin Bottom */
 .mb-4 {
   margin-bottom: var(--space-1);
 }
 .mb-8 {
   margin-bottom: var(--space-2);
 }
-.mb-12 {
-  margin-bottom: var(--space-3);
-}
 .mb-16 {
   margin-bottom: var(--space-4);
-} /* 변수화 완료 */
+}
 .mb-24 {
   margin-bottom: var(--space-6);
 }
 
-/* Margin Auto */
-.ml-auto {
-  margin-left: auto;
-}
-.mr-auto {
-  margin-right: auto;
-}
-.mx-auto {
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* Padding */
 .p-8 {
   padding: var(--space-2);
-}
-.p-12 {
-  padding: var(--space-3);
 }
 .p-16 {
   padding: var(--space-4);
@@ -190,24 +317,6 @@
   padding: var(--space-6);
 }
 
-.px-12 {
-  padding-left: var(--space-3);
-  padding-right: var(--space-3);
-}
-.px-16 {
-  padding-left: var(--space-4);
-  padding-right: var(--space-4);
-}
-.py-8 {
-  padding-top: var(--space-2);
-  padding-bottom: var(--space-2);
-}
-.py-12 {
-  padding-top: var(--space-3);
-  padding-bottom: var(--space-3);
-}
-
-/* Flex Gap (요소 간 여백 띄우기 최적화) */
 .gap-4 {
   gap: var(--space-1);
 }
@@ -222,16 +331,8 @@
 }
 
 /* =======================================
-   ⚡️ Interactive & Effects (추가 및 고도화)
+   Interactive & Resets
 ======================================= */
-/* Apple Style Blur (모달 배경이나 네비게이션 바에 활용) */
-.glass-effect {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-/* Hover Background Effect */
 .hover-bg {
   transition: background-color var(--transition-fast);
 }
@@ -239,16 +340,9 @@
   background-color: var(--bg-hover);
 }
 
-/* Smooth Click/Active Scale Effect (애플 UI 특유의 눌리는 느낌) */
 .active-scale {
   transition: transform var(--transition-fast);
 }
-.active-scale:active {
+.active-scale:not(:disabled):active {
   transform: scale(0.97);
-}
-
-/* Border Reset Utility */
-.border-none {
-  border: none;
-  outline: none;
 }
