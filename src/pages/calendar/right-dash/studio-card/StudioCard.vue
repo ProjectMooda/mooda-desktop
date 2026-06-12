@@ -322,7 +322,7 @@ const progressPercent = computed(() => {
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   color: var(--text-sub);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
   display: flex;
   align-items: center;
   gap: var(--space-1);

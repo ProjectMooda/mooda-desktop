@@ -1,7 +1,6 @@
 <template>
   <div class="goal-dashboard-layout">
     <div class="left-panel">
-      <!-- 🌟 스마트 커맨드 바 (외부 클릭 감지를 위해 ref="composerRef" 추가) -->
       <section
         ref="composerRef"
         class="smart-composer shrink-0"
@@ -21,31 +20,43 @@
             @keyup.enter="createGoal"
           />
 
-          <button
-            class="btn-enter"
-            :class="{ 'is-ready': newGoal.title.trim() }"
+          <BaseButton
+            :variant="newGoal.title.trim() ? 'primary' : 'secondary'"
+            :disabled="!newGoal.title.trim()"
+            :size="3"
             @click="createGoal"
           >
             ↵
-          </button>
+          </BaseButton>
         </div>
 
         <transition name="tray-expand">
           <div v-show="isExpanded" class="quick-action-tray">
             <div class="tray-inner">
               <div class="date-config-row">
-                <!-- 🌟 1. 왼쪽: 빠른 설정 (프리셋) -->
                 <div class="preset-chips">
-                  <button class="chip" @click="setPresetDate(7)">
-                    + 1주일
-                  </button>
-                  <button class="chip" @click="setPresetDate(30)">
-                    + 1개월
-                  </button>
-                  <button class="chip" @click="setEndOfYear">올해 말</button>
+                  <BaseButton
+                    variant="outline"
+                    :size="1"
+                    class="preset-chip"
+                    @click="setPresetDate(7)"
+                    >+ 1주일</BaseButton
+                  >
+                  <BaseButton
+                    variant="outline"
+                    :size="1"
+                    class="preset-chip"
+                    @click="setPresetDate(30)"
+                    >+ 1개월</BaseButton
+                  >
+                  <BaseButton
+                    variant="outline"
+                    :size="1"
+                    class="preset-chip"
+                    @click="setEndOfYear"
+                    >올해 말</BaseButton
+                  >
                 </div>
-
-                <!-- 🌟 2. 오른쪽: 공통 컴포넌트로 교체된 날짜 선택부 -->
                 <GlobalDateRangePicker
                   v-model:start-date="newGoal.startDate"
                   v-model:end-date="newGoal.endDate"
@@ -57,7 +68,6 @@
         </transition>
       </section>
 
-      <!-- 하단 목표 그리드 리스트 -->
       <div class="grid-scroll-area">
         <div v-if="activeGoals.length === 0" class="empty-state">
           진행 중인 목표가 없습니다. 새로운 목표를 세워보세요!
@@ -67,13 +77,13 @@
             v-for="goal in activeGoals"
             :key="goal.id"
             :goal="goal"
-            @open="openDetailModal(goal)"
+            @open="openDetailModal(goal, null)"
+            @open-milestone="(ms) => openDetailModal(goal, ms.id)"
           />
         </div>
       </div>
     </div>
 
-    <!-- 우측 포커스 패널 -->
     <div class="right-panel-wrapper">
       <FocusDashboard />
     </div>
@@ -82,7 +92,8 @@
       <GoalDetailModal
         v-if="isModalOpen && selectedGoal"
         :goal="selectedGoal"
-        @close="isModalOpen = false"
+        :initial-milestone-id="selectedMilestoneId"
+        @close="closeModal"
       />
     </transition>
   </div>
@@ -95,7 +106,8 @@ import GoalCard from './left-dash/goal-card/GoalCard.vue'
 import GoalDetailModal from './left-dash/goal-detail/GoalDetailModal.vue'
 import type { Goal } from '@/stores/useScheduleStore'
 import FocusDashboard from './right-dash/RightDash.vue'
-import GlobalDateRangePicker from '@/global-components/global-calendar/GlobalDateRangePicker.vue' // 🌟 공통 컴포넌트 임포트
+import GlobalDateRangePicker from '@/global-components/global-calendar/GlobalDateRangePicker.vue'
+import BaseButton from '@/base-ui/BaseButton.vue'
 
 const store = useScheduleStore()
 
@@ -108,7 +120,6 @@ const newGoal = reactive({
   endDate: ''
 })
 
-// 🌟 폼 완전 초기화 및 접기
 const resetComposer = () => {
   newGoal.title = ''
   newGoal.startDate =
@@ -117,7 +128,6 @@ const resetComposer = () => {
   isExpanded.value = false
 }
 
-// 🌟 외부 클릭 감지 로직
 const handleClickOutside = (event: MouseEvent) => {
   if (
     isExpanded.value &&
@@ -128,15 +138,9 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
-onMounted(() => {
-  document.addEventListener('mousedown', handleClickOutside)
-})
+onMounted(() => document.addEventListener('mousedown', handleClickOutside))
+onUnmounted(() => document.removeEventListener('mousedown', handleClickOutside))
 
-onUnmounted(() => {
-  document.removeEventListener('mousedown', handleClickOutside)
-})
-
-// 빠른 날짜 계산
 const setPresetDate = (days: number) => {
   const start = new Date(newGoal.startDate)
   start.setDate(start.getDate() + days)
@@ -144,8 +148,7 @@ const setPresetDate = (days: number) => {
 }
 
 const setEndOfYear = () => {
-  const year = new Date().getFullYear()
-  newGoal.endDate = `${year}-12-31`
+  newGoal.endDate = `${new Date().getFullYear()}-12-31`
 }
 
 const createGoal = () => {
@@ -162,9 +165,20 @@ const activeGoals = computed(() => store.goals.filter((g) => !g.isArchived))
 
 const isModalOpen = ref(false)
 const selectedGoal = ref<Goal | null>(null)
-const openDetailModal = (goal: Goal) => {
+const selectedMilestoneId = ref<number | null>(null)
+
+const openDetailModal = (goal: Goal, milestoneId: number | null) => {
   selectedGoal.value = goal
+  selectedMilestoneId.value = milestoneId
   isModalOpen.value = true
+}
+
+const closeModal = () => {
+  isModalOpen.value = false
+  setTimeout(() => {
+    selectedGoal.value = null
+    selectedMilestoneId.value = null
+  }, 300)
 }
 </script>
 
@@ -185,60 +199,60 @@ const openDetailModal = (goal: Goal) => {
 .left-panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
   height: 100%;
-  overflow: visible;
-}
-
-.grid-scroll-area {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: var(--space-2);
-  scrollbar-width: thin;
-}
-
-.grid-scroll-area::-webkit-scrollbar {
-  width: 6px;
-}
-.grid-scroll-area::-webkit-scrollbar-thumb {
-  background-color: var(--border-color);
-  border-radius: var(--radius-sm);
-}
-
-.right-panel-wrapper {
-  position: sticky;
-  top: 0;
+  min-height: 0;
+  overflow: visible; /* 자식의 z-index/shadow 보장 */
 }
 
 /* =======================================
-   스마트 커맨드 바 (Z-index 및 잘림 해결)
+   🌟 스마트 커맨드 바 (떠 있는 느낌 구현)
 ======================================= */
 .smart-composer {
-  position: relative;
+  flex-shrink: 0;
+
+  /* 🌟 레이아웃 정렬: 하단 스크롤 영역의 (6px + 8px)과 맞춤 */
+  margin-right: 14px;
+
+  /* 🌟 자연스러운 위치: 바닥에서 살짝 띄우기 위해 상하 여백 추가 */
+  margin-top: 8px;
+  margin-bottom: 20px;
+
   background-color: var(--bg-card);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-xl); /* 조금 더 둥글게 만들어 부드러운 느낌 */
   border: 1px solid var(--border-color);
+
+  /* 🌟 핵심: 기본 상태에서 깊고 부드러운 그림자를 주어 '입체감' 표현 */
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.08),
+    0 2px 5px rgba(0, 0, 0, 0.03);
+
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 10;
 }
 
+/* 🌟 포커스(확장) 시: 더 높이 떠오르고 빛나는 효과 */
 .smart-composer.is-focused {
   border-color: var(--color-primary);
-  box-shadow: 0 4px 24px rgba(94, 129, 163, 0.15);
-  /* 🌟 하단 카드들에 절대 묻히지 않도록 Z-index 대폭 상향 */
+
+  /* 더 크고 부드러운 그림자로 교체 (elevation 증가) */
+  box-shadow:
+    0 20px 50px rgba(94, 129, 163, 0.15),
+    0 5px 15px rgba(0, 0, 0, 0.05);
+
+  /* 아주 미세하게 크기를 키워 시각적 강조 (옵션) */
+  transform: translateY(-2px);
+
   z-index: 1000;
 }
 
 .composer-input-wrapper {
   display: flex;
   align-items: center;
-  padding: 14px 18px;
+  padding: 16px 20px; /* 여백을 조금 더 넓혀 쾌적하게 */
   gap: var(--space-3);
   position: relative;
   z-index: 2;
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
+  background: transparent; /* 배경은 부모 스타일을 따름 */
 }
 
 .input-prefix {
@@ -253,14 +267,13 @@ const openDetailModal = (goal: Goal) => {
   transform: scale(1.1) rotate(10deg);
 }
 .sparkle-icon {
-  font-size: 18px;
+  font-size: 20px;
   filter: grayscale(100%) opacity(0.4);
   transition: filter 0.3s;
 }
 .smart-composer.is-focused .sparkle-icon {
   filter: none;
 }
-
 .command-input {
   flex: 1;
   font-size: var(--text-lg);
@@ -276,81 +289,38 @@ const openDetailModal = (goal: Goal) => {
   font-weight: var(--font-medium);
 }
 
-.btn-enter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-hover);
-  color: var(--text-muted);
-  border: none;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: not-allowed;
-  transition: all 0.2s;
-}
-.btn-enter.is-ready {
-  background: var(--text-main);
-  color: var(--bg-card);
-  cursor: pointer;
-}
-.btn-enter.is-ready:active {
-  transform: scale(0.95);
-}
-
 /* =======================================
-   🌟 트레이 영역 (잘림 현상 해결)
+   트레이 영역
 ======================================= */
-/* overflow: hidden; 완전히 제거 */
-.quick-action-tray {
-}
-
 .tray-inner {
-  padding: 0 18px 16px;
+  padding: 0 20px 18px; /* 여백 통일 */
   border-top: 1px dashed var(--bg-hover);
-  margin-top: 4px;
+  margin-top: 0;
 }
-
 .date-config-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-3);
-  margin-top: 12px;
+  margin-top: 16px;
 }
-
 .preset-chips {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-.chip {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  padding: 6px 12px;
-  border-radius: var(--radius-xl);
-  font-size: 12px;
+.preset-chip {
   font-weight: var(--font-semibold);
-  color: var(--text-sub);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-.chip:hover {
-  background: var(--bg-hover);
-  color: var(--text-main);
 }
 
-/* 🌟 마법의 CSS: 트레이가 위아래로 움직이는 '애니메이션 도중'에만 자르고,
-   애니메이션이 끝나면 풀어주어 팝업이 튀어나올 수 있게 만듭니다. */
+/* 트레이 애니메이션 코드 동일 유지 */
 .tray-expand-enter-active,
 .tray-expand-leave-active {
   transition:
     max-height 0.3s cubic-bezier(0.2, 0, 0, 1),
     opacity 0.2s ease;
-  max-height: 150px;
+  max-height: 200px;
   overflow: hidden;
 }
 .tray-expand-enter-from,
@@ -360,8 +330,22 @@ const openDetailModal = (goal: Goal) => {
 }
 
 /* =======================================
-   하단 리스트
+   하단 리스트 영역 (독립 스크롤)
 ======================================= */
+.grid-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-gutter: stable;
+  padding-right: 8px;
+}
+.grid-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+.grid-scroll-area::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: var(--radius-sm);
+}
 .empty-state {
   text-align: center;
   padding: var(--space-10) 0;
@@ -373,5 +357,10 @@ const openDetailModal = (goal: Goal) => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--space-4);
+}
+
+.right-panel-wrapper {
+  position: sticky;
+  top: 0;
 }
 </style>

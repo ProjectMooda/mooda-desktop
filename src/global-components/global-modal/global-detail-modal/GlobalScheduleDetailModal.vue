@@ -65,37 +65,41 @@
           :items="localData.subtasks || []"
           text-key="text"
           :editable="true"
+          list-type="checkbox"
           @delete="removeSubtask"
           @update="updateSubtaskProgress"
-        >
-          <template #footer>
-            <div class="subtask-card-footer">
-              <i class="ti ti-plus add-icon"></i>
+        />
 
-              <div class="input-wrapper">
-                <input
-                  v-model="newSubtaskText"
-                  type="text"
-                  placeholder="하위 할 일 추가 (Enter)"
-                  maxlength="30"
-                  class="custom-subtask-input"
-                  @keyup.enter="handleAddSubtask"
-                />
-                <button
-                  v-show="newSubtaskText.length > 0"
-                  class="enter-btn"
-                  @click="handleAddSubtask"
-                >
-                  <i class="ti ti-arrow-down"></i>
-                </button>
-              </div>
+        <div class="subtask-card-footer">
+          <i class="ti ti-plus add-icon"></i>
 
-              <span class="char-count tabular-nums">
-                {{ newSubtaskText.length }} / 30
-              </span>
-            </div>
-          </template>
-        </GlobalTaskListArea>
+          <div class="input-wrapper" :class="{ 'is-disabled': isMaxSubtasks }">
+            <input
+              v-model="newSubtaskText"
+              type="text"
+              :placeholder="
+                isMaxSubtasks
+                  ? '최대 10개까지만 추가할 수 있습니다'
+                  : '하위 할 일 추가 (Enter)'
+              "
+              maxlength="30"
+              :disabled="isMaxSubtasks"
+              class="custom-subtask-input"
+              @keyup.enter="handleAddSubtask"
+            />
+            <button
+              v-show="newSubtaskText.length > 0 && !isMaxSubtasks"
+              class="enter-btn"
+              @click="handleAddSubtask"
+            >
+              <i class="ti ti-corner-down-left"></i>
+            </button>
+          </div>
+
+          <span class="char-count tabular-nums">
+            {{ newSubtaskText.length }} / 30
+          </span>
+        </div>
       </div>
     </div>
 
@@ -116,7 +120,6 @@
 import { ref, computed, watch } from 'vue'
 import GlobalScheduleModalLayout from './GlobalScheduleModalLayout.vue'
 import BaseTimePicker from '@/base-ui/BaseTimePicker.vue'
-import BaseInput from '@/base-ui/BaseInput.vue'
 import BaseButton from '@/base-ui/BaseButton.vue'
 import GlobalTaskListArea from '@/global-components/global-task-list-area/GlobalTaskListArea.vue'
 import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
@@ -150,6 +153,11 @@ watch(
   { immediate: true }
 )
 
+// ✅ 하위 할 일이 10개 꽉 찼는지 판별하는 computed
+const isMaxSubtasks = computed(() => {
+  return (localData.value.subtasks ?? []).length >= 10
+})
+
 const progressPercentage = computed(() => {
   const subtasks = localData.value.subtasks ?? []
   if (subtasks.length === 0) return 0
@@ -159,7 +167,14 @@ const progressPercentage = computed(() => {
 
 const handleAddSubtask = () => {
   if (!newSubtaskText.value.trim()) return
-  localData.value.subtasks?.push({
+
+  // ✅ 10개 제한 방어 코드
+  if (isMaxSubtasks.value) return
+
+  if (!localData.value.subtasks) {
+    localData.value.subtasks = []
+  }
+  localData.value.subtasks.push({
     id: Date.now(),
     text: newSubtaskText.value,
     done: false
@@ -196,7 +211,7 @@ const handleClose = () => {
     localData.value.done = total === completed
   }
 
-  store.updateSchedule(props.data.id, localData.value)
+  store.updateSchedule(props.data.id, localData.value as ScheduleItem)
   emit('update')
   newSubtaskText.value = ''
   emit('close')
@@ -205,7 +220,7 @@ const handleClose = () => {
 
 <style scoped>
 /* ==========================================
-   Date & Time Section (이미지 레이아웃 반영)
+    Date & Time Section
 ========================================== */
 .datetime-container {
   display: flex;
@@ -213,7 +228,6 @@ const handleClose = () => {
   gap: 10px;
 }
 
-/* Date Box (BaseTimePicker의 외곽선 스타일과 동일하게 맞춤) */
 .datetime-box {
   display: flex;
   align-items: center;
@@ -222,7 +236,7 @@ const handleClose = () => {
   border-radius: 8px;
   background: var(--bg-card);
   padding: 0 14px;
-  height: 42px; /* TimePicker와 높이 통일 */
+  height: 42px;
   transition: border-color 0.2s ease;
   cursor: pointer;
   box-shadow: var(--shadow-1);
@@ -254,18 +268,16 @@ const handleClose = () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%; /* 부모 너비를 꽉 채우도록 설정 */
+  width: 100%;
 }
 
-/* BaseTimePicker 가로 꽉 채우기 */
 .fixed-time-picker {
-  flex: 1; /* 남은 가로 공간을 1:1로 균등하게 나눠서 꽉 채움 */
+  flex: 1;
   height: 42px;
   border-radius: 8px !important;
-  padding: 0 12px; /* 좌우 여백 */
+  padding: 0 12px;
 }
 
-/* '미정' 텍스트가 정확히 정중앙에 오도록 제어 */
 .fixed-time-picker :deep(.empty-state) {
   width: 100%;
   height: 100%;
@@ -281,19 +293,16 @@ const handleClose = () => {
 }
 
 /* ==========================================
-   Subtasks
+    Subtasks
 ========================================== */
 .subtask-card {
   border: 1px solid var(--border-color);
   border-radius: 12px;
   background: var(--bg-card);
-
-  /* ★ 핵심: 내부 항목이 추가될 때 카드가 쪼그라들지 않고 무한정 밑으로 늘어나게 함 */
   flex-shrink: 0;
   height: auto;
   min-height: min-content;
-  overflow: visible; /* 카드 내부에서 스크롤되는 것을 원천 차단 */
-
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }
@@ -303,8 +312,8 @@ const handleClose = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: var(--bg-app); /* 바디보다 살짝 어두운/다른 톤의 배경 */
+  padding: 12px 12px;
+  background: var(--bg-app);
   border-bottom: 1px solid var(--border-color);
 }
 .header-left {
@@ -325,7 +334,7 @@ const handleClose = () => {
   gap: 8px;
 }
 .mini-progress-bg {
-  width: 40px; /* 이미지처럼 작고 앙증맞은 사이즈 */
+  width: 40px;
   height: 3px;
   background: var(--border-color);
   border-radius: 4px;
@@ -344,18 +353,19 @@ const handleClose = () => {
 }
 
 /* --- Body --- */
+/* 🛠 수정됨: max-height와 overflow 속성 제거하여 스크롤 없이 하단으로 무한 확장 */
 .subtask-card-body {
   display: flex;
   flex-direction: column;
   height: auto;
   flex: 1;
 }
-/* GlobalTaskListArea 내부의 빈 여백 보정 */
-.subtask-card-body :deep(.task-list-container) {
+
+.subtask-card-body :deep(.tl-root) {
   gap: 0;
 }
-.subtask-card-body :deep(.task-list) {
-  padding: 4px;
+.subtask-card-body :deep(.tl-list) {
+  padding: 8px;
   gap: 4px;
 }
 
@@ -371,6 +381,7 @@ const handleClose = () => {
   font-size: 16px;
   color: var(--text-muted);
 }
+
 .input-wrapper {
   flex: 1;
   display: flex;
@@ -379,12 +390,20 @@ const handleClose = () => {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 0 12px;
+  height: 36px;
   transition: border-color 0.2s ease;
 }
-.input-wrapper:focus-within {
+.input-wrapper:focus-within:not(.is-disabled) {
   border-color: var(--color-primary-light);
 }
+
+/* 🛠 추가됨: 10개 꽉 차서 비활성화 되었을 때의 스타일링 */
+.input-wrapper.is-disabled {
+  background: var(--bg-app);
+  cursor: not-allowed;
+}
+
 .custom-subtask-input {
   flex: 1;
   border: none;
@@ -393,11 +412,16 @@ const handleClose = () => {
   color: var(--text-main);
   font-size: 13px;
   font-family: inherit;
-  padding: 2px 0;
+  height: 100%;
+}
+.custom-subtask-input:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
 }
 .custom-subtask-input::placeholder {
   color: var(--text-muted);
 }
+
 .enter-btn {
   display: flex;
   align-items: center;
@@ -410,6 +434,7 @@ const handleClose = () => {
   color: var(--text-sub);
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 .enter-btn:hover {
   background: var(--color-primary);
@@ -419,7 +444,7 @@ const handleClose = () => {
 .char-count {
   font-size: 12px;
   color: var(--text-muted);
-  min-width: 36px;
+  min-width: 42px;
   text-align: right;
 }
 </style>

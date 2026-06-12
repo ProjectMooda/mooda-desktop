@@ -22,7 +22,7 @@
     <div class="user-zone shrink-0 items-center gap-8">
       <div class="avatar shrink-0 flex-center text-sm font-bold">W</div>
       <div class="user-text min-w-0 flex-1 flex-col">
-        <span class="name text-xs font-bold text-main">이원형</span>
+        <span class="name text-xs font-bold text-main">TEST</span>
         <span class="role text-sub">Admin</span>
       </div>
       <button

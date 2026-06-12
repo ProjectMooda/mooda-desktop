@@ -2,7 +2,10 @@
   <div class="goal-detail-view">
     <div class="ms-workspace-header">
       <div class="header-left">
-        <button class="btn-back" @click="$emit('back')">〈 목록으로</button>
+        <BaseButton variant="secondary" :size="2" @click="$emit('back')">
+          〈 목록으로
+        </BaseButton>
+
         <BaseInput
           :model-value="activeMilestone?.title || ''"
           field="goalTitle"
@@ -13,7 +16,6 @@
       </div>
 
       <div class="header-right">
-        <!-- 🌟 GlobalDateRangePicker 적용 -->
         <GlobalDateRangePicker
           :start-date="activeMilestone?.startDate || ''"
           :end-date="activeMilestone?.endDate || ''"
@@ -23,13 +25,17 @@
           @update:end-date="(val) => updateMilestoneDate('endDate', val)"
         />
 
-        <button class="btn-text-danger ml-4" @click="removeMilestone">
+        <BaseButton
+          variant="danger"
+          :size="2"
+          class="ml-4"
+          @click="removeMilestone"
+        >
           마일스톤 삭제
-        </button>
+        </BaseButton>
       </div>
     </div>
 
-    <!-- ... 이하 본문부 ... -->
     <div class="ms-workspace-body">
       <div class="cal-panel">
         <GlobalCalendar
@@ -48,7 +54,15 @@
           <h4>
             📅 {{ selectedMsDate.slice(5).replace('-', '월 ') }}일 세부 일정
           </h4>
-          <span class="ms-count">{{ pendingTasks.length }}개 남음</span>
+
+          <BaseButton
+            variant="secondary"
+            :size="1"
+            class="ms-count-badge"
+            tabindex="-1"
+          >
+            {{ pendingTasks.length }}개 남음
+          </BaseButton>
         </div>
 
         <div class="task-list-scroll">
@@ -71,20 +85,25 @@
               />
 
               <div class="action-buttons">
-                <button
-                  class="btn-expand"
+                <BaseButton
+                  variant="ghost"
+                  :size="1"
                   title="상세 일정 추가"
                   @click="isFullAddOpen = true"
                 >
                   ⤢ 상세
-                </button>
-                <button
-                  class="btn-submit"
+                </BaseButton>
+
+                <BaseButton
+                  variant="primary"
+                  :size="1"
+                  iconOnly
+                  class="circle-submit-btn"
                   :disabled="!newTaskText.trim()"
                   @click="handleAddTask"
                 >
-                  ↑
-                </button>
+                  ↵
+                </BaseButton>
               </div>
             </div>
           </div>
@@ -127,14 +146,16 @@
               v-if="completedTasks.length > 0"
               class="completed-section mt-4"
             >
-              <button
+              <BaseButton
+                variant="ghost"
+                :size="2"
                 class="toggle-completed-btn"
                 @click="showCompleted = !showCompleted"
               >
                 {{ showCompleted ? '▼' : '▶' }} 완료된 항목 ({{
                   completedTasks.length
                 }})
-              </button>
+              </BaseButton>
 
               <div v-show="showCompleted" class="completed-tasks-group">
                 <GlobalMilestoneCard
@@ -218,7 +239,6 @@
       @cancel="cancelDelete"
     />
 
-    <!-- 목표 기간 제한 오류 표시용 Alert -->
     <GlobalDeleteAlert
       v-model="showAlert"
       title="날짜 설정 오류"
@@ -237,13 +257,15 @@ import {
   type ScheduleItem,
   type Milestone
 } from '@/stores/useScheduleStore'
+
+// 🌟 BaseButton 임포트 추가됨
+import BaseButton from '@/base-ui/BaseButton.vue'
+import BaseInput from '@/base-ui/BaseInput.vue'
 import GlobalCalendar from '@/global-components/global-calendar/GlobalCalendar.vue'
-// 🌟 통합된 DateRangePicker 임포트 (경로는 프로젝트에 맞게 수정하세요)
 import GlobalDateRangePicker from '@/global-components/global-calendar/GlobalDateRangePicker.vue'
 import GlobalMilestoneCard from '@/global-components/global-card/task-milestone-card/GlobalMilestoneCard.vue'
 import GlobalTaskCard from '@/global-components/global-card/task-milestone-card/GlobalTaskCard.vue'
 import GlobalScheduleDetailModal from '@/global-components/global-modal/global-detail-modal/GlobalScheduleDetailModal.vue'
-import BaseInput from '@/base-ui/BaseInput.vue'
 import GlobalFullScheduleAddModal from '@/global-components/global-modal/global-detail-modal/GlobalFullScheduleAddModal.vue'
 import GlobalDeleteAlert from '@/global-components/global-modal/global-modal-alert/GlobalDeleteAlert.vue'
 
@@ -255,8 +277,6 @@ const todayString = new Date().toISOString().slice(0, 10)
 
 const isFullAddOpen = ref(false)
 const isFocused = ref(false)
-
-// 🌟 Picker 내부로 로직이 이동했으므로 activeCalendar 불필요 (삭제됨)
 
 const activeMilestone = computed(
   () => store.milestones.find((m) => m.id === props.milestoneId) || null
@@ -324,7 +344,6 @@ const updateMilestoneDate = (field: 'startDate' | 'endDate', val: string) => {
   }
 }
 
-// --- 이하 삭제 로직 및 Task 목록 로직 (기존과 동일) ---
 const showDeleteOptions = ref(false)
 const taskPendingDelete = ref<ScheduleItem | null>(null)
 
@@ -419,20 +438,16 @@ const addTaskToSelectedDate = (text: string) => {
   if (!activeMilestone.value || !selectedMsDate.value) return
 
   store.addSchedule({
-    // id: Date.now(), <-- Store 내부 로직에 위임하는 것을 권장 (제거)
     type: 'task',
     creationMode: 'single',
     goalId: props.goal.id,
     milestoneId: activeMilestone.value.id,
     summary: text,
     startDate: selectedMsDate.value,
-    endDate: selectedMsDate.value, // 기간 비교(endDate || startDate) 에러 방지를 위해 추가
-    done: false, // 명시적으로 미완료 상태 지정
-    isPinned: false // 명시적으로 고정 안 됨 상태 지정
+    endDate: selectedMsDate.value,
+    done: false,
+    isPinned: false
   })
-
-  // (선택 사항) 일정을 추가한 날짜로 Studio Card의 기준 날짜도 동기화하고 싶다면
-  // store.selectedDate = selectedMsDate.value
 }
 
 const handleItemUpdate = (item: ScheduleItem, patch: Partial<ScheduleItem>) => {
@@ -498,19 +513,21 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   position: relative;
 }
 
-/* 상단 버튼 및 인풋 */
-.btn-text-danger {
-  background: transparent;
-  color: #ef4444;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px;
-  border-radius: 6px;
+/* =======================================
+   🌟 BaseButton 커스텀 유틸리티 클래스
+======================================= */
+/* 뱃지처럼 동작하게 만드는 스타일 */
+.ms-count-badge {
+  pointer-events: none; /* 클릭 안 됨 */
 }
-.btn-text-danger:hover {
-  background: #fee2e2;
+
+/* 퀵 폼 엔터(화살표) 버튼의 원형 복원 */
+
+/* 완료 토글 버튼 좌측 정렬 패딩 리셋 */
+.toggle-completed-btn {
+  padding-left: 0;
+  padding-right: 0;
+  margin-bottom: var(--space-2);
 }
 
 /* 레이아웃 */
@@ -534,21 +551,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   align-items: center;
   gap: 20px;
   flex: 1;
-}
-.btn-back {
-  background: #f4f4f5;
-  border: none;
-  font-size: 13px;
-  font-weight: 700;
-  color: #52525b;
-  cursor: pointer;
-  padding: 8px 14px;
-  border-radius: 8px;
-  transition: 0.2s;
-}
-.btn-back:hover {
-  background: #e4e4e7;
-  color: #18181b;
 }
 
 .workspace-title-base-input {
@@ -575,44 +577,29 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   align-items: center;
 }
 
-/* 🌟 Picker 관련 코드가 내부로 이동하면서 기존 CSS (.workspace-date-edit 등) 전면 삭제됨! 코드가 매우 가벼워집니다. */
 /* 바디 레이아웃 */
 .ms-workspace-body {
   display: flex;
   flex: 1;
-  min-height: 0; /* 중요: 부모가 flex일 때 자식이 높이를 가질 수 있게 함 */
+  min-height: 0;
   padding: 32px;
   gap: 32px;
-  overflow: hidden; /* 영역 밖으로 나가는 것 방지 */
+  overflow: hidden;
 }
 
 .cal-panel {
-  flex: 0 0 350px; /* 고정 크기(350px)로 설정하여 왼쪽 비율 보장 */
+  flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .task-panel {
-  flex: 1; /* 나머지 공간을 꽉 채움 */
-  display: flex;
-  flex-direction: column;
-  min-width: 0; /* 중요: 내부 인풋 등이 길어져도 레이아웃 깨짐 방지 */
-  height: 100%;
-}
-
-.task-list-scroll {
   flex: 1;
-  overflow-y: auto;
-  padding-right: 8px;
   display: flex;
   flex-direction: column;
-  min-height: 0; /* 중요: 스크롤 영역이 짤리지 않게 함 */
-}
-
-/* 짤림 현상 방지: 입력 영역이 항상 상단에 고정되도록 */
-.smart-quick-add {
-  flex-shrink: 0; /* 입력창은 찌그러지지 않게 함 */
-  margin-bottom: 16px;
+  min-width: 0;
+  height: 100%;
 }
 
 .task-panel-header {
@@ -627,14 +614,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   color: #27272a;
   margin: 0;
 }
-.ms-count {
-  font-size: 13px;
-  font-weight: 600;
-  color: #71717a;
-  background: #e4e4e7;
-  padding: 4px 10px;
-  border-radius: 20px;
-}
 
 .task-list-scroll {
   flex: 1;
@@ -645,6 +624,7 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   padding-right: 4px;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .empty-msg {
@@ -666,24 +646,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   transition: transform 0.2s;
 }
 
-/* 완료된 항목 토글 버튼 */
-.toggle-completed-btn {
-  background: none;
-  border: none;
-  font-size: 13px;
-  font-weight: 700;
-  color: #71717a;
-  cursor: pointer;
-  padding: 4px 0;
-  transition: color 0.2s;
-  display: flex;
-  align-items: center;
-  margin-top: 16px;
-  margin-bottom: 8px;
-}
-.toggle-completed-btn:hover {
-  color: #27272a;
-}
 .completed-tasks-group {
   opacity: 0.6;
   transition: opacity 0.2s ease;
@@ -694,6 +656,7 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 
 /* SMART QUICK ADD */
 .smart-quick-add {
+  flex-shrink: 0;
   margin-bottom: 16px;
 }
 
@@ -747,47 +710,6 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.btn-expand {
-  background: transparent;
-  border: none;
-  color: #71717a;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 6px;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-.btn-expand:hover {
-  background-color: #f4f4f5;
-  color: #18181b;
-}
-
-.btn-submit {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background-color: #27272a;
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-weight: bold;
-  transition:
-    transform 0.1s,
-    opacity 0.2s;
-}
-.btn-submit:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-.btn-submit:not(:disabled):active {
-  transform: scale(0.9);
 }
 
 .section-divider {

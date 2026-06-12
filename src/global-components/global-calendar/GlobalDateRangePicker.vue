@@ -7,28 +7,28 @@
     </transition>
 
     <div class="date-picker-group">
-      <button
-        class="date-pill"
+      <!-- 🌟 날짜 선택 버튼에 BaseButton 적용 (secondary 테마) -->
+      <BaseButton
+        variant="secondary"
         :class="{ 'is-active': activeCalendar === 'start' }"
         @click="activeCalendar = 'start'"
       >
-        <span v-if="showIcon" class="pill-icon">🗓️</span>
         <span class="date-text">{{ startDate || placeholderStart }}</span>
-      </button>
+      </BaseButton>
 
       <span class="date-arrow">{{ arrowText }}</span>
 
-      <button
-        class="date-pill"
+      <!-- 🌟 날짜 선택 버튼에 BaseButton 적용 (secondary 테마) -->
+      <BaseButton
+        variant="secondary"
         :class="{
           'is-empty': !endDate,
           'is-active': activeCalendar === 'end'
         }"
         @click="activeCalendar = 'end'"
       >
-        <span v-if="showIcon" class="pill-icon">🏁</span>
         <span class="date-text">{{ endDate || placeholderEnd }}</span>
-      </button>
+      </BaseButton>
     </div>
 
     <div
@@ -43,19 +43,23 @@
         class="compact-calendar-popover"
         :class="`align-${align}`"
       >
-        <div class="segmented-control">
-          <button
+        <div class="segment-group">
+          <BaseButton
+            variant="ghost"
+            class="segment-btn"
             :class="{ 'is-selected': activeCalendar === 'start' }"
             @click="activeCalendar = 'start'"
           >
             시작일
-          </button>
-          <button
+          </BaseButton>
+          <BaseButton
+            variant="ghost"
+            class="segment-btn"
             :class="{ 'is-selected': activeCalendar === 'end' }"
             @click="activeCalendar = 'end'"
           >
             종료일
-          </button>
+          </BaseButton>
         </div>
         <div class="calendar-render-area">
           <GlobalCalendar
@@ -63,7 +67,7 @@
             mode="popup"
             :model-value="startDate"
             :range-end="endDate || undefined"
-            :restrict-range="!!(startDate && endDate)"
+            :restrict-range="!!endDate"
             @update:model-value="onUpdateStart"
             @error="handleCalendarError"
           />
@@ -72,7 +76,7 @@
             mode="popup"
             :model-value="endDate"
             :range-start="startDate || undefined"
-            :restrict-range="!!(startDate && endDate)"
+            :restrict-range="!!startDate"
             @update:model-value="onUpdateEnd"
             @error="handleCalendarError"
           />
@@ -85,12 +89,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import GlobalCalendar from './GlobalCalendar.vue'
+import BaseButton from '@/base-ui/BaseButton.vue' // 🌟 BaseButton 추가
 
 const props = withDefaults(
   defineProps<{
     startDate?: string
     endDate?: string
-    size?: 'sm' | 'md' | 'lg' // ✨ 원래대로 독립적인 사이즈 복구
+    size?: 'sm' | 'md' | 'lg'
     align?: 'left' | 'center' | 'right'
     placeholderStart?: string
     placeholderEnd?: string
@@ -129,7 +134,6 @@ const triggerToast = (msg: string) => {
   }, 2500)
 }
 
-// constants 기간 방어 로직
 const handleCalendarError = () => {
   if (activeCalendar.value === 'start') {
     triggerToast('시작일은 종료일보다 늦을 수 없습니다.')
@@ -139,13 +143,13 @@ const handleCalendarError = () => {
 }
 
 const onUpdateStart = (val: string) => {
-  emit('update:startDate', val) // 부모에게 선택된 시작일 전달
-  activeCalendar.value = 'end' // 자동으로 종료일 탭으로 쓱 넘어가기
+  emit('update:startDate', val)
+  activeCalendar.value = 'end'
 }
 
 const onUpdateEnd = (val: string) => {
-  emit('update:endDate', val) // 부모에게 선택된 종료일 전달
-  activeCalendar.value = null // 달력 팝업 닫기
+  emit('update:endDate', val)
+  activeCalendar.value = null
 }
 </script>
 
@@ -155,7 +159,7 @@ const onUpdateEnd = (val: string) => {
 }
 
 /* =======================================
-   🌟 에러 토스트 모달 (색상/Z-index 변수화)
+   🌟 에러 토스트 모달
 ======================================= */
 .toast-modal {
   position: absolute;
@@ -171,7 +175,7 @@ const onUpdateEnd = (val: string) => {
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
   white-space: nowrap;
-  z-index: var(--z-toast); /* 전역 Z-index */
+  z-index: var(--z-toast);
   pointer-events: none;
 }
 
@@ -188,7 +192,7 @@ const onUpdateEnd = (val: string) => {
 }
 
 /* =======================================
-   🌟 자체 크기별 레이아웃 롤백 (망가짐 방지)
+   🌟 BaseButton 결합 및 크기 레이아웃 보존
 ======================================= */
 .date-picker-group {
   display: flex;
@@ -196,47 +200,6 @@ const onUpdateEnd = (val: string) => {
   gap: var(--space-2);
 }
 
-.date-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 8px 14px;
-  background-color: var(--bg-hover);
-  border-radius: var(--radius-xl);
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  color: var(--text-main);
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-}
-
-/* 캘린더가 의도한 픽셀(px) 구조 완벽 복구 */
-.size-sm .date-pill {
-  padding: 6px 12px;
-  font-size: var(--text-xs);
-  border-radius: var(--radius-lg);
-}
-.size-sm .date-arrow {
-  font-size: 12px;
-}
-
-.size-lg .date-pill {
-  padding: 10px 18px;
-  font-size: var(--text-base);
-}
-
-.date-pill:hover {
-  background-color: var(--border-color);
-}
-.date-pill.is-active {
-  background-color: var(--color-primary-light);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-.date-pill.is-empty {
-  color: var(--text-sub);
-}
 .date-arrow {
   color: var(--text-muted);
   font-size: var(--text-sm);
@@ -245,12 +208,9 @@ const onUpdateEnd = (val: string) => {
 .date-text {
   font-variant-numeric: tabular-nums;
 }
-.pill-icon {
-  font-size: 1.1em;
-}
 
 /* =======================================
-   🌟 팝업 캘린더 (고정 너비 및 높이 복구)
+   🌟 팝업 캘린더 (고정 너비/높이)
 ======================================= */
 .overlay-backdrop {
   position: fixed;
@@ -262,7 +222,7 @@ const onUpdateEnd = (val: string) => {
 .compact-calendar-popover {
   position: absolute;
   top: calc(100% + 8px);
-  width: 280px; /* ✨ 내부 캘린더가 깨지지 않는 절대 너비 */
+  width: 280px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -287,32 +247,6 @@ const onUpdateEnd = (val: string) => {
   transform-origin: top center;
 }
 
-.segmented-control {
-  display: flex;
-  border-bottom: 1px solid var(--border-color);
-  background: transparent;
-}
-.segmented-control button {
-  flex: 1;
-  padding: var(--space-3);
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--text-muted);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-.segmented-control button:hover {
-  color: var(--text-sub);
-}
-.segmented-control button.is-selected {
-  color: var(--color-primary);
-  border-bottom: 2px solid var(--color-primary);
-}
-
 .calendar-render-area {
   padding: var(--space-4);
   max-height: 300px;
@@ -329,5 +263,37 @@ const onUpdateEnd = (val: string) => {
 .popover-leave-to {
   opacity: 0;
   transform: scale(0.96) translateY(-4px);
+}
+
+/* =======================================
+   🌟 세그먼트(탭) 버튼 스타일
+======================================= */
+.segment-group {
+  display: flex;
+  border-bottom: 1px solid var(--border-color, #e2e8f0); /* 캘린더 영역과 구분선 */
+}
+
+.segment-btn {
+  flex: 1;
+  justify-content: center;
+  height: 45px;
+  border-radius: 0 !important; /* BaseButton의 기본 둥근 모서리 무효화 */
+  color: var(--text-muted, #64748b);
+  font-size: var(--text-sm, 14px);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.segment-btn:hover {
+  color: var(--text-primary, #1e293b);
+  background-color: rgba(0, 0, 0, 0.03); /* 살짝 호버 효과 */
+}
+
+/* 선택된 탭: 달력 본문과 자연스럽게 이어지는 스타일 */
+.segment-btn.is-selected {
+  color: var(--text-primary, #0f172a);
+  font-weight: bold;
+  box-shadow: none; /* 떠보이는 그림자 제거 */
+  border-bottom: 2px solid var(--text-primary, #0f172a); /* 선택된 탭 하단 강조선 */
 }
 </style>

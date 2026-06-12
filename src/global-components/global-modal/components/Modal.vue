@@ -175,7 +175,6 @@ onUnmounted(() => {
 .modal-footer {
   padding: var(--space-5) var(--space-6);
   border-top: 1px solid var(--border-color);
-  background-color: var(--bg-app); /* 푸터 영역 배경 살짝 다르게 */
 }
 
 /* =======================================
