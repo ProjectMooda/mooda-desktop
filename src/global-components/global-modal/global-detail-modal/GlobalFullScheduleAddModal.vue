@@ -1,511 +1,490 @@
 <template>
   <GlobalScheduleModalLayout
     :is-open="isOpen"
-    title="상세 일정 추가"
+    :show-header="false"
     @close="handleClose"
   >
-    <div class="segment-control">
-      <BaseButton
-        class="flex-1"
-        :size="2"
-        :variant="form.type === 'task' ? 'outline' : 'ghost'"
-        @click="form.type = 'task'"
-      >
-        ✅ 일반 할 일
-      </BaseButton>
-      <BaseButton
-        class="flex-1"
-        :size="2"
-        :variant="form.type === 'event' ? 'outline' : 'ghost'"
-        @click="form.type = 'event'"
-      >
-        📅 기간 일정 / 이벤트
-      </BaseButton>
+    <div class="title-section-row">
+      <GlobalScheduleTitle
+        v-model="localData.summary"
+        placeholder="새로운 할 일 제목을 입력하세요"
+        class="title-input"
+      />
     </div>
 
-    <GlobalScheduleTitle
-      v-model="form.summary"
-      placeholder="일정 제목을 입력하세요"
+    <div class="form-section">
+      <label class="section-label">시간 & 기간 설정</label>
+
+      <div v-if="props.defaultMilestoneId" class="multiple-option-group">
+        <label class="checkbox-container">
+          <input type="checkbox" v-model="isMultipleMode" />
+          <span class="checkmark"></span>
+          <span class="label-text">
+            이 마일스톤 기간 전체에 매일 추가
+            <small v-if="activeMilestone">
+              ({{ activeMilestone.startDate }} ~
+              {{ activeMilestone.endDate || '종료일 없음' }})
+            </small>
+          </span>
+        </label>
+      </div>
+
+      <div class="date-picker-wrapper">
+        <GlobalDateRangePicker
+          v-if="!isMultipleMode"
+          :start-date="localData.startDate"
+          :end-date="localData.endDate"
+          :min-date="props.minDate"
+          :max-date="props.maxDate"
+          @update:start-date="localData.startDate = $event"
+          @update:end-date="localData.endDate = $event"
+          align="left"
+          class="full-width-picker"
+        />
+        <div v-else class="locked-date-display">
+          📅 마일스톤 전체 기간에 할 일이 각각 생성됩니다.
+        </div>
+      </div>
+
+      <div class="datetime-row">
+        <div class="time-inputs">
+          <BaseTimePicker
+            v-model="localData.startTime"
+            class="fixed-time-picker tabular-nums"
+          />
+          <span class="time-sep">→</span>
+          <BaseTimePicker
+            v-model="localData.endTime"
+            class="fixed-time-picker tabular-nums"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div v-show="!isMultipleMode" class="form-section">
+      <div class="section-header">
+        <label class="section-label">반복 설정</label>
+        <label class="toggle-label">
+          <input type="checkbox" v-model="localData.isRecurring" />
+          <span>요일 반복</span>
+        </label>
+      </div>
+
+      <div
+        class="weekday-picker-row"
+        :class="{ 'is-disabled': !localData.isRecurring }"
+      >
+        <button
+          v-for="day in WEEKDAYS"
+          :key="day.value"
+          type="button"
+          class="weekday-btn"
+          :class="{
+            'is-active': localData.repeatWeekdays?.includes(day.value),
+            'is-weekend-sun': day.value === 'SU',
+            'is-weekend-sat': day.value === 'SA'
+          }"
+          :disabled="!localData.isRecurring"
+          @click="toggleWeekday(day.value)"
+        >
+          {{ day.label }}
+        </button>
+      </div>
+    </div>
+
+    <GlobalScheduleMeta
+      v-model:category="localData.category"
+      v-model:priority="localData.priority"
     />
 
-    <div class="form-section" style="position: relative; z-index: 95">
-      <div class="section-header-flex">
-        <label class="section-label">일시 설정</label>
-        <div class="mode-pills">
-          <BaseButton
-            :size="1"
-            :variant="form.creationMode === 'period' ? 'primary' : 'ghost'"
-            @click="form.creationMode = 'period'"
-          >
-            기본
-          </BaseButton>
-          <BaseButton
-            :size="1"
-            :variant="form.creationMode === 'weekly' ? 'primary' : 'ghost'"
-            @click="form.creationMode = 'weekly'"
-          >
-            요일반복
-          </BaseButton>
-          <BaseButton
-            :size="1"
-            :variant="form.creationMode === 'multiple' ? 'primary' : 'ghost'"
-            @click="form.creationMode = 'multiple'"
-          >
-            다중지정
-          </BaseButton>
-        </div>
-      </div>
-
-      <div class="date-time-box">
-        <div
-          v-if="
-            form.creationMode === 'period' || form.creationMode === 'weekly'
-          "
-          class="input-grid"
-        >
-          <div class="input-col">
-            <span class="sub-label">시작일</span>
-            <div class="base-input-like-wrapper">
-              <input
-                v-model="form.startDate"
-                type="date"
-                class="s-input tabular-nums"
-              />
-            </div>
-          </div>
-          <div class="input-col">
-            <span class="sub-label">
-              종료일 {{ form.creationMode === 'weekly' ? '(마감)' : '' }}
-            </span>
-            <div class="base-input-like-wrapper">
-              <input
-                v-model="form.endDate"
-                type="date"
-                class="s-input tabular-nums"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div v-if="form.creationMode === 'weekly'" class="input-col mt-2">
-          <div class="days-flex">
-            <button
-              v-for="(day, index) in daysOfWeek"
-              :key="index"
-              class="day-btn"
-              :class="{ active: form.selectedDays.includes(index) }"
-              @click="toggleDay(index)"
-            >
-              {{ day }}
-            </button>
-          </div>
-        </div>
-
-        <div v-if="form.creationMode === 'multiple'" class="input-col mt-2">
-          <div class="multi-date-flex">
-            <div class="base-input-like-wrapper flex-1">
-              <input
-                v-model="tempDate"
-                type="date"
-                class="s-input tabular-nums"
-              />
-            </div>
-            <BaseButton variant="secondary" :size="3" @click="addMultipleDate"
-              >추가</BaseButton
-            >
-          </div>
-          <div v-if="form.selectedDates.length > 0" class="date-chips mt-2">
-            <div
-              v-for="date in form.selectedDates"
-              :key="date"
-              class="date-chip"
-            >
-              <span class="tabular-nums">{{ date }}</span>
-              <button @click="removeMultipleDate(date)">✕</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="input-col divider-top">
-          <div class="time-row">
-            <span class="sub-label" style="width: 32px">시간</span>
-            <BaseTimePicker v-model="form.startTime" class="tabular-nums" />
-            <span class="range-dash">~</span>
-            <BaseTimePicker v-model="form.endTime" class="tabular-nums" />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <button class="btn-toggle-advanced" @click="showAdvanced = !showAdvanced">
-      {{ showAdvanced ? '닫기 ▴' : '상세 설정 (카테고리, 중요도) ▾' }}
-    </button>
-
-    <transition name="slide-fade">
-      <div v-show="showAdvanced" class="advanced-container">
-        <GlobalScheduleMeta
-          v-model:category="form.category"
-          v-model:priority="form.priority"
-          v-model:goalId="form.goalId"
-          :show-goal="form.type === 'event'"
-        />
-      </div>
-    </transition>
+    <GlobalSubtaskCard v-model="localData.subtasks" />
 
     <template #footer-left>
-      <BaseButton variant="ghost" :size="3" @click="handleClose"
-        >취소</BaseButton
-      >
+      <BaseButton variant="secondary" :size="3" @click="handleClose">
+        취소
+      </BaseButton>
     </template>
     <template #footer-right>
-      <BaseButton
-        variant="primary"
-        :size="3"
-        :disabled="isSubmitDisabled"
-        @click="submit(false)"
-      >
-        저장하기
+      <BaseButton variant="primary" :size="3" @click="handleSave">
+        {{ props.data ? '일정 수정' : '일정 추가' }}
       </BaseButton>
     </template>
   </GlobalScheduleModalLayout>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import GlobalScheduleModalLayout from './GlobalScheduleModalLayout.vue'
 import BaseTimePicker from '@/base-ui/BaseTimePicker.vue'
 import BaseButton from '@/base-ui/BaseButton.vue'
-import { useScheduleStore } from '@/stores/useScheduleStore'
+import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
 import GlobalScheduleTitle from '../global-detail-modal/schedule-form/GlobalScheduleTitle.vue'
 import GlobalScheduleMeta from '../global-detail-modal/schedule-form/GlobalScheduleMeta.vue'
+import GlobalDateRangePicker from '@/global-components/global-calendar/GlobalDateRangePicker.vue'
+
+// 🌟 서브태스크 공통 컴포넌트 임포트
+import GlobalSubtaskCard from './schedule-form/GlobalSubtaskCard.vue'
+
+const store = useScheduleStore()
 
 const props = defineProps<{
   isOpen: boolean
+  initialDate?: Date
   defaultGoalId?: number
   defaultMilestoneId?: number
-  defaultDate?: string
+  data?: ScheduleItem
+  minDate?: string
+  maxDate?: string
 }>()
-const emit = defineEmits(['close'])
-const scheduleStore = useScheduleStore()
 
-const showAdvanced = ref(false)
-const tempDate = ref('')
+const emit = defineEmits(['close', 'add', 'update'])
 
-const getDefaultForm = () => ({
-  type: 'task' as 'task' | 'event',
-  summary: '',
-  creationMode: 'period' as 'period' | 'weekly' | 'multiple',
-  endDate: '',
-  selectedDays: [] as number[],
-  selectedDates: [] as string[],
-  startTime: '',
-  endTime: '',
-  category: '',
-  priority: '',
-  goalId: props.defaultGoalId || null,
-  milestoneId: props.defaultMilestoneId || null,
-  startDate:
-    props.defaultDate ||
-    scheduleStore.selectedDate ||
-    new Date().toISOString().slice(0, 10)
-})
+const isMultipleMode = ref(false)
 
-const form = reactive(getDefaultForm())
+const WEEKDAYS = [
+  { label: '월', value: 'MO' },
+  { label: '화', value: 'TU' },
+  { label: '수', value: 'WE' },
+  { label: '목', value: 'TH' },
+  { label: '금', value: 'FR' },
+  { label: '토', value: 'SA' },
+  { label: '일', value: 'SU' }
+]
 
-watch(
-  () => props.isOpen,
-  (newVal) => {
-    if (newVal) {
-      Object.assign(form, getDefaultForm())
-      tempDate.value = ''
-      showAdvanced.value = false
-    }
-  }
+const activeMilestone = computed(
+  () => store.milestones.find((m) => m.id === props.defaultMilestoneId) || null
 )
 
-const daysOfWeek = ['일', '월', '화', '수', '목', '금', '토']
-
-const toggleDay = (index: number) => {
-  const i = form.selectedDays.indexOf(index)
-  if (i > -1) form.selectedDays.splice(i, 1)
-  else form.selectedDays.push(index)
+const getLocalDateString = (d: Date | string) => {
+  if (!d) return ''
+  const dateObj = d instanceof Date ? d : new Date(`${d}T00:00:00`)
+  const year = dateObj.getFullYear()
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+  const day = String(dateObj.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
-const addMultipleDate = () => {
-  if (tempDate.value && !form.selectedDates.includes(tempDate.value)) {
-    form.selectedDates.push(tempDate.value)
-    form.selectedDates.sort()
+const getDefaultData = (): Partial<ScheduleItem> => {
+  const initDateStr = getLocalDateString(props.initialDate || new Date())
+
+  return {
+    type: 'task',
+    summary: '',
+    startDate: initDateStr,
+    endDate: initDateStr,
+    startTime: '09:00',
+    endTime: '10:00',
+    category: 'none',
+    priority: 'none',
+    isRecurring: false,
+    repeatWeekdays: [],
+    subtasks: []
   }
-  tempDate.value = ''
 }
 
-const removeMultipleDate = (date: string) => {
-  form.selectedDates = form.selectedDates.filter((d) => d !== date)
-}
+const localData = ref<Partial<ScheduleItem>>(getDefaultData())
 
-const isSubmitDisabled = computed(() => {
-  if (!form.summary.trim()) return true
-  if (form.creationMode === 'weekly') {
-    if (!form.startDate || !form.endDate || form.selectedDays.length === 0)
-      return true
-  }
-  if (form.creationMode === 'multiple') {
-    if (form.selectedDates.length === 0) return true
-  }
-  return false
-})
-
-const getDatesBetween = (start: string, end: string) => {
-  const dates = []
-  let current = new Date(start)
-  const last = new Date(end)
-  while (current <= last) {
-    dates.push(current.toISOString().slice(0, 10))
-    current.setDate(current.getDate() + 1)
-  }
-  return dates
-}
-
-const createSchedules = () => {
-  const groupId = `group-${Date.now()}-${Math.floor(Math.random() * 1000)}`
-
-  const pushToStore = (start: string, end?: string) => {
-    if (form.type === 'event' && form.goalId && !form.milestoneId) {
-      scheduleStore.addMilestone(form.goalId, form.summary, start, end || start)
-    } else {
-      scheduleStore.addSchedule({
-        type: form.type,
-        groupId,
-        creationMode: form.creationMode,
-        goalId: form.goalId,
-        milestoneId: form.milestoneId,
-        summary: form.summary,
-        startDate: start,
-        endDate: end || start,
-        startTime: form.startTime || undefined,
-        endTime: form.endTime || undefined,
-        category: form.category || undefined,
-        priority: form.priority || undefined
-      })
-    }
-  }
-
-  if (form.creationMode === 'period') {
-    pushToStore(form.startDate, form.endDate || undefined)
-  } else if (form.creationMode === 'weekly') {
-    getDatesBetween(form.startDate, form.endDate).forEach((dateStr) => {
-      const dayIndex = new Date(dateStr).getDay()
-      if (form.selectedDays.includes(dayIndex)) {
-        pushToStore(dateStr, dateStr)
+watch(
+  () => [props.isOpen, props.data],
+  ([newIsOpen]) => {
+    if (newIsOpen) {
+      if (props.data) {
+        localData.value = JSON.parse(JSON.stringify(props.data))
+        isMultipleMode.value = props.data.creationMode === 'multiple'
+        if (props.data.creationMode === 'weekly') {
+          localData.value.isRecurring = true
+        }
+      } else {
+        localData.value = getDefaultData()
+        isMultipleMode.value = false
       }
-    })
-  } else if (form.creationMode === 'multiple') {
-    form.selectedDates.forEach((dateStr) => {
-      pushToStore(dateStr, dateStr)
-    })
+    }
+  },
+  { immediate: true }
+)
+
+const toggleWeekday = (value: string) => {
+  if (!localData.value.repeatWeekdays) {
+    localData.value.repeatWeekdays = []
   }
-}
-
-const submit = (keepOpen: boolean) => {
-  if (isSubmitDisabled.value) return
-
-  createSchedules()
-
-  if (keepOpen) {
-    form.summary = ''
-    form.selectedDates = []
-    setTimeout(() => {
-      ;(
-        document.querySelector('.title-wrapper input') as HTMLInputElement
-      )?.focus()
-    }, 50)
+  const index = localData.value.repeatWeekdays.indexOf(value)
+  if (index === -1) {
+    localData.value.repeatWeekdays.push(value)
   } else {
-    handleClose()
+    localData.value.repeatWeekdays.splice(index, 1)
   }
 }
 
 const handleClose = () => {
   emit('close')
 }
+
+const handleSave = () => {
+  if (localData.value.subtasks && localData.value.subtasks.length > 0) {
+    const total = localData.value.subtasks.length
+    const completed = localData.value.subtasks.filter((s) => s.done).length
+    localData.value.done = total === completed
+  } else {
+    localData.value.done = false
+  }
+
+  if (!localData.value.isRecurring) {
+    localData.value.repeatWeekdays = []
+  }
+
+  const startDateStr =
+    localData.value.startDate || getLocalDateString(new Date())
+  const endDateStr = localData.value.endDate || startDateStr
+  const isPeriod = startDateStr !== endDateStr
+
+  const baseItemData = {
+    type: localData.value.type || 'task',
+    summary: localData.value.summary || '',
+    done: localData.value.done,
+    startTime: localData.value.startTime,
+    endTime: localData.value.endTime,
+    category: localData.value.category,
+    priority: localData.value.priority,
+    subtasks: localData.value.subtasks,
+    goalId: props.data?.goalId || props.defaultGoalId || null,
+    milestoneId: props.data?.milestoneId || props.defaultMilestoneId || null
+  }
+
+  if (props.data?.id) {
+    store.updateSchedule(props.data.id, {
+      ...baseItemData,
+      startDate: startDateStr,
+      endDate: endDateStr
+    })
+    emit('update')
+    handleClose()
+    return
+  }
+
+  if (isMultipleMode.value && activeMilestone.value) {
+    const mStartStr = activeMilestone.value.startDate
+    const mEndStr = activeMilestone.value.endDate || mStartStr
+    const start = new Date(`${mStartStr}T00:00:00`)
+    const end = new Date(`${mEndStr}T00:00:00`)
+    const groupId = `ms-multiple-${Date.now()}`
+    let currentDate = new Date(start)
+
+    while (currentDate <= end) {
+      store.addSchedule({
+        ...baseItemData,
+        groupId,
+        creationMode: 'multiple',
+        startDate: getLocalDateString(currentDate),
+        endDate: getLocalDateString(currentDate)
+      })
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+  } else if (
+    localData.value.isRecurring &&
+    localData.value.repeatWeekdays &&
+    localData.value.repeatWeekdays.length > 0
+  ) {
+    const groupId = `group_weekly_${Date.now()}`
+    const dayMap: Record<string, number> = {
+      SU: 0,
+      MO: 1,
+      TU: 2,
+      WE: 3,
+      TH: 4,
+      FR: 5,
+      SA: 6
+    }
+    const targetDays = localData.value.repeatWeekdays.map((d) => dayMap[d])
+
+    let currentDate = new Date(`${startDateStr}T00:00:00`)
+    const targetEndDate = new Date(`${endDateStr}T00:00:00`)
+
+    while (currentDate <= targetEndDate) {
+      if (targetDays.includes(currentDate.getDay())) {
+        store.addSchedule({
+          ...baseItemData,
+          groupId,
+          creationMode: 'weekly',
+          startDate: getLocalDateString(currentDate),
+          endDate: undefined
+        })
+      }
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+  } else if (isPeriod) {
+    store.addSchedule({
+      ...baseItemData,
+      groupId: `group_period_${Date.now()}`,
+      creationMode: 'period',
+      startDate: startDateStr,
+      endDate: endDateStr
+    })
+  } else {
+    store.addSchedule({
+      ...baseItemData,
+      creationMode: 'single',
+      startDate: startDateStr,
+      endDate: undefined
+    })
+  }
+
+  emit('add')
+  handleClose()
+}
 </script>
 
 <style scoped>
-/* 상단 탭 정돈 */
-.segment-control {
-  display: flex;
-  background-color: var(--bg-hover);
-  padding: 4px;
-  border-radius: var(--radius-md);
-  gap: 4px;
-}
-.flex-1 {
-  flex: 1;
-}
-.mt-2 {
-  margin-top: 8px;
-}
-
-.section-header-flex {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* --- 다중 모드 관련 스타일 --- */
+.multiple-option-group {
+  background: var(--bg-hover, #f4f4f5);
+  border: 1px solid var(--border-color, #e4e4e7);
+  padding: 12px 14px;
+  border-radius: 8px;
   margin-bottom: 8px;
 }
-.mode-pills {
+.checkbox-container {
   display: flex;
-  background: var(--bg-hover);
-  border-radius: var(--radius-sm);
-  padding: 2px;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main, #27272a);
+}
+.checkbox-container small {
+  color: var(--text-muted, #a1a1aa);
+  font-weight: 400;
+  margin-left: 4px;
+}
+.locked-date-display {
+  width: 100%;
+  font-size: 13px;
+  color: var(--color-primary, #6366f1);
+  background-color: var(--color-primary-light, #eef2ff);
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid transparent;
 }
 
-.date-time-box {
-  background: var(--bg-app);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 16px;
+/* Title Section 개편 (여유로운 단독 행 구성) */
+.title-section-row {
+  width: 100%;
+  padding-bottom: 16px;
+  border-bottom: 1.5px solid var(--border-color);
+}
+.title-input {
+  width: 100%;
+}
+
+/* Date Picker Wrapper (가로 정렬 및 컴포넌트 풀 너비 매칭) */
+.date-picker-wrapper {
+  width: 100%;
+  display: flex;
+}
+.full-width-picker {
+  width: 100%;
+}
+.full-width-picker :deep(.date-picker-group) {
+  width: 100%;
+}
+.full-width-picker :deep(.date-btn) {
+  flex: 1;
+}
+
+/* Sections Base */
+.form-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.input-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: var(--space-3);
-}
-.input-col {
+.section-header {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-.sub-label {
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  color: var(--text-muted);
-}
-.time-row {
-  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: var(--space-2);
 }
-.range-dash {
-  font-weight: var(--font-bold);
+.section-label {
+  font-size: 11px;
+  font-weight: 500;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
-.divider-top {
-  margin-top: 8px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-color);
-}
-
-/* Date Input 래퍼 스타일 (BaseInput 모방) */
-.base-input-like-wrapper {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-1);
-  padding: 8px 12px;
-  transition: all var(--transition-base);
-}
-.base-input-like-wrapper:focus-within {
-  border-color: var(--color-primary);
-  box-shadow:
-    0 0 0 3px var(--color-primary-light),
-    var(--shadow-2);
-}
-.s-input {
-  width: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--text-main);
-  font-family: inherit;
-  font-size: var(--text-sm);
-}
-
-.days-flex,
-.multi-date-flex {
-  display: flex;
-  gap: 8px;
-}
-.day-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  background: var(--bg-card);
-  color: var(--text-sub);
-  font-weight: var(--font-bold);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  transition: all var(--transition-base);
-}
-.day-btn.active {
-  background: var(--color-primary);
-  color: var(--bg-card);
-  border-color: var(--color-primary);
-}
-
-.date-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.date-chip {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
+.toggle-label {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--text-main);
-  font-weight: var(--font-bold);
-  box-shadow: var(--shadow-1);
-}
-.date-chip button {
-  background: none;
-  border: none;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 0;
-  font-size: 14px;
-  transition: color var(--transition-fast);
-}
-.date-chip button:hover {
-  color: var(--color-danger);
 }
 
-.btn-toggle-advanced {
-  width: 100%;
-  padding: 12px 0;
-  background: transparent;
-  border: none;
-  color: var(--text-sub);
-  font-size: var(--text-xs);
-  font-weight: var(--font-bold);
-  text-align: center; /* 중앙 정렬로 변경하여 밸런스 확보 */
-  cursor: pointer;
-  transition: color var(--transition-fast);
-}
-.btn-toggle-advanced:hover {
-  color: var(--text-main);
-}
-.advanced-container {
+/* Time Picker Area */
+.datetime-row {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  overflow: hidden;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.time-inputs {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fixed-time-picker {
+  flex: 1;
+  height: 42px;
+  border-radius: 8px !important;
+  padding: 0 12px;
+}
+.time-sep {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
-.slide-fade-enter-active,
-.slide-fade-leave-active {
-  transition: all 0.3s ease;
+/* 요일 반복 지정 UI */
+.weekday-picker-row {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  transition: opacity 0.2s ease;
 }
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
+.weekday-picker-row.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.weekday-btn {
+  flex: 1;
+  height: 38px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.weekday-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+.weekday-btn.is-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  font-weight: 600;
+}
+.weekday-btn.is-weekend-sat:not(.is-active) {
+  color: #2b6cb0;
+}
+.weekday-btn.is-weekend-sun:not(.is-active) {
+  color: #c53030;
 }
 </style>

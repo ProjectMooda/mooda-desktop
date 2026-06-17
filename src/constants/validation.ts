@@ -2,9 +2,6 @@
 
 // 인풋 텍스트 길이 제한 상수
 export const INPUT_MAX_LENGTH = {
-  // APP.vue에서 쓰는 오늘의 목표
-  dailyFocus: 20,
-
   // StudioQuickAdd 에서 쓰는 일정 입력
   taskTitle: 20,
   eventTitle: 30,
@@ -20,5 +17,8 @@ export const INPUT_MAX_LENGTH = {
   goalTitle: 30,
 
   // 아직 미정
-  category: 15
+  category: 15,
+
+  // 경로 지정
+  routeName: 10
 } as const

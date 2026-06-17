@@ -1,7 +1,7 @@
 <template>
   <div class="form-section">
-    <div class="section-label">카테고리 & 중요도</div>
-    <div class="input-grid">
+    <div class="section-label">분류 & 중요도</div>
+    <div class="input-stack">
       <div v-if="showGoal" class="input-col">
         <span class="sub-label"><i class="ti ti-target"></i> 목표 연결</span>
         <BaseSelectList
@@ -10,21 +10,37 @@
           class="styled-select"
         />
       </div>
+
       <div class="input-col">
         <span class="sub-label"><i class="ti ti-tag"></i> 카테고리</span>
-        <BaseSelectList
-          v-model="category"
-          :options="categoryOptions"
-          class="styled-select"
-        />
+        <div class="chip-group">
+          <button
+            v-for="option in categoryOptions"
+            :key="option.value"
+            type="button"
+            class="chip-btn"
+            :class="{ active: category === option.value }"
+            @click="category = option.value"
+          >
+            {{ option.label }}
+          </button>
+        </div>
       </div>
+
       <div class="input-col">
         <span class="sub-label"><i class="ti ti-flag"></i> 중요도</span>
-        <BaseSelectList
-          v-model="priority"
-          :options="priorityOptions"
-          class="styled-select"
-        />
+        <div class="chip-group">
+          <button
+            v-for="option in priorityOptions"
+            :key="option.value"
+            type="button"
+            class="chip-btn"
+            :class="{ active: priority === option.value }"
+            @click="priority = option.value"
+          >
+            {{ option.label }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -56,15 +72,18 @@ const { goalOptions, categoryOptions, priorityOptions } = useScheduleOptions()
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.input-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 10px;
+
+/* 각각의 요소를 위아래 행으로 배치되도록 수정 */
+.input-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
+
 .input-col {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .sub-label {
   display: flex;
@@ -77,18 +96,56 @@ const { goalOptions, categoryOptions, priorityOptions } = useScheduleOptions()
 .sub-label i {
   font-size: 14px;
 }
-/* BaseSelectList 내부 스타일을 칩(Chip) 디자인과 유사하게 덮어쓰기 */
+
+/* 목표 연결을 위한 셀렉트 스타일 */
 .styled-select :deep(select),
 .styled-select :deep(.select-trigger) {
   border-radius: var(--radius-md);
-  border: 0.5px solid var(--border-color);
+  border: 1px solid var(--border-color);
   background: var(--bg-card);
   font-size: 13px;
-  padding: 8px 12px;
+  padding: 0 12px;
+  height: 32px;
   transition: border-color 0.15s;
 }
 .styled-select :deep(select:hover),
 .styled-select :deep(.select-trigger:hover) {
   border-color: var(--color-primary-light);
+}
+
+/* ====== 노션 스타일 칩(버튼) ====== */
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-sub);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip-btn:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  color: var(--text-main);
+}
+
+/* 선택된(Active) 상태 */
+.chip-btn.active {
+  background: var(--color-primary-light, #e0e7ff);
+  color: var(--color-primary, #4338ca);
+  border-color: var(--color-primary, #4338ca);
+  font-weight: 600;
 }
 </style>

@@ -12,7 +12,7 @@
       </div>
 
       <div class="flex-1 flex-col min-w-0 gap-4">
-        <div class="flex justify-between items-center w-full">
+        <div class="flex justify-between items-center w-full hide-on-compact">
           <div class="flex items-center gap-8">
             <slot name="context"></slot>
           </div>
@@ -58,10 +58,19 @@
     </div>
 
     <GlobalScheduleDetailModal
-      v-if="isModalOpen"
-      :is-open="isModalOpen"
+      v-if="isDetailModalOpen"
+      :is-open="isDetailModalOpen"
       :data="item"
-      @close="isModalOpen = false"
+      @close="isDetailModalOpen = false"
+      @delete="$emit('delete')"
+      @update="$emit('update', $event)"
+    />
+
+    <GlobalFullScheduleAddModal
+      v-if="isFullModalOpen"
+      :is-open="isFullModalOpen"
+      :data="item"
+      @close="isFullModalOpen = false"
       @delete="$emit('delete')"
       @update="$emit('update', $event)"
     />
@@ -76,6 +85,7 @@ import BaseDeleteButton from '@/base-ui/BaseDeleteButton.vue'
 import BasePinButton from '@/base-ui/BasePinButton.vue'
 import BaseCheckBox from '@/base-ui/BaseCheckBox.vue'
 import GlobalScheduleDetailModal from '@/global-components/global-modal/global-detail-modal/GlobalScheduleDetailModal.vue'
+import GlobalFullScheduleAddModal from '@/global-components/global-modal/global-detail-modal/GlobalFullScheduleAddModal.vue'
 
 const props = defineProps<{
   item: ScheduleItem
@@ -86,9 +96,20 @@ const props = defineProps<{
 
 const emit = defineEmits(['update', 'delete', 'toggle-pin'])
 
-const isModalOpen = ref(false)
+// 🌟 각각의 모달 상태를 관리하는 변수 추가
+const isDetailModalOpen = ref(false)
+const isFullModalOpen = ref(false)
+
 const openModal = () => {
-  isModalOpen.value = true
+  const mode = props.item.creationMode
+
+  if (mode === 'weekly' || mode === 'period') {
+    // 반복, 기간, 다중 일정일 때는 Full Modal 오픈
+    isFullModalOpen.value = true
+  } else {
+    // 일반 일정일 때는 Detail Modal 오픈
+    isDetailModalOpen.value = true
+  }
 }
 
 const displayTime = computed(() => {
@@ -99,21 +120,22 @@ const displayTime = computed(() => {
 
 <style scoped>
 /* =======================================
-   고유 카드 속성만 남김 (마진은 목록에서 띄우기 위함)
+    고유 카드 속성만 남김 (마진은 목록에서 띄우기 위함)
 ======================================= */
 .global-schedule-card {
   cursor: pointer;
   margin-bottom: var(--space-2);
-  /* 카드가 hover될 때 약간 튀어나오는 시각 효과 보정 */
   border-color: transparent;
+  container-type: inline-size;
 }
+
 .global-schedule-card:hover {
   border-color: rgba(0, 0, 0, 0.05);
 }
 
 .drag-handle {
   color: var(--text-muted);
-  font-size: 18px; /* 핸들은 살짝 크게 */
+  font-size: 18px;
   cursor: grab;
   transition: color var(--transition-fast);
 }
@@ -129,10 +151,18 @@ const displayTime = computed(() => {
   color: var(--text-muted);
 }
 
-/* CSS 글자 자르기 (js truncate 끄고 이거 쓰는게 반응형에 훨씬 좋습니다) */
 .truncate {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* =======================================
+    🌟 컨테이너 크기 반응형 제어
+======================================= */
+@container (max-width: 400px) {
+  .hide-on-compact {
+    display: none !important;
+  }
 }
 </style>

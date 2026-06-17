@@ -21,6 +21,8 @@
           :end-date="activeMilestone?.endDate || ''"
           size="sm"
           align="right"
+          :min-date="props.goal.startDate"
+          :max-date="props.goal.endDate || ''"
           @update:start-date="(val) => updateMilestoneDate('startDate', val)"
           @update:end-date="(val) => updateMilestoneDate('endDate', val)"
         />
@@ -40,11 +42,12 @@
       <div class="cal-panel">
         <GlobalCalendar
           v-model="selectedMsDate"
-          :range-start="activeMilestone?.startDate || undefined"
-          :range-end="activeMilestone?.endDate || undefined"
-          :restrict-range="
-            !!(activeMilestone?.startDate && activeMilestone?.endDate)
+          :default-date="activeMilestone?.startDate || props.goal.startDate"
+          :range-start="activeMilestone?.startDate || props.goal.startDate"
+          :range-end="
+            activeMilestone?.endDate || props.goal.endDate || undefined
           "
+          :restrict-range="true"
           class="h-full"
         />
       </div>
@@ -219,16 +222,21 @@
       v-if="isTaskModalOpen && selectedTask"
       :is-open="isTaskModalOpen"
       :data="selectedTask"
+      :min-date="activeMilestone?.startDate || props.goal.startDate"
+      :max-date="activeMilestone?.endDate || props.goal.endDate"
       @close="isTaskModalOpen = false"
       @delete="() => requestTaskDelete(selectedTask!.id)"
       @update="handleTaskUpdate"
     />
 
+    <!-- GlobalFullScheduleAddModal -->
     <GlobalFullScheduleAddModal
       :is-open="isFullAddOpen"
       :default-goal-id="props.goal.id"
       :default-milestone-id="props.milestoneId"
-      :default-date="selectedMsDate"
+      :initial-date="new Date(selectedMsDate)"
+      :min-date="activeMilestone?.startDate || props.goal.startDate"
+      :max-date="activeMilestone?.endDate || props.goal.endDate"
       @close="isFullAddOpen = false"
     />
 
@@ -281,8 +289,19 @@ const isFocused = ref(false)
 const activeMilestone = computed(
   () => store.milestones.find((m) => m.id === props.milestoneId) || null
 )
-const selectedMsDate = ref(activeMilestone.value?.startDate || todayString)
+const selectedMsDate = ref(
+  activeMilestone.value?.startDate || props.goal.startDate || todayString
+)
 
+// ✅ 추가: 마일스톤의 시작일이 데이트 피커 등을 통해 변경되면 달력 선택 날짜도 동기화
+watch(
+  () => activeMilestone.value?.startDate,
+  (newStartDate) => {
+    if (newStartDate) {
+      selectedMsDate.value = newStartDate
+    }
+  }
+)
 const handleMilestoneUpdate = (field: keyof Milestone, value: any) => {
   if (activeMilestone.value) {
     ;(activeMilestone.value as any)[field] = value

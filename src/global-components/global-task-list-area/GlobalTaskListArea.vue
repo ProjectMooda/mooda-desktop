@@ -182,11 +182,12 @@ const handleTextChange = (item: T, newValue: string) =>
   height: 100%;
   display: flex;
   flex-direction: column;
+  min-height: 100px; /* ✨ 항목이 없어도 3개 분량의 크기 유지 */
 }
 
 /* ── 빈 상태 ── */
 .tl-empty {
-  flex: 1;
+  flex: 1; /* min-height 내에서 남은 공간을 꽉 채워 가운데 정렬됨 */
   display: flex;
   flex-direction: column;
   align-items: center;

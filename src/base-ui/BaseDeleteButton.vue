@@ -62,7 +62,7 @@ defineEmits<{
    VARIANT (형태)
 ======================================= */
 .variant-circle {
-  border-radius: var(radius-md);
+  border-radius: var(--radius-md);
 }
 /* variant-rounded는 ui-size-N의 기본 radius(sm~lg)를 그대로 상속받으므로 생략 가능 */
 

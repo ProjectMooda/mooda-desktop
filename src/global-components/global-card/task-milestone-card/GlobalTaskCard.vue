@@ -8,11 +8,15 @@
     @toggle-pin="$emit('toggle-pin')"
   >
     <template #context>
-      <span class="text-xs font-bold text-sub">일반일정</span>
+      <span class="text-xs font-bold text-sub">{{ scheduleTypeLabel }}</span>
 
       <template v-if="!isMini">
         <span
-          v-if="item.category && item.category !== '선택 안함'"
+          v-if="
+            item.category &&
+            item.category !== '선택 안함' &&
+            item.category !== 'none'
+          "
           class="meta-badge"
           style="background-color: var(--bg-hover); color: var(--text-sub)"
         >
@@ -20,7 +24,7 @@
         </span>
 
         <span
-          v-if="item.priority"
+          v-if="item.priority && item.priority !== 'none'"
           class="meta-badge"
           :style="getPriorityStyle(item.priority)"
         >
@@ -32,17 +36,34 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue' // 🌟 computed 임포트 추가
 import type { ScheduleItem } from '@/stores/useScheduleStore'
 import Card from './components/Card.vue'
 import { useFormatter } from '@/utils/useFormatter'
 
 const { getPriorityLabel, getPriorityStyle } = useFormatter()
 
-defineProps<{
+const props = defineProps<{
   item: ScheduleItem
   isMini?: boolean
 }>()
 defineEmits(['update', 'delete', 'toggle-pin'])
+
+// 🌟 creationMode에 따라 적절한 텍스트를 반환하는 computed 속성
+const scheduleTypeLabel = computed(() => {
+  switch (props.item.creationMode) {
+    case 'period':
+      return '기간일정'
+    case 'weekly':
+      return '반복일정'
+    case 'multiple':
+      return '다중일정'
+    case 'single':
+    default:
+      // 과거에 생성되어 creationMode가 없는 데이터에 대한 기본값 처리
+      return '일반일정'
+  }
+})
 </script>
 
 <style scoped>

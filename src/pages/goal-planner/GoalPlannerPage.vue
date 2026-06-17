@@ -117,7 +117,8 @@ const isExpanded = ref(false)
 const newGoal = reactive({
   title: '',
   startDate: store.selectedDate || new Date().toISOString().split('T')[0],
-  endDate: ''
+  endDate: '',
+  color: '#ef4444'
 })
 
 const resetComposer = () => {
@@ -125,6 +126,7 @@ const resetComposer = () => {
   newGoal.startDate =
     store.selectedDate || new Date().toISOString().split('T')[0]
   newGoal.endDate = ''
+  newGoal.color = '#ef4444' // 🌟 초기화 시에도 기본 색상 유지
   isExpanded.value = false
 }
 
@@ -156,7 +158,8 @@ const createGoal = () => {
   store.addGoal({
     title: newGoal.title,
     startDate: newGoal.startDate,
-    endDate: newGoal.endDate
+    endDate: newGoal.endDate,
+    color: newGoal.color
   })
   resetComposer()
 }

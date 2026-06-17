@@ -24,6 +24,10 @@ export default [
         parser: tseslint.parser,
         ecmaVersion: 2020,
         sourceType: 'module'
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node
       }
     },
 

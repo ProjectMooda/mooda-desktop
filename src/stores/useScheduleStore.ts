@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
-// 1. 일반 일정 및 태스크
+// 1. 일반 일정 및 테스크
 export interface ScheduleItem {
   id: number
   groupId?: string // ✅ 반복/다중 생성된 일정들을 묶는 그룹 ID
@@ -64,6 +64,7 @@ export const useScheduleStore = defineStore('schedule', () => {
   const milestones = ref<Milestone[]>([])
   const selectedDate = ref(today)
   const dailyFocus = ref('')
+  const isMiniMode = ref(false) // 미니ㄹaddCategory 모드
 
   const categories = ref<string[]>([
     '기획',
@@ -127,7 +128,7 @@ export const useScheduleStore = defineStore('schedule', () => {
       milestoneId: item.milestoneId || null,
       isPinned: false,
       orderIndex: schedules.value.length,
-      subtasks: []
+      subtasks: item.subtasks || []
     })
     saveData()
   }
@@ -163,10 +164,17 @@ export const useScheduleStore = defineStore('schedule', () => {
   const addSubtask = (scheduleId: number, text: string) => {
     const schedule = schedules.value.find((s) => s.id === scheduleId)
     if (!schedule) return
+
     if (!schedule.subtasks) schedule.subtasks = []
+
+    // ✅ 추가: 10개 이상이면 더 이상 추가하지 않고 false 반환
+    if (schedule.subtasks.length >= 10) {
+      return false
+    }
 
     schedule.subtasks.push({ id: Date.now(), text, done: false })
     saveData()
+    return true // 성공 시 true 반환
   }
 
   const removeSubtask = (scheduleId: number, subtaskId: number) => {
@@ -183,7 +191,59 @@ export const useScheduleStore = defineStore('schedule', () => {
       saveData()
     }
   }
+  const syncMultipleSchedules = (
+    originalId: number,
+    patchData: Partial<ScheduleItem>,
+    targetDates: string[]
+  ) => {
+    const original = schedules.value.find((s) => s.id === originalId)
+    if (!original) return
 
+    // ✅ endDate는 여기서도 명시적으로 제거 (혹시 남아있을 경우 대비)
+    const cleanPatch = { ...patchData }
+    delete cleanPatch.endDate
+
+    // ✅ 날짜 1개 = single, 2개 이상 = multiple (period 판정 완전 제거)
+    const nextMode: ScheduleItem['creationMode'] =
+      targetDates.length > 1 ? 'multiple' : 'single'
+
+    // 기존 그룹 전체 제거
+    if (original.groupId) {
+      schedules.value = schedules.value.filter(
+        (s) => s.groupId !== original.groupId
+      )
+    } else {
+      schedules.value = schedules.value.filter((s) => s.id !== originalId)
+    }
+
+    if (nextMode === 'multiple') {
+      const groupId = `group_multiple_${Date.now()}`
+      targetDates.forEach((dateStr, index) => {
+        schedules.value.push({
+          ...original,
+          ...cleanPatch,
+          id: Date.now() + index,
+          groupId,
+          creationMode: 'multiple',
+          startDate: dateStr,
+          endDate: undefined // ✅ 명시적 제거
+        })
+      })
+    } else {
+      // single: 날짜 1개
+      schedules.value.push({
+        ...original,
+        ...cleanPatch,
+        id: original.id,
+        groupId: undefined,
+        creationMode: 'single',
+        startDate: targetDates[0],
+        endDate: undefined // ✅ 명시적 제거
+      })
+    }
+
+    saveData()
+  }
   // ✅ 단일 삭제
   const removeSchedule = (id: number) => {
     schedules.value = schedules.value.filter((s) => s.id !== id)
@@ -254,7 +314,8 @@ export const useScheduleStore = defineStore('schedule', () => {
     goals.value.unshift({
       id: Date.now(),
       ...goal,
-      endDate: goal.endDate || undefined
+      endDate: goal.endDate || undefined,
+      color: goal.color || '#ef4444' // 🌟 기본 색상 추가
     })
     saveData()
   }
@@ -292,6 +353,14 @@ export const useScheduleStore = defineStore('schedule', () => {
     }
   }
 
+  const toggleMiniMode = () => {
+    isMiniMode.value = !isMiniMode.value
+
+    // 🌟 Vue 상태가 변할 때 프로그램 창 크기도 같이 변경 요청!
+    if (window.electronAPI?.resizeWindow) {
+      window.electronAPI.resizeWindow(isMiniMode.value ? 'mini' : 'middle')
+    }
+  }
   return {
     schedules,
     goals,
@@ -314,6 +383,7 @@ export const useScheduleStore = defineStore('schedule', () => {
     removeSchedule,
     removeScheduleGroup,
     smartRemoveSchedule,
+    syncMultipleSchedules,
     togglePin,
     loadData,
     saveData,
@@ -321,6 +391,8 @@ export const useScheduleStore = defineStore('schedule', () => {
     removeGoal,
     toggleGoalArchive,
     addPriorityOption,
-    addCategory
+    addCategory,
+    isMiniMode,
+    toggleMiniMode
   }
 })
