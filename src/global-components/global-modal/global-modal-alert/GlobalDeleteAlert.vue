@@ -203,7 +203,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: var(--z-modal-bg);
+  z-index: 999;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);

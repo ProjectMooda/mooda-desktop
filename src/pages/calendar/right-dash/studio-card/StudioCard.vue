@@ -1,6 +1,7 @@
 <template>
   <section class="studio-card">
     <StudioCardHeader
+      class="studio-card-header"
       :formatted-date="formattedDate"
       :total-items="totalItems"
       :progress-percent="progressPercent"
@@ -286,6 +287,10 @@ const progressPercent = computed(() => {
   height: 100%;
 }
 
+.studio-card-header {
+  margin-left: 8px;
+}
+
 /* =======================================
    SCROLL AREA
 ======================================= */
@@ -330,6 +335,8 @@ const progressPercent = computed(() => {
 
 .run-icon {
   color: var(--color-primary);
+  margin-top: 4px;
+  margin-left: 8px;
 }
 
 /* =======================================

@@ -28,19 +28,24 @@
       <div v-for="day in weekDays" :key="day" class="cal-day">
         {{ day }}
       </div>
-
       <div
         v-for="date in calendarDates"
         :key="date.full"
         :class="[
           'cal-cell',
           {
-            selected: modelValue === date.full,
+            selected: props.isMultiple
+              ? props.multipleDates.includes(date.full)
+              : modelValue === date.full,
             dimmed: !date.currentMonth,
             today: date.isToday,
             'in-range': date.inRange,
+            // ✅ 수정된 조건:
+            // 1. restrictRange가 true인데 범위 밖일 때
+            // 2. minDate/maxDate 범위를 벗어날 때
             'out-range':
-              !date.inRange && date.currentMonth && props.restrictRange
+              (props.restrictRange && !date.inRange && date.currentMonth) ||
+              (date.isOutOfBounds && date.currentMonth)
           }
         ]"
         @click="selectDate(date)"
@@ -72,16 +77,22 @@ import { useScheduleStore } from '@/stores/useScheduleStore'
 const props = withDefaults(
   defineProps<{
     modelValue?: string
+    defaultDate?: string
+    multipleDates?: string[]
+    isMultiple?: boolean // 🌟 추가: 부모로부터 다중 모드 여부를 직접 전달받음
     rangeStart?: string
     rangeEnd?: string
     restrictRange?: boolean
     mode?: 'inline' | 'popup'
+    minDate?: string
+    maxDate?: string
   }>(),
   {
-    mode: 'inline'
+    mode: 'inline',
+    multipleDates: () => [],
+    isMultiple: false // 🌟 추가: 기본값 false
   }
 )
-
 const emit = defineEmits(['update:modelValue', 'error'])
 const scheduleStore = useScheduleStore()
 
@@ -91,18 +102,67 @@ interface CalendarDate {
   currentMonth: boolean
   isToday: boolean
   inRange: boolean
+  isOutOfBounds: boolean
 }
 
 // 오늘 날짜 계산 (로케일 차이 방지를 위해 명확히 문자열 조합)
 const now = new Date()
 const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+const viewDate = ref(
+  props.modelValue
+    ? new Date(props.modelValue)
+    : props.defaultDate
+      ? new Date(props.defaultDate)
+      : new Date()
+)
 
-const viewDate = ref(props.modelValue ? new Date(props.modelValue) : new Date())
 const currentYear = computed(() => viewDate.value.getFullYear())
 const currentMonth = computed(() => viewDate.value.getMonth())
+
+// ✅ 수정: modelValue(선택날짜)나 defaultDate가 외부에서 변경될 경우 캘린더 화면 이동
+watch(
+  () => [props.modelValue, props.defaultDate],
+  ([newModel, newDefault]) => {
+    const targetDateStr = (newModel || newDefault) as string | undefined
+    if (targetDateStr) {
+      const newDate = new Date(targetDateStr)
+      // 달력이 보고 있는 연/월과 전달받은 연/월이 다를 때만 뷰 이동
+      if (
+        newDate.getFullYear() !== currentYear.value ||
+        newDate.getMonth() !== currentMonth.value
+      ) {
+        viewDate.value = new Date(newDate.getFullYear(), newDate.getMonth(), 1)
+      }
+    }
+  }
+)
+// 상위 컴포넌트에서 날짜를 변경했을 때, 캘린더 월(Month) 화면도 동기화
+watch(
+  () => props.modelValue || props.defaultDate,
+  (newVal) => {
+    if (newVal) {
+      const newDate = new Date(newVal)
+      // 달력이 보고 있는 연/월과 전달받은 연/월이 다를 때만 뷰 이동
+      if (
+        newDate.getFullYear() !== currentYear.value ||
+        newDate.getMonth() !== currentMonth.value
+      ) {
+        viewDate.value = new Date(newDate.getFullYear(), newDate.getMonth(), 1)
+      }
+    }
+  }
+)
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const showMonthPicker = ref(false)
+
+const changeMonth = (diff: number) => {
+  viewDate.value = new Date(
+    viewDate.value.getFullYear(),
+    viewDate.value.getMonth() + diff,
+    1
+  )
+}
 
 const handleMonthSelect = ({
   year,
@@ -115,17 +175,6 @@ const handleMonthSelect = ({
   showMonthPicker.value = false
 }
 
-watch(
-  () => props.modelValue,
-  (newVal) => {
-    if (newVal) viewDate.value = new Date(newVal)
-  }
-)
-
-const changeMonth = (diff: number) => {
-  viewDate.value = new Date(currentYear.value, currentMonth.value + diff, 1)
-}
-
 const isDateInRange = (dateStr: string) => {
   if (!props.rangeStart && !props.rangeEnd) return false
   const start = props.rangeStart || '1970-01-01'
@@ -133,6 +182,12 @@ const isDateInRange = (dateStr: string) => {
   return dateStr >= start && dateStr <= end
 }
 
+// ✅ 추가: minDate/maxDate 제한 체크 함수
+const isOutsideBounds = (dateStr: string) => {
+  if (props.minDate && dateStr < props.minDate) return true
+  if (props.maxDate && dateStr > props.maxDate) return true
+  return false
+}
 const calendarDates = computed<CalendarDate[]>(() => {
   const y = currentYear.value
   const m = currentMonth.value
@@ -146,7 +201,8 @@ const calendarDates = computed<CalendarDate[]>(() => {
       full: `empty-start-${i}`,
       currentMonth: false,
       isToday: false,
-      inRange: false
+      inRange: false,
+      isOutOfBounds: false
     })
   }
 
@@ -157,7 +213,8 @@ const calendarDates = computed<CalendarDate[]>(() => {
       full,
       currentMonth: true,
       isToday: full === todayString,
-      inRange: isDateInRange(full)
+      inRange: isDateInRange(full),
+      isOutOfBounds: isOutsideBounds(full) // ✅ 추가
     })
   }
 
@@ -169,7 +226,8 @@ const calendarDates = computed<CalendarDate[]>(() => {
       full: `empty-end-${i}`,
       currentMonth: false,
       isToday: false,
-      inRange: false
+      inRange: false,
+      isOutOfBounds: false
     })
   }
 
@@ -178,7 +236,11 @@ const calendarDates = computed<CalendarDate[]>(() => {
 
 const selectDate = (date: CalendarDate) => {
   if (!date.currentMonth) return
-  if (props.restrictRange && !date.inRange) {
+
+  // ✅ 클릭 방지 조건 확장
+  const isInvalid = (props.restrictRange && !date.inRange) || date.isOutOfBounds
+
+  if (isInvalid) {
     emit('error')
     return
   }

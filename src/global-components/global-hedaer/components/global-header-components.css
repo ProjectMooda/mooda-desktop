@@ -1,0 +1,72 @@
+/* 공통 패널 뼈대 */
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+}
+
+/* 상단 헤더 (제목 + 버튼) */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border-color);
+}
+.panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.panel-action {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.panel-action:hover {
+  color: var(--color-primary);
+}
+
+/* 리스트 아이템 공통 (클립보드, 파일 링커 등에서 쓰임) */
+.item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.list-item:hover {
+  background: var(--bg-hover);
+}
+.item-text {
+  font-size: 13px;
+  color: var(--text-main);
+  flex: 1;
+  min-width: 0;
+}
+.item-icon {
+  color: var(--text-muted);
+  font-size: 16px;
+  margin-left: 8px;
+}
+.list-item:hover .item-icon {
+  color: var(--color-primary);
+}
+
+/* 유틸리티 */
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

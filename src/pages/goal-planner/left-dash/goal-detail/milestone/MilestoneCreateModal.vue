@@ -40,7 +40,6 @@
       </div>
 
       <div class="divider"></div>
-
       <div class="field">
         <div class="field-label">기간 설정</div>
         <GlobalDateRangePicker
@@ -48,6 +47,8 @@
           v-model:end-date="endDate"
           size="md"
           align="left"
+          :min-date="props.goal.startDate"
+          :max-date="props.goal.endDate || undefined"
         />
 
         <div class="date-err" v-show="!isValidDates">

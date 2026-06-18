@@ -8,67 +8,101 @@
     @toggle-pin="$emit('toggle-pin')"
   >
     <template #context>
-      <span class="text-xs font-bold text-sub">일반일정</span>
-
       <template v-if="!isMini">
         <span
-          v-if="item.category && item.category !== '선택 안함'"
+          v-if="categoryData"
           class="meta-badge"
           style="background-color: var(--bg-hover); color: var(--text-sub)"
         >
-          {{ item.category }}
+          {{ categoryData.emoji }} {{ categoryData.label }}
         </span>
 
         <span
-          v-if="item.priority"
+          v-if="priorityData"
           class="meta-badge"
-          :style="getPriorityStyle(item.priority)"
+          :style="{ backgroundColor: priorityData.color }"
         >
-          {{ getPriorityLabel(item.priority) }}
+          {{ priorityData.emoji }} {{ priorityData.label }}
         </span>
       </template>
     </template>
+
+    <template #summary-right>
+      <span class="text-xs font-bold text-sub">
+        {{ scheduleTypeLabel }}
+      </span>
+    </template>
   </Card>
 </template>
-
 <script setup lang="ts">
-import type { ScheduleItem } from '@/stores/useScheduleStore'
+import { computed } from 'vue'
+import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
 import Card from './components/Card.vue'
-import { useFormatter } from '@/utils/useFormatter'
 
-const { getPriorityLabel, getPriorityStyle } = useFormatter()
-
-defineProps<{
+const props = defineProps<{
   item: ScheduleItem
   isMini?: boolean
 }>()
 defineEmits(['update', 'delete', 'toggle-pin'])
+
+const store = useScheduleStore()
+
+const categoryData = computed(() => {
+  if (!props.item.category) return null
+  return store.categories.find((c) => c.id === props.item.category) || null
+})
+
+const priorityData = computed(() => {
+  if (!props.item.priority) return null
+  return store.priorityOptions.find((p) => p.id === props.item.priority) || null
+})
+
+const scheduleTypeLabel = computed(() => {
+  switch (props.item.creationMode) {
+    case 'period':
+      return '기간일정'
+    case 'weekly':
+      return '반복일정'
+    case 'multiple':
+      return '다중일정'
+    case 'single':
+    default:
+      return '일반일정'
+  }
+})
 </script>
 
 <style scoped>
 /* =======================================
    Task Card만의 고유 스타일 오버라이딩
 ======================================= */
-/* 일반 카드와 시각적으로 분리하고 싶을 때 배경색 미세 조정 */
 :deep(.global-task-card) {
   background-color: var(--bg-app);
 }
 
-/* 미니 모드일 때만 순백색(카드 배경) 부여 */
 :deep(.global-task-card.is-mini) {
   background-color: var(--bg-card);
 }
 
 /* =======================================
-   뱃지 공통 스타일 (크기가 작아 전역에 두기 애매할 때 유용)
+   우측 하단 일정 타입 라벨 스타일
+======================================= */
+.schedule-type-label {
+  bottom: 12px;
+  right: 12px;
+}
+
+/* =======================================
+   뱃지 공통 스타일
 ======================================= */
 .meta-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: var(--font-bold);
-  padding: 2px 6px;
+  padding: 4px 8px;
   border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
 }
 </style>

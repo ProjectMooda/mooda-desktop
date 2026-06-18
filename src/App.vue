@@ -1,51 +1,51 @@
 <template>
-  <div class="jarvis-wrapper">
-    <GlobalSidebar />
+  <div
+    class="jarvis-wrapper"
+    :class="{ 'is-mini-window': scheduleStore.isMiniMode }"
+  >
+    <GlobalSidebar v-if="!scheduleStore.isMiniMode" />
 
     <main class="main-workspace min-w-0">
-      <header class="studio-header shrink-0 justify-between items-center mb-16">
-        <div class="flex-col gap-4">
+      <!-- 1. 미니 모드일 땐 헤더 완전히 숨김 -->
+      <header
+        v-if="!scheduleStore.isMiniMode"
+        class="studio-header flex shrink-0 items-center justify-between mb-16"
+      >
+        <div class="flex flex-col gap-4">
           <span class="text-sm font-semibold text-muted">{{ todayDate }}</span>
           <h1 class="page-title text-2xl font-bold text-main">
             {{ currentMenuLabel }}<span class="text-primary">.</span>
           </h1>
         </div>
 
-        <div class="header-actions-dock shadow-2">
-          <BaseButton :size="3" variant="ghost" class="dock-key">1</BaseButton>
-          <BaseButton :size="3" variant="ghost" class="dock-key">2</BaseButton>
-          <BaseButton
-            :size="3"
-            variant="ghost"
-            class="dock-key special-key-success"
-            >3</BaseButton
-          >
-          <BaseButton
-            :size="3"
-            variant="ghost"
-            class="dock-key special-key-danger"
-            >4</BaseButton
-          >
-
-          <BaseButton
-            :size="3"
-            variant="ghost"
-            class="dock-key special-key-warning"
-            @click="sidebarStore.showSettings = true"
-          >
-            5
-          </BaseButton>
-        </div>
+        <GlobalHeaderDock />
       </header>
 
-      <div class="scroll-content min-h-0 flex-col">
-        <transition name="fade" mode="out-in">
+      <div class="scroll-content min-h-0 flex-col flex-1 h-full w-full">
+        <div
+          v-if="scheduleStore.isMiniMode"
+          class="w-full h-full flex flex-col"
+        >
+          <StudioCard class="flex-1" />
+        </div>
+
+        <transition v-else name="fade" mode="out-in">
           <keep-alive>
             <component :is="currentComponent" />
           </keep-alive>
         </transition>
       </div>
     </main>
+
+    <!-- 복귀 버튼 -->
+    <button
+      v-if="scheduleStore.isMiniMode"
+      class="floating-restore-btn"
+      @click="scheduleStore.toggleMiniMode"
+      title="원래 화면으로 복귀"
+    >
+      복귀
+    </button>
 
     <GlobalSettingsModal v-if="sidebarStore.showSettings" />
   </div>
@@ -55,14 +55,16 @@
 import { onMounted, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 
-// 컴포넌트 임포트
+// 기존 임포트 유지
 import GlobalSidebar from './global-components/global-sidebar/GlobalSidebar.vue'
 import GlobalSettingsModal from './global-components/global-settings/GlobalSettingsModal.vue'
+import GlobalHeaderDock from './global-components/global-hedaer/GlobalHeaderDock.vue'
 import CalendarPage from '@/pages/calendar/CalendarPage.vue'
 import GoalPlanner from '@/pages/goal-planner/GoalPlannerPage.vue'
-import BaseButton from '@/base-ui/BaseButton.vue'
 
-// 스토어 임포트
+// 🌟 [추가] 메인 레이아웃에서 StudioCard를 직접 띄우기 위해 임포트 (경로는 본인 프로젝트에 맞게 수정하세요)
+import StudioCard from '@/pages/calendar/right-dash/studio-card/StudioCard.vue'
+
 import { useSidebarStore } from './global-components/global-sidebar/useSidebarStore.ts'
 import { useSettingsStore } from './global-components/global-settings/useSettingsStore.ts'
 import { useScheduleStore } from '@/stores/useScheduleStore'
@@ -76,7 +78,6 @@ const { currentTab, menuItems } = storeToRefs(sidebarStore)
 const currentMenuLabel = computed(() => {
   return menuItems.value[currentTab.value - 1]?.label || 'Workspace'
 })
-
 const todayDate = computed(() => {
   return new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric',
@@ -85,7 +86,6 @@ const todayDate = computed(() => {
     weekday: 'long'
   }).format(new Date())
 })
-
 const currentComponent = computed(() => {
   const label = menuItems.value[currentTab.value - 1]?.label
   if (label === 'Calendar') return CalendarPage
@@ -101,7 +101,7 @@ onMounted(() => {
 
 <style scoped>
 /* =======================================
-   전체 래퍼
+    전체 래퍼
 ======================================= */
 .jarvis-wrapper {
   display: flex;
@@ -112,13 +112,13 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0 var(--space-10); /* 40px */
+  padding: 0 var(--space-10);
   min-width: 0;
   height: 100%;
 }
 
 /* =======================================
-   스튜디오 헤더
+    스튜디오 헤더
 ======================================= */
 .studio-header {
   height: 100px;
@@ -131,85 +131,7 @@ onMounted(() => {
 }
 
 /* =======================================
-   🌟 글로벌 변수를 활용한 미니 독 디자인
-======================================= */
-.header-actions-dock {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2); /* 8px */
-  background-color: var(--bg-card); /* 시스템 백그라운드 */
-  border: 1px solid var(--border-color); /* 시스템 보더 */
-  border-radius: var(--radius-lg);
-  padding: var(--space-2); /* 8px */
-}
-
-/* 🌟 BaseButton 오버라이드 (키캡 디자인) */
-.header-actions-dock :deep(.base-button.is-ghost) {
-  /* 기본 상태 (눈에 띄게 테두리 부여) */
-  background-color: var(--bg-app);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm); /* 시스템의 8px 각진 반경 사용 */
-  color: var(--text-sub);
-
-  /* 숫자가 요동치지 않도록 tabular-nums 강제 적용 */
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--font-bold);
-
-  /* BaseButton 사이즈 3을 오버라이드하여 정사각형 모양으로 잡음 */
-  min-width: var(--control-h-3);
-  padding: 0;
-  justify-content: center;
-
-  /* 글로벌 Transition 변수 활용 */
-  transition: all var(--transition-base);
-}
-
-/* 🌟 호버 시: 글로벌 컬러 변수를 이용한 SF 모던 글로우(발광) 효과 */
-.header-actions-dock :deep(.base-button.is-ghost:hover) {
-  background-color: var(--bg-card);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-
-  /* 변수로 정의된 Primary Light 색상을 퍼뜨려 은은한 후광 연출 */
-  box-shadow:
-    0 4px 12px var(--color-primary-light),
-    0 0 0 1px var(--color-primary);
-
-  transform: translateY(-2px); /* 글로벌 active-scale과 어우러지는 팝업 */
-}
-
-/* 🌟 글로벌 State Indicator를 활용한 특수 키캡들 */
-/* 3번: Success (초록) */
-.header-actions-dock :deep(.dock-key.special-key-success:hover) {
-  border-color: var(--color-success);
-  color: var(--color-success);
-  box-shadow:
-    0 4px 12px var(--color-success-light),
-    0 0 0 1px var(--color-success);
-}
-
-/* 4번: Danger (빨강) */
-.header-actions-dock :deep(.dock-key.special-key-danger:hover) {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-  box-shadow:
-    0 4px 12px var(--color-danger-light),
-    0 0 0 1px var(--color-danger);
-}
-
-/* 5번: Warning (노랑/주황) */
-.header-actions-dock :deep(.dock-key.special-key-warning:hover) {
-  border-color: var(--color-warning);
-  color: var(
-    --color-warning
-  ); /* 약간 대비가 안 맞으면 text-main으로 빼셔도 됩니다 */
-  box-shadow:
-    0 4px 12px var(--color-warning-light),
-    0 0 0 1px var(--color-warning);
-}
-
-/* =======================================
-   콘텐츠 스크롤 영역
+    콘텐츠 스크롤 영역
 ======================================= */
 .scroll-content {
   flex: 1;
@@ -223,5 +145,45 @@ onMounted(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* =======================================
+    🌟 미니 모드 시 컴포넌트 여백 압축 스타일 이식
+======================================= */
+.is-mini-window .main-workspace {
+  padding: 0 !important; /* 바깥쪽 껍질 여백 완전 제거 */
+}
+
+.is-mini-window .scroll-content {
+  padding-bottom: 0 !important; /* 하단 회색 빈 공간 제거 */
+}
+
+/* 🌟 [핵심] StudioCard 내부의 데스크탑용 두꺼운 테두리와 패딩을 스마트폰 앱처럼 깎아냄 */
+.is-mini-window :deep(.studio-card) {
+  border: none !important; /* 굵은 외곽선 제거 */
+  border-radius: 0 !important; /* 둥근 모서리를 직각으로 펴서 창에 밀착 */
+  box-shadow: none !important; /* 불필요한 그림자 제거 */
+  padding: 16px !important; /* 내부 글자 여백을 모바일 화면(16px) 수준으로 축소 */
+}
+
+/* 🌟 복귀를 위한 우측 하단 고정 플로팅 버튼 */
+.floating-restore-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--color-warning, #f59e0b);
+  color: #000;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  transition: transform 0.2s;
+}
+.floating-restore-btn:hover {
+  transform: scale(1.1);
 }
 </style>

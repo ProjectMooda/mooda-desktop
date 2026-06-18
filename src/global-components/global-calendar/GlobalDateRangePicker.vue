@@ -7,10 +7,13 @@
     </transition>
 
     <div class="date-picker-group">
-      <!-- 🌟 날짜 선택 버튼에 BaseButton 적용 (secondary 테마) -->
       <BaseButton
         variant="secondary"
-        :class="{ 'is-active': activeCalendar === 'start' }"
+        class="date-btn"
+        :class="{
+          'is-active': activeCalendar === 'start',
+          'has-value': !!startDate // 값이 있으면 활성화 클래스 추가
+        }"
         @click="activeCalendar = 'start'"
       >
         <span class="date-text">{{ startDate || placeholderStart }}</span>
@@ -18,12 +21,13 @@
 
       <span class="date-arrow">{{ arrowText }}</span>
 
-      <!-- 🌟 날짜 선택 버튼에 BaseButton 적용 (secondary 테마) -->
       <BaseButton
         variant="secondary"
+        class="date-btn"
         :class="{
           'is-empty': !endDate,
-          'is-active': activeCalendar === 'end'
+          'is-active': activeCalendar === 'end',
+          'has-value': !!endDate // 값이 있으면 활성화 클래스 추가
         }"
         @click="activeCalendar = 'end'"
       >
@@ -45,7 +49,7 @@
       >
         <div class="segment-group">
           <BaseButton
-            variant="ghost"
+            variant="outline"
             class="segment-btn"
             :class="{ 'is-selected': activeCalendar === 'start' }"
             @click="activeCalendar = 'start'"
@@ -53,7 +57,7 @@
             시작일
           </BaseButton>
           <BaseButton
-            variant="ghost"
+            variant="outline"
             class="segment-btn"
             :class="{ 'is-selected': activeCalendar === 'end' }"
             @click="activeCalendar = 'end'"
@@ -68,6 +72,8 @@
             :model-value="startDate"
             :range-end="endDate || undefined"
             :restrict-range="!!endDate"
+            :min-date="minDate || undefined"
+            :max-date="maxDate || undefined"
             @update:model-value="onUpdateStart"
             @error="handleCalendarError"
           />
@@ -77,6 +83,8 @@
             :model-value="endDate"
             :range-start="startDate || undefined"
             :restrict-range="!!startDate"
+            :min-date="minDate || undefined"
+            :max-date="maxDate || undefined"
             @update:model-value="onUpdateEnd"
             @error="handleCalendarError"
           />
@@ -89,8 +97,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import GlobalCalendar from './GlobalCalendar.vue'
-import BaseButton from '@/base-ui/BaseButton.vue' // 🌟 BaseButton 추가
-
+import BaseButton from '@/base-ui/BaseButton.vue'
 const props = withDefaults(
   defineProps<{
     startDate?: string
@@ -101,6 +108,8 @@ const props = withDefaults(
     placeholderEnd?: string
     arrowText?: string
     showIcon?: boolean
+    minDate?: string // ✅ 추가: 선택 가능한 최소 날짜 (Goal startDate)
+    maxDate?: string // ✅ 추가: 선택 가능한 최대 날짜 (Goal endDate)
   }>(),
   {
     startDate: '',
@@ -110,7 +119,9 @@ const props = withDefaults(
     placeholderStart: '시작일',
     placeholderEnd: '미정',
     arrowText: '→',
-    showIcon: false
+    showIcon: false,
+    minDate: '', // ✅ 기본값: 제한 없음
+    maxDate: '' // ✅ 기본값: 제한 없음
   }
 )
 
@@ -205,8 +216,32 @@ const onUpdateEnd = (val: string) => {
   font-size: var(--text-sm);
   font-weight: bold;
 }
+
+/* 기본 상태 (미정일 때) */
+.date-btn {
+  transition: all 0.2s ease;
+  color: var(--text-muted); /* 미정일 땐 회색 텍스트 */
+}
+
 .date-text {
   font-variant-numeric: tabular-nums;
+}
+
+/* ✨ 값이 설정되었을 때의 스타일 (가독성 향상) */
+.date-btn.has-value {
+  color: var(--text-main, #1e293b); /* 진한 색상으로 변경 */
+  font-weight: 600; /* 글씨 두께 강화 */
+  background-color: var(
+    --bg-card,
+    #ffffff
+  ); /* 필요 시 배경을 더 돋보이게 변경 가능 */
+  border-color: var(--border-color, #cbd5e1);
+}
+
+/* 클릭(활성화) 상태일 때 조금 더 강조 */
+.date-btn.is-active.has-value {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 /* =======================================
@@ -270,30 +305,39 @@ const onUpdateEnd = (val: string) => {
 ======================================= */
 .segment-group {
   display: flex;
-  border-bottom: 1px solid var(--border-color, #e2e8f0); /* 캘린더 영역과 구분선 */
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+
+  /* 여기서 전체 둥글기를 제어합니다 */
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  overflow: hidden; /* 자식 버튼들이 밖으로 삐져나오지 않게 함 */
 }
 
+/* 🌟 2. 버튼은 무조건 둥글기 0으로 강제 */
 .segment-btn {
   flex: 1;
   justify-content: center;
   height: 45px;
-  border-radius: 0 !important; /* BaseButton의 기본 둥근 모서리 무효화 */
+
+  /* 둥글기를 완전히 제거합니다 */
+  border-radius: 0 !important;
+
   color: var(--text-muted, #64748b);
   font-size: var(--text-sm, 14px);
   font-weight: 500;
   transition: all 0.2s ease;
+  border: none; /* 혹시 모를 기본 테두리 제거 */
 }
-
 .segment-btn:hover {
   color: var(--text-primary, #1e293b);
-  background-color: rgba(0, 0, 0, 0.03); /* 살짝 호버 효과 */
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
-/* 선택된 탭: 달력 본문과 자연스럽게 이어지는 스타일 */
 .segment-btn.is-selected {
   color: var(--text-primary, #0f172a);
   font-weight: bold;
-  box-shadow: none; /* 떠보이는 그림자 제거 */
-  border-bottom: 2px solid var(--text-primary, #0f172a); /* 선택된 탭 하단 강조선 */
+  background-color: transparent; /* 필요 시 배경색 */
+  border-bottom: 2px solid var(--text-primary, #0f172a);
 }
 </style>
+S
