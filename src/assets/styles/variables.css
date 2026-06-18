@@ -119,3 +119,26 @@
   --z-modal: 1000;
   --z-toast: 2000;
 }
+
+html[data-theme='dark'] {
+  --color-primary: #4a90e2; /* 다크모드에 맞는 약간 밝은 메인 컬러 */
+  --bg-app: #121212;
+  --bg-card: #1e1e1e;
+  --bg-hover: #2c2c2e;
+  --border-color: #38383a;
+  --text-main: #f5f5f7;
+  --text-sub: #a1a1a6;
+  --text-muted: #6e6e73;
+}
+
+/* 🌲 나무(Nature) 모드 덮어쓰기 */
+html[data-theme='tree'] {
+  --color-primary: #4e7a5e; /* 나뭇잎 색 */
+  --color-primary-light: #e6eee9;
+  --bg-app: #f4f1ea; /* 따뜻한 크라프트지 느낌 배경 */
+  --bg-card: #ffffff;
+  --bg-hover: #e8e3d8;
+  --border-color: #d7d1c5;
+  --text-main: #3e3832; /* 진한 나무껍질 색 */
+  --text-sub: #7a7268;
+}

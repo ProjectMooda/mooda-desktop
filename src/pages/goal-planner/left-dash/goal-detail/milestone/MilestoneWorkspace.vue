@@ -43,11 +43,11 @@
         <GlobalCalendar
           v-model="selectedMsDate"
           :default-date="activeMilestone?.startDate || props.goal.startDate"
-          :range-start="activeMilestone?.startDate || props.goal.startDate"
-          :range-end="
-            activeMilestone?.endDate || props.goal.endDate || undefined
-          "
-          :restrict-range="true"
+          :range-start="activeMilestone?.startDate"
+          :range-end="activeMilestone?.endDate || undefined"
+          :min-date="props.goal.startDate"
+          :max-date="props.goal.endDate || undefined"
+          :restrict-range="false"
           class="h-full"
         />
       </div>
@@ -504,9 +504,10 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   }
 }
 </script>
-
 <style scoped>
-/* 공통 유틸리티 */
+/* =======================================
+   공통 유틸리티
+======================================= */
 .opacity-70 {
   opacity: 0.7;
 }
@@ -533,38 +534,25 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 }
 
 /* =======================================
-   🌟 BaseButton 커스텀 유틸리티 클래스
+   레이아웃 및 헤더
 ======================================= */
-/* 뱃지처럼 동작하게 만드는 스타일 */
-.ms-count-badge {
-  pointer-events: none; /* 클릭 안 됨 */
-}
-
-/* 퀵 폼 엔터(화살표) 버튼의 원형 복원 */
-
-/* 완료 토글 버튼 좌측 정렬 패딩 리셋 */
-.toggle-completed-btn {
-  padding-left: 0;
-  padding-right: 0;
-  margin-bottom: var(--space-2);
-}
-
-/* 레이아웃 */
 .goal-detail-view {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #fafafa;
+  background: var(--bg-app); /* 테마 배경 */
   border-radius: 0 0 16px 16px;
 }
+
 .ms-workspace-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20px 32px;
-  background: #fff;
-  border-bottom: 1px solid #e4e4e7;
+  background: var(--bg-card); /* 카드 배경 */
+  border-bottom: 1px solid var(--border-color); /* 테두리 */
 }
+
 .header-left {
   display: flex;
   align-items: center;
@@ -572,6 +560,7 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   flex: 1;
 }
 
+/* BaseInput 커스텀 */
 .workspace-title-base-input {
   width: 100%;
   max-width: 400px;
@@ -587,8 +576,7 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 }
 .workspace-title-base-input.is-focused :deep(.input-container),
 .workspace-title-base-input:focus-within :deep(.input-container) {
-  border-bottom-color: #6366f1 !important;
-  transform: none !important;
+  border-bottom-color: var(--color-primary) !important;
 }
 
 .header-right {
@@ -596,7 +584,9 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   align-items: center;
 }
 
-/* 바디 레이아웃 */
+/* =======================================
+   본문 영역
+======================================= */
 .ms-workspace-body {
   display: flex;
   flex: 1;
@@ -606,13 +596,7 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   overflow: hidden;
 }
 
-.cal-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
+.cal-panel,
 .task-panel {
   flex: 1;
   display: flex;
@@ -627,20 +611,22 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   align-items: center;
   margin-bottom: 20px;
 }
+
 .task-panel-header h4 {
   font-size: 18px;
   font-weight: 800;
-  color: #27272a;
+  color: var(--text-main);
   margin: 0;
 }
 
+/* =======================================
+   Task 리스트
+======================================= */
 .task-list-scroll {
   flex: 1;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  padding-right: 4px;
+  padding: 4px;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -648,19 +634,19 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 
 .empty-msg {
   font-size: 13px;
-  color: #a1a1aa;
+  color: var(--text-sub);
   text-align: center;
   padding: 40px 20px;
-  background-color: #fff;
+  background-color: var(--bg-card);
   border-radius: 12px;
-  border: 1px dashed #e4e4e7;
+  border: 1px dashed var(--border-color);
   margin-top: 8px;
 }
 
 .ghost-card {
   opacity: 0.4;
-  background-color: #f4f4f5;
-  border: 2px dashed #a1a1aa !important;
+  background-color: var(--bg-hover);
+  border: 2px dashed var(--text-sub) !important;
   transform: scale(0.98);
   transition: transform 0.2s;
 }
@@ -673,7 +659,9 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   opacity: 1;
 }
 
-/* SMART QUICK ADD */
+/* =======================================
+   Smart Quick Add (입력창)
+======================================= */
 .smart-quick-add {
   flex-shrink: 0;
   margin-bottom: 16px;
@@ -683,8 +671,8 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   position: relative;
   display: flex;
   align-items: center;
-  background-color: #ffffff;
-  border: 1px solid #e4e4e7;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 4px 8px;
   transition: all 0.2s ease;
@@ -692,24 +680,20 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 }
 
 .input-container.is-focused {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-}
-
-.milestone-selector {
-  margin-right: 8px;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--color-primary), transparent 85%);
 }
 
 .ms-badge {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
-  background-color: #eef2ff;
-  color: #4f46e5;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
   font-size: 12px;
   font-weight: 700;
   border-radius: 6px;
-  white-space: nowrap;
 }
 
 .quick-input {
@@ -718,19 +702,16 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
   background: transparent;
   padding: 8px;
   font-size: 13px;
-  color: #27272a;
+  color: var(--text-main);
   outline: none;
 }
 .quick-input::placeholder {
-  color: #a1a1aa;
+  color: var(--text-sub);
 }
 
-.action-buttons {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
+/* =======================================
+   기타 스타일
+======================================= */
 .section-divider {
   display: flex;
   align-items: center;
@@ -739,12 +720,12 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 .divider-line {
   flex: 1;
   height: 1px;
-  background-color: #e4e4e7;
+  background-color: var(--border-color);
 }
 .divider-text {
   font-size: 12px;
   font-weight: 600;
-  color: #a1a1aa;
+  color: var(--text-sub);
   padding: 0 12px;
 }
 .other-tasks-section {
@@ -753,5 +734,10 @@ const handleTaskUpdate = (payload: Partial<ScheduleItem>) => {
 }
 .other-tasks-section:hover {
   opacity: 1;
+}
+.toggle-completed-btn {
+  padding-left: 0;
+  padding-right: 0;
+  margin-bottom: var(--space-2);
 }
 </style>

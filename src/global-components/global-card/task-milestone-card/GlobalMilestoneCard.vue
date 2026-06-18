@@ -9,24 +9,47 @@
     @toggle-pin="$emit('toggle-pin')"
   >
     <template #context>
-      <span class="text-xs font-bold text-sub">{{ scheduleTypeLabel }}</span>
-
       <template v-if="!isMini">
+        <span v-if="goalTitle" class="context-goal">{{ goalTitle }}</span>
+
         <span
-          v-if="goalTitle || parentMilestoneTitle"
+          v-if="goalTitle && parentMilestoneTitle"
           class="context-divider"
           style="margin: 0 4px"
-          >|</span
         >
-        <span v-if="goalTitle" class="context-goal">{{ goalTitle }}</span>
-        <span v-if="goalTitle && parentMilestoneTitle" class="context-divider"
-          >/</span
-        >
+          /
+        </span>
 
         <span v-if="parentMilestoneTitle" class="context-name">
-          {{ truncateText(parentMilestoneTitle, 10) }}
+          {{ truncateText(parentMilestoneTitle, 12) }}
         </span>
       </template>
+    </template>
+
+    <template #summary-right>
+      <div class="flex items-center gap-4">
+        <span
+          v-if="categoryData"
+          class="meta-badge icon-only"
+          style="background-color: var(--bg-hover)"
+          :title="categoryData.label"
+        >
+          {{ categoryData.emoji }}
+        </span>
+
+        <span
+          v-if="priorityData"
+          class="meta-badge icon-only"
+          :style="{ backgroundColor: priorityData.color }"
+          :title="priorityData.label"
+        >
+          {{ priorityData.emoji }}
+        </span>
+
+        <span class="schedule-icon" :title="scheduleTypeLabel">
+          {{ scheduleTypeIcon }}
+        </span>
+      </div>
     </template>
   </Card>
 </template>
@@ -47,7 +70,32 @@ defineEmits(['update', 'delete', 'toggle-pin'])
 
 const store = useScheduleStore()
 
-// 🌟 creationMode에 따라 적절한 텍스트를 반환하는 computed 속성
+const categoryData = computed(() => {
+  if (!props.item.category) return null
+  return store.categories.find((c) => c.id === props.item.category) || null
+})
+
+const priorityData = computed(() => {
+  if (!props.item.priority) return null
+  return store.priorityOptions.find((p) => p.id === props.item.priority) || null
+})
+
+// 🌟 일정 타입을 아이콘으로 변환 (공간 절약!)
+const scheduleTypeIcon = computed(() => {
+  switch (props.item.creationMode) {
+    case 'period':
+      return '📅' // 기간
+    case 'weekly':
+      return '🔄' // 반복
+    case 'multiple':
+      return '📑' // 다중
+    case 'single':
+    default:
+      return '' // 일반 일정은 굳이 아이콘을 안 둬서 더 깔끔하게
+  }
+})
+
+// 마우스 오버용 텍스트
 const scheduleTypeLabel = computed(() => {
   switch (props.item.creationMode) {
     case 'period':
@@ -56,7 +104,6 @@ const scheduleTypeLabel = computed(() => {
       return '반복일정'
     case 'multiple':
       return '다중일정'
-    case 'single':
     default:
       return '일반일정'
   }
@@ -78,26 +125,18 @@ const targetGoal = computed(() => {
 
 const goalTitle = computed(() => targetGoal.value?.title || '')
 
-// ✨ 동적 스타일 (인라인으로 강제 적용)
 const dynamicStyle = computed(() => {
   const color = targetGoal.value?.color
   if (!color) return {}
-
   return {
-    // 1. 컴포넌트 배경색과 테두리를 인라인 스타일로 직접 덮어씌움
-    backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, // 색상을 15% 농도로 연하게 배경에 깔기
-    borderColor: `color-mix(in srgb, ${color} 50%, transparent)`, // 테두리는 50% 농도로
-
-    // 2. 텍스트용 변수
+    backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`,
+    borderColor: `color-mix(in srgb, ${color} 50%, transparent)`,
     '--card-theme-color': color
   }
 })
 </script>
 
 <style scoped>
-/* 동적 색상이 없을 때(일반 일정 등)를 대비한 기본 폴백(Fallback) 스타일. 
-   인라인 스타일이 주입되면 이 기본값은 자동으로 무시됩니다.
-*/
 :deep(.milestone-task-card) {
   background-color: var(--color-primary-pale, #eff6ff);
   border: 1px dashed var(--color-primary-light, #bfdbfe);
@@ -105,6 +144,29 @@ const dynamicStyle = computed(() => {
 
 :deep(.milestone-task-card.is-mini) {
   border-style: solid;
+}
+
+/* =======================================
+   정보 다이어트 뱃지 스타일
+======================================= */
+.meta-badge.icon-only {
+  font-size: 12px;
+  padding: 4px;
+  border-radius: 50%; /* 동그랗게 만들어서 아이콘처럼 보이게 */
+  aspect-ratio: 1 / 1; /* 정사각형 비율 유지 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help; /* 마우스를 올리면 툴팁(title)이 나옴을 암시 */
+}
+
+.schedule-icon {
+  font-size: 14px;
+  cursor: help;
+  opacity: 0.7;
+}
+.schedule-icon:hover {
+  opacity: 1;
 }
 
 .context-goal {

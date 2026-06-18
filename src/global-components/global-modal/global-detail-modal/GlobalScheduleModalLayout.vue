@@ -90,8 +90,6 @@ const handleClose = () => {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-color);
 }
 
 .action-left,

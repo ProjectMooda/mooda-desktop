@@ -4,7 +4,7 @@
 export const INPUT_MAX_LENGTH = {
   // StudioQuickAdd 에서 쓰는 일정 입력
   taskTitle: 20,
-  eventTitle: 30,
+  eventTitle: 20,
 
   // ScheduleDetailModal에서 사용
   subtask: 30, // 하위 할 일용 추가
@@ -16,9 +16,10 @@ export const INPUT_MAX_LENGTH = {
   // milseStoneCreateModal 에서도 사용하고 있음
   goalTitle: 30,
 
-  // 아직 미정
-  category: 15,
-
   // 경로 지정
-  routeName: 10
+  routeName: 10,
+
+  // 카테고리 및 중요도 글자 제한
+  category: 10,
+  priority: 10
 } as const

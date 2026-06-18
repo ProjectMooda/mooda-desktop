@@ -24,14 +24,20 @@
           </div>
         </div>
 
-        <div
-          class="card-title text-main truncate w-full"
-          :class="[
-            isMini ? 'text-xs' : 'text-sm font-semibold',
-            { 'is-done': item.done }
-          ]"
-        >
-          {{ item.summary || '미정' }}
+        <div class="flex justify-between items-center w-full gap-4 min-w-0">
+          <div
+            class="card-title text-main flex-1 truncate"
+            :class="[
+              isMini ? 'text-xs' : 'text-sm font-semibold',
+              { 'is-done': item.done }
+            ]"
+          >
+            {{ item.summary || '미정' }}
+          </div>
+
+          <div class="shrink-0 flex items-center">
+            <slot name="summary-right"></slot>
+          </div>
         </div>
       </div>
 
@@ -96,18 +102,14 @@ const props = defineProps<{
 
 const emit = defineEmits(['update', 'delete', 'toggle-pin'])
 
-// 🌟 각각의 모달 상태를 관리하는 변수 추가
 const isDetailModalOpen = ref(false)
 const isFullModalOpen = ref(false)
 
 const openModal = () => {
   const mode = props.item.creationMode
-
   if (mode === 'weekly' || mode === 'period') {
-    // 반복, 기간, 다중 일정일 때는 Full Modal 오픈
     isFullModalOpen.value = true
   } else {
-    // 일반 일정일 때는 Detail Modal 오픈
     isDetailModalOpen.value = true
   }
 }
@@ -119,9 +121,7 @@ const displayTime = computed(() => {
 </script>
 
 <style scoped>
-/* =======================================
-    고유 카드 속성만 남김 (마진은 목록에서 띄우기 위함)
-======================================= */
+/* 기존 스타일 그대로 유지 */
 .global-schedule-card {
   cursor: pointer;
   margin-bottom: var(--space-2);
@@ -157,9 +157,6 @@ const displayTime = computed(() => {
   text-overflow: ellipsis;
 }
 
-/* =======================================
-    🌟 컨테이너 크기 반응형 제어
-======================================= */
 @container (max-width: 400px) {
   .hide-on-compact {
     display: none !important;

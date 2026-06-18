@@ -304,7 +304,7 @@ const getCompletedCount = (msId: number) => {
   display: flex;
   height: 100%;
   gap: var(--space-8, 32px);
-  background: var(--bg-app, #ffffff);
+  background: var(--bg-app);
   overflow: hidden;
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }

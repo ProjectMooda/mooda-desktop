@@ -44,7 +44,6 @@
         title="임시 파일 드롭존"
         @click="togglePanel(4)"
         @dragover.prevent
-        @drop.prevent="handleDropToIcon"
       >
         <span class="key-text">4</span>
         <span v-if="hasDroppedFiles" class="status-dot danger-dot"></span>
@@ -99,19 +98,8 @@ const hasClipboard = ref(false)
 const hasDroppedFiles = ref(false)
 const scheduleStore = useScheduleStore()
 
-const dropzoneRef = ref<InstanceType<typeof DockDropzone> | null>(null)
-
 const togglePanel = (panelNumber: number) => {
   activePanel.value = activePanel.value === panelNumber ? null : panelNumber
-}
-
-// 아이콘에 바로 드래그앤드롭 했을 때 자식 컴포넌트의 메서드 호출
-const handleDropToIcon = (e: DragEvent) => {
-  const files = e.dataTransfer?.files || null
-  if (dropzoneRef.value) {
-    dropzoneRef.value.processFiles(files)
-  }
-  activePanel.value = 4
 }
 
 // 외부 클릭 시 닫기

@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:app": "vite build && tsc electron/main.ts --skipLibCheck --ignoreConfig && electron-builder",
+    "build:app": "vite build && tsc electron/main.ts --skipLibCheck --outDir dist-electron && electron-builder",
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -55,7 +55,7 @@
     },
     "files": [
       "dist/**/*",
-      "electron/**/*.js",
+      "dist-electron/**/*.js",
       "package.json"
     ],
     "win": {
@@ -63,6 +63,15 @@
     },
     "mac": {
       "target": "dmg"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Mooda",
+      "language": "1042"
     }
   }
 }

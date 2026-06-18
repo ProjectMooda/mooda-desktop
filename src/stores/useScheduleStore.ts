@@ -24,6 +24,8 @@ export interface ScheduleItem {
   }[]
   isPinned?: boolean
   orderIndex?: number
+  isRecurring?: boolean
+  repeatWeekdays?: string[]
 }
 
 // 2. 장기 목표
@@ -46,6 +48,14 @@ export interface Milestone {
   done: boolean
 }
 
+// 카테고리 옵션
+export interface CategoryOption {
+  id: string
+  label: string
+  emoji: string
+}
+
+// 우선순위 옵션
 export interface PriorityOption {
   id: string
   label: string
@@ -66,14 +76,15 @@ export const useScheduleStore = defineStore('schedule', () => {
   const dailyFocus = ref('')
   const isMiniMode = ref(false) // 미니ㄹaddCategory 모드
 
-  const categories = ref<string[]>([
-    '기획',
-    '디자인',
-    '개발',
-    '마케팅',
-    '개인일정',
-    '기타'
+  const categories = ref<CategoryOption[]>([
+    { id: 'c-1', label: '기획', emoji: '💡' },
+    { id: 'c-2', label: '디자인', emoji: '🎨' },
+    { id: 'c-3', label: '개발', emoji: '💻' },
+    { id: 'c-4', label: '마케팅', emoji: '🚀' },
+    { id: 'c-5', label: '개인일정', emoji: '🏃' },
+    { id: 'c-6', label: '기타', emoji: '📌' }
   ])
+
   const priorityOptions = ref<PriorityOption[]>([
     { id: 'High', label: '높음', emoji: '🔥', color: '#fee2e2' },
     { id: 'Medium', label: '중간', emoji: '⭐', color: '#fef3c7' },
@@ -288,9 +299,33 @@ export const useScheduleStore = defineStore('schedule', () => {
         : []
       dailyFocus.value = parsed.dailyFocus || ''
 
-      if (Array.isArray(parsed.categories)) categories.value = parsed.categories
-      if (Array.isArray(parsed.priorityOptions))
+      // 🌟 카테고리 마이그레이션: 구버전(문자열 배열)을 신버전(객체 배열)으로 자동 변환
+      if (Array.isArray(parsed.categories)) {
+        if (typeof parsed.categories[0] === 'string') {
+          categories.value = parsed.categories.map((c: string, i: number) => ({
+            id: `c-old-${Date.now()}-${i}`,
+            label: c,
+            emoji: '📌'
+          }))
+
+          // 기존 일정들의 category 값도 텍스트에서 id로 치환
+          schedules.value.forEach((s) => {
+            if (s.category) {
+              const matchedCat = categories.value.find(
+                (c) => c.label === s.category
+              )
+              if (matchedCat) s.category = matchedCat.id
+            }
+          })
+          saveData() // 자동 변환된 데이터를 바로 저장
+        } else {
+          categories.value = parsed.categories
+        }
+      }
+
+      if (Array.isArray(parsed.priorityOptions)) {
         priorityOptions.value = parsed.priorityOptions
+      }
     } catch (e) {
       console.error('데이터 파싱 오류:', e)
     }
@@ -346,10 +381,24 @@ export const useScheduleStore = defineStore('schedule', () => {
     saveData()
   }
 
-  const addCategory = (category: string) => {
-    if (!categories.value.includes(category)) {
-      categories.value.push(category)
-      saveData()
+  const addCategory = (newOption: Omit<CategoryOption, 'id'>) => {
+    if (categories.value.length >= 10) {
+      alert('최대 10개까지만 설정 가능합니다.')
+      return
+    }
+    const id = `c-${Date.now()}`
+    categories.value.push({ ...newOption, id })
+    saveData()
+  }
+
+  const updateCategoryOption = (
+    id: string,
+    newOption: Partial<CategoryOption>
+  ) => {
+    const idx = categories.value.findIndex((c) => c.id === id)
+    if (idx !== -1) {
+      categories.value[idx] = { ...categories.value[idx], ...newOption }
+      saveData() // 일정의 category 필드가 id를 들고 있으므로 순회 불필요!
     }
   }
 
@@ -360,6 +409,46 @@ export const useScheduleStore = defineStore('schedule', () => {
     if (window.electronAPI?.resizeWindow) {
       window.electronAPI.resizeWindow(isMiniMode.value ? 'mini' : 'middle')
     }
+  }
+
+  // =========================
+  // 카테고리 관리 로직 (수정/삭제)
+  // =========================
+
+  const removeCategory = (id: string) => {
+    categories.value = categories.value.filter((c) => c.id !== id)
+    // 기존 일정들에서 해당 카테고리 연결 해제
+    schedules.value.forEach((s) => {
+      if (s.category === id) s.category = ''
+    })
+    saveData()
+  }
+  // =========================
+  // 중요도 관리 로직 (수정/삭제)
+  // =========================
+  const updatePriorityOption = (
+    id: string,
+    newOption: Partial<PriorityOption>
+  ) => {
+    const idx = priorityOptions.value.findIndex((p) => p.id === id)
+    if (idx !== -1) {
+      priorityOptions.value[idx] = {
+        ...priorityOptions.value[idx],
+        ...newOption
+      }
+      saveData() // id는 그대로 유지되므로 일정(schedules) 데이터는 수정할 필요 없음
+    }
+  }
+
+  const removePriorityOption = (id: string) => {
+    priorityOptions.value = priorityOptions.value.filter((p) => p.id !== id)
+    // ✅ 기존 일정들에서 해당 중요도 연결 해제
+    schedules.value.forEach((s) => {
+      if (s.priority === id) {
+        s.priority = ''
+      }
+    })
+    saveData()
   }
   return {
     schedules,
@@ -393,6 +482,10 @@ export const useScheduleStore = defineStore('schedule', () => {
     addPriorityOption,
     addCategory,
     isMiniMode,
-    toggleMiniMode
+    toggleMiniMode,
+    removeCategory,
+    updateCategoryOption,
+    updatePriorityOption,
+    removePriorityOption
   }
 })

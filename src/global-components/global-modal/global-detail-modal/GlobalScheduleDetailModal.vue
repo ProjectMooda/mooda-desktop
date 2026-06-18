@@ -2,7 +2,7 @@
   <GlobalScheduleModalLayout
     :is-open="isOpen"
     :show-header="false"
-    @close="handleCloseModal"
+    @close="handleSaveAndClose"
   >
     <div class="title-date-row">
       <GlobalScheduleTitle
@@ -63,7 +63,7 @@ import BaseTimePicker from '@/base-ui/BaseTimePicker.vue'
 import BaseButton from '@/base-ui/BaseButton.vue'
 import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
 import GlobalScheduleTitle from '../global-detail-modal/schedule-form/GlobalScheduleTitle.vue'
-import GlobalScheduleMeta from '../global-detail-modal/schedule-form/GlobalScheduleMeta.vue'
+import GlobalScheduleMeta from './schedule-form/global-schedule-meta/GlobalScheduleMeta.vue'
 import GlobalDatePicker from '@/global-components/global-calendar/GlobalDatePicker.vue'
 
 // 🌟 서브태스크 컴포넌트 임포트 (경로는 프로젝트 설정에 맞게 조정해주세요)
