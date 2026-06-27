@@ -1,4 +1,4 @@
-import { BrowserWindow, app, clipboard, dialog, ipcMain, nativeImage, shell } from "electron";
+import { BrowserWindow, app, clipboard, dialog, ipcMain, nativeImage, safeStorage, shell } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
@@ -10,6 +10,77 @@ var clipboardListener = createRequire(import.meta.url)("clipboard-event");
 var mainWindow = null;
 var lastCopiedText = clipboard.readText();
 var isWatcherStarted = false;
+var pendingDeepLink = null;
+var rendererReady = false;
+var isDev = !app.isPackaged;
+if (isDev && process.platform === "win32") app.setAsDefaultProtocolClient("mooda", process.execPath, [path.resolve(process.argv[1])]);
+else app.setAsDefaultProtocolClient("mooda");
+if (!app.requestSingleInstanceLock()) {
+	app.quit();
+	process.exit(0);
+}
+app.on("second-instance", (_event, argv) => {
+	const deepLink = argv.find((arg) => arg.startsWith("mooda://"));
+	if (deepLink) handleDeepLink(deepLink);
+	if (mainWindow) {
+		if (mainWindow.isMinimized()) mainWindow.restore();
+		mainWindow.focus();
+	}
+});
+app.on("open-url", (event, url) => {
+	event.preventDefault();
+	handleDeepLink(url);
+});
+function handleDeepLink(url) {
+	if (!mainWindow) return;
+	try {
+		const parsed = new URL(url);
+		if (parsed.host === "auth" && parsed.pathname.includes("/callback")) {
+			const payload = {
+				accessToken: parsed.searchParams.get("accessToken"),
+				refreshToken: parsed.searchParams.get("refreshToken"),
+				userId: parsed.searchParams.get("userId"),
+				email: parsed.searchParams.get("email")
+			};
+			if (rendererReady && mainWindow) mainWindow.webContents.send("auth:callback", payload);
+			else pendingDeepLink = payload;
+		}
+		if (parsed.host === "auth" && parsed.pathname.includes("/error")) {
+			const message = parsed.searchParams.get("message") ?? "알 수 없는 오류";
+			mainWindow.webContents.send("auth:error", { message });
+		}
+	} catch (e) {
+		console.error("URL 파싱 실패:", url, e);
+	}
+}
+ipcMain.handle("renderer:ready", () => {
+	rendererReady = true;
+	if (pendingDeepLink && mainWindow) {
+		mainWindow.webContents.send("auth:callback", pendingDeepLink);
+		pendingDeepLink = null;
+	}
+});
+var rtPath = path.join(app.getPath("userData"), "rt.bin");
+ipcMain.handle("auth:save-refresh-token", (_event, token) => {
+	if (safeStorage.isEncryptionAvailable()) {
+		const encrypted = safeStorage.encryptString(token);
+		fs.writeFileSync(rtPath, encrypted);
+	}
+});
+ipcMain.handle("auth:get-refresh-token", () => {
+	try {
+		if (!fs.existsSync(rtPath) || !safeStorage.isEncryptionAvailable()) return null;
+		const encrypted = fs.readFileSync(rtPath);
+		return safeStorage.decryptString(Buffer.from(encrypted));
+	} catch {
+		return null;
+	}
+});
+ipcMain.handle("auth:clear-refresh-token", () => {
+	try {
+		if (fs.existsSync(rtPath)) fs.unlinkSync(rtPath);
+	} catch {}
+});
 function startClipboardWatcher(win) {
 	if (isWatcherStarted) return;
 	isWatcherStarted = true;
@@ -35,13 +106,22 @@ function createWindow() {
 			webSecurity: app.isPackaged ? true : false
 		}
 	});
-	if (app.isPackaged) mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
-	else mainWindow.loadURL("http://localhost:5173");
+	if (isDev) mainWindow.loadURL("http://localhost:5173");
+	else mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 	mainWindow.webContents.on("did-finish-load", () => {
 		startClipboardWatcher(mainWindow);
 	});
+	mainWindow.on("closed", () => {
+		mainWindow = null;
+		rendererReady = false;
+	});
 }
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+	createWindow();
+	const deepLink = process.argv.find((arg) => arg.startsWith("mooda://"));
+	if (deepLink) mainWindow?.webContents.once("did-finish-load", () => handleDeepLink(deepLink));
+});
+ipcMain.handle("open-external", (_event, url) => shell.openExternal(url));
 ipcMain.on("resize-window", (_event, size) => {
 	if (!mainWindow) return;
 	if (size === "max") {
@@ -76,9 +156,7 @@ ipcMain.handle("select-file", async () => {
 ipcMain.on("open-path", async (_event, filePath) => {
 	try {
 		await shell.openPath(filePath);
-	} catch (error) {
-		console.error("파일을 열 수 없습니다:", error);
-	}
+	} catch (error) {}
 });
 ipcMain.handle("stash-file", async (_event, sourcePath, fileName) => {
 	const stashDir = path.join(app.getPath("userData"), "MyStash");
@@ -90,7 +168,7 @@ ipcMain.handle("stash-file", async (_event, sourcePath, fileName) => {
 		await new Promise((resolve) => setTimeout(resolve, 200));
 		try {
 			await fs.promises.rename(sourcePath, targetPath);
-		} catch (renameError) {
+		} catch {
 			if (isDirectory) {
 				await fs.promises.cp(sourcePath, targetPath, { recursive: true });
 				await fs.promises.rm(sourcePath, {
@@ -108,7 +186,6 @@ ipcMain.handle("stash-file", async (_event, sourcePath, fileName) => {
 			isDirectory
 		};
 	} catch (error) {
-		console.error("보관함 저장 실패:", error);
 		return {
 			success: false,
 			error: error.message
@@ -137,8 +214,8 @@ ipcMain.handle("stash-url", async (_event, urlString) => {
 	const stashDir = path.join(app.getPath("userData"), "MyStash");
 	if (!fs.existsSync(stashDir)) fs.mkdirSync(stashDir, { recursive: true });
 	try {
-		const arrayBuffer = await (await fetch(urlString)).arrayBuffer();
-		const buffer = Buffer.from(arrayBuffer);
+		const response = await fetch(urlString);
+		const buffer = Buffer.from(await response.arrayBuffer());
 		const urlObj = new URL(urlString);
 		let fileName = path.basename(urlObj.pathname);
 		if (!fileName || !fileName.includes(".")) fileName = "downloaded_image.png";
@@ -170,9 +247,7 @@ ipcMain.on("ondragstart", (event, filePath) => {
 			file: filePath,
 			icon: dragIcon
 		});
-	} catch (error) {
-		console.error("네이티브 드래그 아웃 실패:", error);
-	}
+	} catch {}
 });
 ipcMain.handle("clear-stash", async () => {
 	const stashDir = path.join(app.getPath("userData"), "MyStash");
@@ -182,13 +257,11 @@ ipcMain.handle("clear-stash", async () => {
 			for (const file of files) await fs.promises.unlink(path.join(stashDir, file));
 		}
 		return true;
-	} catch (error) {
+	} catch {
 		return false;
 	}
 });
-app.on("will-quit", () => {
-	clipboardListener.stopListening();
-});
+app.on("will-quit", () => clipboardListener.stopListening());
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();
 });

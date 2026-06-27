@@ -1,4 +1,5 @@
 <template>
+  <SyncTestButton />
   <section class="studio-card">
     <StudioCardHeader
       class="studio-card-header"
@@ -137,6 +138,7 @@
 </template>
 
 <script setup lang="ts">
+import SyncTestButton from '@/pages/SyncTestButton.vue'
 import { ref, computed, watch } from 'vue'
 import draggable from 'vuedraggable'
 import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'

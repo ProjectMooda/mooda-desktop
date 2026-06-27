@@ -10,27 +10,30 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
 	openPath: (path) => {
 		electron.ipcRenderer.send("open-path", path);
 	},
-	getFilePath: (file) => {
-		return electron.webUtils.getPathForFile(file);
+	getFilePath: (file) => electron.webUtils.getPathForFile(file),
+	selectFile: () => electron.ipcRenderer.invoke("select-file"),
+	stashFile: (sourcePath, fileName) => electron.ipcRenderer.invoke("stash-file", sourcePath, fileName),
+	startDrag: (filePath) => electron.ipcRenderer.send("ondragstart", filePath),
+	clearStash: () => electron.ipcRenderer.invoke("clear-stash"),
+	stashData: (buffer, fileName) => electron.ipcRenderer.invoke("stash-data", buffer, fileName),
+	stashUrl: (url) => electron.ipcRenderer.invoke("stash-url", url),
+	resizeWindow: (size) => {
+		electron.ipcRenderer.send("resize-window", size);
 	},
-	selectFile: () => {
-		return electron.ipcRenderer.invoke("select-file");
+	openExternal: (url) => electron.ipcRenderer.invoke("open-external", url),
+	notifyReady: () => electron.ipcRenderer.invoke("renderer:ready"),
+	onAuthCallback: (fn) => {
+		const listener = (_event, data) => fn(data);
+		electron.ipcRenderer.on("auth:callback", listener);
+		return () => electron.ipcRenderer.removeListener("auth:callback", listener);
 	},
-	stashFile: (sourcePath, fileName) => {
-		return electron.ipcRenderer.invoke("stash-file", sourcePath, fileName);
+	onAuthError: (fn) => {
+		const listener = (_event, data) => fn(data);
+		electron.ipcRenderer.on("auth:error", listener);
+		return () => electron.ipcRenderer.removeListener("auth:error", listener);
 	},
-	startDrag: (filePath) => {
-		electron.ipcRenderer.send("ondragstart", filePath);
-	},
-	clearStash: () => {
-		return electron.ipcRenderer.invoke("clear-stash");
-	},
-	stashData: (buffer, fileName) => {
-		return electron.ipcRenderer.invoke("stash-data", buffer, fileName);
-	},
-	stashUrl: (url) => {
-		return electron.ipcRenderer.invoke("stash-url", url);
-	},
-	resizeWindow: (size) => electron.ipcRenderer.send("resize-window", size)
+	saveRefreshToken: (token) => electron.ipcRenderer.invoke("auth:save-refresh-token", token),
+	getRefreshToken: () => electron.ipcRenderer.invoke("auth:get-refresh-token"),
+	clearRefreshToken: () => electron.ipcRenderer.invoke("auth:clear-refresh-token")
 });
 //#endregion

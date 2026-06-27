@@ -1,3 +1,10 @@
+export interface AuthCallbackPayload {
+  accessToken: string | null
+  refreshToken: string | null // 🌟 [추가]
+  userId: string | null
+  email: string | null
+}
+
 export interface IElectronAPI {
   onClipboardChanged: (callback: (text: string) => void) => void
   writeToClipboard: (text: string) => void
@@ -19,14 +26,28 @@ export interface IElectronAPI {
     buffer: ArrayBuffer,
     fileName: string
   ) => Promise<{ success: boolean; newPath: string; error?: string }>
-  stashUrl: (url: string) => Promise<{
+  stashUrl: (
+    url: string
+  ) => Promise<{
     success: boolean
     newPath: string
     fileName: string
     size: number
     error?: string
   }>
-  resizeWindow: (size: 'max' | 'middle' | 'min' | 'mini') => void 
+  resizeWindow: (size: 'max' | 'middle' | 'min' | 'mini') => void
+
+  openExternal: (url: string) => Promise<void>
+  notifyReady: () => Promise<void>
+  onAuthCallback: (fn: (data: AuthCallbackPayload) => void) => () => void
+  onAuthError: (fn: (data: { message: string }) => void) => () => void
+
+  // 🌟 [추가] 타입 선언
+  saveRefreshToken: (token: string) => Promise<void>
+  getRefreshToken: () => Promise<string | null>
+  clearRefreshToken: () => Promise<void>
+}
+
 declare global {
   interface Window {
     electronAPI: IElectronAPI

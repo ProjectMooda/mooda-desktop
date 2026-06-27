@@ -5,7 +5,8 @@ import {
   clipboard,
   shell,
   dialog,
-  nativeImage
+  nativeImage,
+  safeStorage // 🌟 [추가] OS 암호화 모듈
 } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -22,10 +23,104 @@ let mainWindow: BrowserWindow | null = null
 let lastCopiedText = clipboard.readText()
 let isWatcherStarted = false
 
+// [타이밍 버그 해결] 딥링크 버퍼
+let pendingDeepLink: object | null = null
+let rendererReady = false
+
+const isDev = !app.isPackaged
+if (isDev && process.platform === 'win32') {
+  app.setAsDefaultProtocolClient('mooda', process.execPath, [
+    path.resolve(process.argv[1])
+  ])
+} else {
+  app.setAsDefaultProtocolClient('mooda')
+}
+
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+  process.exit(0)
+}
+
+app.on('second-instance', (_event, argv) => {
+  const deepLink = argv.find((arg) => arg.startsWith('mooda://'))
+  if (deepLink) handleDeepLink(deepLink)
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+  }
+})
+
+app.on('open-url', (event, url) => {
+  event.preventDefault()
+  handleDeepLink(url)
+})
+
+function handleDeepLink(url: string) {
+  if (!mainWindow) return
+  try {
+    const parsed = new URL(url)
+    if (parsed.host === 'auth' && parsed.pathname.includes('/callback')) {
+      const payload = {
+        accessToken: parsed.searchParams.get('accessToken'),
+        refreshToken: parsed.searchParams.get('refreshToken'), // 🌟 [추가] 리프레시 토큰 파싱
+        userId: parsed.searchParams.get('userId'),
+        email: parsed.searchParams.get('email')
+      }
+      if (rendererReady && mainWindow) {
+        mainWindow.webContents.send('auth:callback', payload)
+      } else {
+        pendingDeepLink = payload
+      }
+    }
+    if (parsed.host === 'auth' && parsed.pathname.includes('/error')) {
+      const message = parsed.searchParams.get('message') ?? '알 수 없는 오류'
+      mainWindow.webContents.send('auth:error', { message })
+    }
+  } catch (e) {
+    console.error('URL 파싱 실패:', url, e)
+  }
+}
+
+ipcMain.handle('renderer:ready', () => {
+  rendererReady = true
+  if (pendingDeepLink && mainWindow) {
+    mainWindow.webContents.send('auth:callback', pendingDeepLink)
+    pendingDeepLink = null
+  }
+})
+
+// 🌟 [추가] safeStorage를 이용한 Refresh Token OS 암호화 저장
+const rtPath = path.join(app.getPath('userData'), 'rt.bin')
+
+ipcMain.handle('auth:save-refresh-token', (_event, token: string) => {
+  if (safeStorage.isEncryptionAvailable()) {
+    const encrypted = safeStorage.encryptString(token)
+    fs.writeFileSync(rtPath, encrypted)
+  }
+})
+
+ipcMain.handle('auth:get-refresh-token', () => {
+  try {
+    if (!fs.existsSync(rtPath) || !safeStorage.isEncryptionAvailable())
+      return null
+    const encrypted = fs.readFileSync(rtPath)
+    return safeStorage.decryptString(Buffer.from(encrypted))
+  } catch {
+    return null
+  }
+})
+
+ipcMain.handle('auth:clear-refresh-token', () => {
+  try {
+    if (fs.existsSync(rtPath)) fs.unlinkSync(rtPath)
+  } catch {}
+})
+
+// ── 기존 로직 시작 (클립보드, 창, 보관함 등 유지) ──────────────────────────────────
 function startClipboardWatcher(win: BrowserWindow) {
   if (isWatcherStarted) return
   isWatcherStarted = true
-
   clipboardListener.startListening()
   clipboardListener.on('change', () => {
     const currentText = clipboard.readText()
@@ -55,48 +150,54 @@ function createWindow() {
     }
   })
 
-  if (app.isPackaged) {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
-  } else {
+  if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
-
-  //개발도구 계속 켜지는거
-  //mainWindow.webContents.openDevTools()
 
   mainWindow.webContents.on('did-finish-load', () => {
     startClipboardWatcher(mainWindow!)
   })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+    rendererReady = false
+  })
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  createWindow()
+  const deepLink = process.argv.find((arg) => arg.startsWith('mooda://'))
+  if (deepLink) {
+    mainWindow?.webContents.once('did-finish-load', () =>
+      handleDeepLink(deepLink)
+    )
+  }
+})
+
+ipcMain.handle('open-external', (_event, url: string) =>
+  shell.openExternal(url)
+)
+
 ipcMain.on(
   'resize-window',
   (_event, size: 'max' | 'middle' | 'min' | 'mini') => {
     if (!mainWindow) return
-
     if (size === 'max') {
-      // 🌟 1. 최대화 시 원래 최소 크기 제한 복구
       mainWindow.setMinimumSize(1024, 768)
       if (mainWindow.isMaximized()) mainWindow.unmaximize()
       else mainWindow.maximize()
     } else if (size === 'mini') {
-      // 🌟 2. 미니 모드: 최소 크기 제한을 먼저 400x600으로 확 낮춰서 작아질 수 있게 허락함
       if (mainWindow.isMaximized()) mainWindow.unmaximize()
       mainWindow.setMinimumSize(400, 600)
-
-      // 이제 안심하고 미니 위젯 사이즈로 축소!
       mainWindow.setSize(420, 700)
-      mainWindow.setAlwaysOnTop(true) // 다른 창 위에 항상 띄워두기
+      mainWindow.setAlwaysOnTop(true)
       mainWindow.center()
     } else {
-      // 🌟 3. 일반 모드 복귀: 화면을 원래대로 키우고, 최소 크기 제한(1024x768)도 다시 걸어줌
       if (mainWindow.isMaximized()) mainWindow.unmaximize()
       mainWindow.setAlwaysOnTop(false)
-
-      // 크기를 키우기 전에 제한 먼저 복구
       mainWindow.setMinimumSize(1024, 768)
-
       const width = size === 'middle' ? 1440 : 1024
       const height = size === 'middle' ? 900 : 768
       mainWindow.setSize(width, height)
@@ -104,6 +205,7 @@ ipcMain.on(
     }
   }
 )
+
 ipcMain.on('write-clipboard', (_event, text: string) => {
   lastCopiedText = text
   clipboard.writeText(text)
@@ -120,36 +222,23 @@ ipcMain.handle('select-file', async () => {
 ipcMain.on('open-path', async (_event, filePath: string) => {
   try {
     await shell.openPath(filePath)
-  } catch (error) {
-    console.error('파일을 열 수 없습니다:', error)
-  }
+  } catch (error) {}
 })
 
-// 🌟 [파일/폴더 넣기] 대형 폴더 및 드라이브 간 이동까지 완벽 지원하는 철벽 로직
 ipcMain.handle(
   'stash-file',
   async (_event, sourcePath: string, fileName: string) => {
     const stashDir = path.join(app.getPath('userData'), 'MyStash')
-
-    if (!fs.existsSync(stashDir)) {
-      fs.mkdirSync(stashDir, { recursive: true })
-    }
-
+    if (!fs.existsSync(stashDir)) fs.mkdirSync(stashDir, { recursive: true })
     const safeFileName = `${Date.now()}_${fileName}`
     const targetPath = path.join(stashDir, safeFileName)
-
     try {
       const stat = await fs.promises.stat(sourcePath)
       const isDirectory = stat.isDirectory()
-
-      // OS 드롭 세션 정리를 위해 200ms 살짝 대기 (잠금 해제 우회)
       await new Promise((resolve) => setTimeout(resolve, 200))
-
       try {
-        // 1. 가장 빠른 이름 변경(이동) 시도
         await fs.promises.rename(sourcePath, targetPath)
-      } catch (renameError: any) {
-        // 2. 다른 드라이브 분기 처리 (C드라이브에서 D드라이브 등으로 이동할 때)
+      } catch {
         if (isDirectory) {
           await fs.promises.cp(sourcePath, targetPath, { recursive: true })
           await fs.promises.rm(sourcePath, { recursive: true, force: true })
@@ -158,25 +247,20 @@ ipcMain.handle(
           await fs.promises.unlink(sourcePath)
         }
       }
-
       return { success: true, newPath: targetPath, isDirectory }
     } catch (error: any) {
-      console.error('보관함 저장 실패:', error)
       return { success: false, error: error.message }
     }
   }
 )
 
-// 웹 데이터 비동기 저장
 ipcMain.handle(
   'stash-data',
   async (_event, buffer: ArrayBuffer, fileName: string) => {
     const stashDir = path.join(app.getPath('userData'), 'MyStash')
     if (!fs.existsSync(stashDir)) fs.mkdirSync(stashDir, { recursive: true })
-
     const safeFileName = `${Date.now()}_${fileName || 'image.png'}`
     const targetPath = path.join(stashDir, safeFileName)
-
     try {
       await fs.promises.writeFile(targetPath, Buffer.from(buffer))
       return { success: true, newPath: targetPath }
@@ -186,23 +270,17 @@ ipcMain.handle(
   }
 )
 
-// 웹 URL 비동기 다운로드
 ipcMain.handle('stash-url', async (_event, urlString: string) => {
   const stashDir = path.join(app.getPath('userData'), 'MyStash')
   if (!fs.existsSync(stashDir)) fs.mkdirSync(stashDir, { recursive: true })
-
   try {
     const response = await fetch(urlString)
-    const arrayBuffer = await response.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
+    const buffer = Buffer.from(await response.arrayBuffer())
     const urlObj = new URL(urlString)
     let fileName = path.basename(urlObj.pathname)
     if (!fileName || !fileName.includes('.')) fileName = 'downloaded_image.png'
-
     const safeFileName = `${Date.now()}_${fileName}`
     const targetPath = path.join(stashDir, safeFileName)
-
     await fs.promises.writeFile(targetPath, buffer)
     return {
       success: true,
@@ -215,14 +293,9 @@ ipcMain.handle('stash-url', async (_event, urlString: string) => {
   }
 })
 
-// 🌟 [파일/폴더 꺼내기] 드래그 아웃 버그를 100% 해결하는 완벽한 동기식 핸들러
 ipcMain.on('ondragstart', (event, filePath: string) => {
   try {
-    // startDrag는 무조건 동기식(Sync) 스레드 내에서 즉시 호출되어야 끊기지 않습니다.
     let dragIcon = nativeImage.createFromPath(filePath)
-
-    // 폴더나 썸네일 생성이 불가능한 파일인 경우 에러 방지용 1x1 투명 픽셀 주입
-    // (OS 단에서 실제 드래그 시 마우스 포인터 모양을 알아서 제어해 줍니다.)
     if (dragIcon.isEmpty()) {
       dragIcon = nativeImage.createFromDataURL(
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
@@ -230,17 +303,10 @@ ipcMain.on('ondragstart', (event, filePath: string) => {
     } else {
       dragIcon = dragIcon.resize({ width: 64, height: 64 })
     }
-
-    event.sender.startDrag({
-      file: filePath,
-      icon: dragIcon
-    })
-  } catch (error) {
-    console.error('네이티브 드래그 아웃 실패:', error)
-  }
+    event.sender.startDrag({ file: filePath, icon: dragIcon })
+  } catch {}
 })
 
-// 보관함 비동기 비우기
 ipcMain.handle('clear-stash', async () => {
   const stashDir = path.join(app.getPath('userData'), 'MyStash')
   try {
@@ -251,19 +317,15 @@ ipcMain.handle('clear-stash', async () => {
       }
     }
     return true
-  } catch (error) {
+  } catch {
     return false
   }
 })
 
-app.on('will-quit', () => {
-  clipboardListener.stopListening()
-})
-
+app.on('will-quit', () => clipboardListener.stopListening())
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
-
 app.on('activate', () => {
   if (mainWindow === null) createWindow()
 })

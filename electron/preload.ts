@@ -1,15 +1,21 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 
-// 1. 프론트엔드와 공유할 동일한 타입 구조 정의
+export interface AuthCallbackPayload {
+  accessToken: string | null
+  refreshToken: string | null // 🌟 [추가]
+  userId: string | null
+  email: string | null
+}
+
 interface ElectronAPI {
   onClipboardChanged: (callback: (text: string) => void) => void
   writeToClipboard: (text: string) => void
   openPath: (path: string) => void
-  getFilePath: (file: File) => string // 🌟 올바른 문법으로 수정
+  getFilePath: (file: File) => string
   selectFile: () => Promise<string | null>
   startDrag: (filePath: string) => void
-  clearStash: () => Promise<boolean> // 🌟 누락되었던 메서드 타입 추가
+  clearStash: () => Promise<boolean>
   stashFile: (
     sourcePath: string,
     fileName: string
@@ -23,53 +29,72 @@ interface ElectronAPI {
     buffer: ArrayBuffer,
     fileName: string
   ) => Promise<{ success: boolean; newPath: string; error?: string }>
-  stashUrl: (url: string) => Promise<{
+  stashUrl: (
+    url: string
+  ) => Promise<{
     success: boolean
     newPath: string
     fileName: string
     size: number
     error?: string
   }>
+  resizeWindow: (size: string) => void
+
+  openExternal: (url: string) => Promise<void>
+  notifyReady: () => Promise<void>
+  onAuthCallback: (fn: (data: AuthCallbackPayload) => void) => () => void
+  onAuthError: (fn: (data: { message: string }) => void) => () => void
+
+  // 🌟 [추가] safeStorage 관련 브릿지
+  saveRefreshToken: (token: string) => Promise<void>
+  getRefreshToken: () => Promise<string | null>
+  clearRefreshToken: () => Promise<void>
 }
 
 const api: ElectronAPI = {
-  onClipboardChanged: (callback: (text: string) => void) => {
-    ipcRenderer.on(
-      'clipboard-changed',
-      (_event: IpcRendererEvent, text: string) => callback(text)
-    )
+  onClipboardChanged: (callback) => {
+    ipcRenderer.on('clipboard-changed', (_event, text) => callback(text))
   },
-  writeToClipboard: (text: string) => {
+  writeToClipboard: (text) => {
     ipcRenderer.send('write-clipboard', text)
   },
-  openPath: (path: string) => {
+  openPath: (path) => {
     ipcRenderer.send('open-path', path)
   },
-  getFilePath: (file: File) => {
-    // 🌟 Electron 렌더러 가상환경을 뚫고 실제 OS 경로를 가져오는 치트키 바인딩
-    return webUtils.getPathForFile(file)
+  getFilePath: (file) => webUtils.getPathForFile(file),
+  selectFile: () => ipcRenderer.invoke('select-file'),
+  stashFile: (sourcePath, fileName) =>
+    ipcRenderer.invoke('stash-file', sourcePath, fileName),
+  startDrag: (filePath) => ipcRenderer.send('ondragstart', filePath),
+  clearStash: () => ipcRenderer.invoke('clear-stash'),
+  stashData: (buffer, fileName) =>
+    ipcRenderer.invoke('stash-data', buffer, fileName),
+  stashUrl: (url) => ipcRenderer.invoke('stash-url', url),
+  resizeWindow: (size) => {
+    ipcRenderer.send('resize-window', size)
   },
-  selectFile: () => {
-    return ipcRenderer.invoke('select-file')
+
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  notifyReady: () => ipcRenderer.invoke('renderer:ready'),
+
+  onAuthCallback: (fn) => {
+    const listener = (_event: IpcRendererEvent, data: AuthCallbackPayload) =>
+      fn(data)
+    ipcRenderer.on('auth:callback', listener)
+    return () => ipcRenderer.removeListener('auth:callback', listener)
   },
-  stashFile: (sourcePath: string, fileName: string) => {
-    return ipcRenderer.invoke('stash-file', sourcePath, fileName)
+  onAuthError: (fn) => {
+    const listener = (_event: IpcRendererEvent, data: { message: string }) =>
+      fn(data)
+    ipcRenderer.on('auth:error', listener)
+    return () => ipcRenderer.removeListener('auth:error', listener)
   },
-  startDrag: (filePath: string) => {
-    ipcRenderer.send('ondragstart', filePath)
-  },
-  clearStash: () => {
-    // 🌟 프론트엔드에서 호출하고 있었으나 정작 이 파일엔 빠져있던 구현부 주입
-    return ipcRenderer.invoke('clear-stash')
-  },
-  stashData: (buffer: ArrayBuffer, fileName: string) => {
-    return ipcRenderer.invoke('stash-data', buffer, fileName)
-  },
-  stashUrl: (url: string) => {
-    return ipcRenderer.invoke('stash-url', url)
-  },
-  // 미니 모드 사이즈 변경
-  resizeWindow: (size: string) => ipcRenderer.send('resize-window', size)
+
+  // 🌟 [추가] 실제 구현부 연결
+  saveRefreshToken: (token) =>
+    ipcRenderer.invoke('auth:save-refresh-token', token),
+  getRefreshToken: () => ipcRenderer.invoke('auth:get-refresh-token'),
+  clearRefreshToken: () => ipcRenderer.invoke('auth:clear-refresh-token')
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

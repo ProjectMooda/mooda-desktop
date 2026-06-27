@@ -48,11 +48,13 @@
     </button>
 
     <GlobalSettingsModal v-if="sidebarStore.showSettings" />
+
+    <globalLoginModal v-model="authStore.isLoginModalOpen" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, onUnmounted, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 
 // 기존 임포트 유지
@@ -68,7 +70,11 @@ import StudioCard from '@/pages/calendar/right-dash/studio-card/StudioCard.vue'
 import { useSidebarStore } from './global-components/global-sidebar/useSidebarStore.ts'
 import { useSettingsStore } from './global-components/global-settings/useSettingsStore.ts'
 import { useScheduleStore } from '@/stores/useScheduleStore'
-
+import { useAuthStore } from './auth/authStore.ts'
+import globalLoginModal from './global-components/global-login/global-loginModal.vue'
+import api from './axios/axios.ts'
+const authStore = useAuthStore()
+let cleanups: Array<() => void> = []
 const sidebarStore = useSidebarStore()
 const settingsStore = useSettingsStore()
 const scheduleStore = useScheduleStore()
@@ -92,10 +98,77 @@ const currentComponent = computed(() => {
   if (label === 'GoalPlanner') return GoalPlanner
   return null
 })
+onMounted(async () => {
+  cleanups.push(
+    window.electronAPI.onAuthCallback(async (data) => {
+      if (data.accessToken && data.userId && data.email) {
+        authStore.setAuth({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken ?? '',
+          userId: data.userId,
+          email: data.email
+        })
+      }
+    }),
+    window.electronAPI.onAuthError(({ message }) => {
+      console.error('❌ auth:error:', message)
+    })
+  )
 
-onMounted(() => {
+  await window.electronAPI.notifyReady()
+
+  // ✅ 이미 유효한 accessToken 있으면 그냥 진행
+  if (authStore.isAuthenticated && authStore.accessToken) {
+    console.log('✅ 기존 accessToken 유효 → 로그인 유지')
+    return
+  }
+
+  // ✅ safeStorage에서 refreshToken으로 재발급 시도
+  const savedRefreshToken = await window.electronAPI.getRefreshToken()
+  console.log(
+    '💾 앱 시작 시 refreshToken:',
+    savedRefreshToken ? '존재' : 'null'
+  )
+
+  if (savedRefreshToken) {
+    try {
+      const res = await fetch('http://localhost:3000/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Type': 'electron'
+        },
+        body: JSON.stringify({ refreshToken: savedRefreshToken })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        console.log('✅ 앱 시작 refresh 성공:', data)
+
+        authStore.accessToken = data.accessToken
+        authStore.isAuthenticated = true
+
+        // ✅ 새 refreshToken safeStorage에 저장 (빠진 부분)
+        if (data.refreshToken) {
+          await window.electronAPI.saveRefreshToken(data.refreshToken)
+          console.log('💾 새 refreshToken 저장 완료')
+        }
+        return
+      } else {
+        console.warn('⚠️ refresh 실패 상태코드:', res.status)
+      }
+    } catch (e) {
+      console.error('❌ 앱 시작 refresh 에러:', e)
+    }
+  }
+
+  authStore.openLoginModal()
   settingsStore.loadSettings()
   scheduleStore.loadData()
+})
+
+onUnmounted(() => {
+  cleanups.forEach((fn) => fn())
 })
 </script>
 
