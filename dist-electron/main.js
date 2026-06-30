@@ -1,12 +1,62 @@
+import { createRequire } from "node:module";
 import { BrowserWindow, app, clipboard, dialog, ipcMain, nativeImage, safeStorage, shell } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createRequire } from "module";
+import { createRequire as createRequire$1 } from "module";
 import fs from "fs";
+//#region electron/db.ts
+var Database = createRequire(import.meta.url)("better-sqlite3");
+var db;
+function initDatabase() {
+	db = new Database(path.join(app.getPath("userData"), "mooda_local.db"), { verbose: console.log });
+	db.pragma("journal_mode = WAL");
+	db.pragma("synchronous = NORMAL");
+	db.exec(`
+    CREATE TABLE IF NOT EXISTS application_store (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at INTEGER
+    )
+  `);
+}
+function getValue(key) {
+	try {
+		const row = db.prepare("SELECT value FROM application_store WHERE key = ?").get(key);
+		return row ? JSON.parse(row.value) : null;
+	} catch (error) {
+		console.error(`[SQLite Get Error] key: ${key}`, error);
+		return null;
+	}
+}
+function setValue(key, value) {
+	try {
+		db.prepare(`
+      INSERT INTO application_store (key, value, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        value = excluded.value,
+        updated_at = excluded.updated_at
+    `).run(key, JSON.stringify(value), Date.now());
+		return true;
+	} catch (error) {
+		console.error(`[SQLite Set Error] key: ${key}`, error);
+		return false;
+	}
+}
+function clearDatabase() {
+	try {
+		db.exec("DELETE FROM application_store");
+		return true;
+	} catch (error) {
+		console.error("DB Clear Error:", error);
+		return false;
+	}
+}
+//#endregion
 //#region electron/main.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
-var clipboardListener = createRequire(import.meta.url)("clipboard-event");
+var clipboardListener = createRequire$1(import.meta.url)("clipboard-event");
 var mainWindow = null;
 var lastCopiedText = clipboard.readText();
 var isWatcherStarted = false;
@@ -117,11 +167,21 @@ function createWindow() {
 	});
 }
 app.whenReady().then(() => {
+	initDatabase();
 	createWindow();
 	const deepLink = process.argv.find((arg) => arg.startsWith("mooda://"));
 	if (deepLink) mainWindow?.webContents.once("did-finish-load", () => handleDeepLink(deepLink));
 });
+ipcMain.handle("db:get", (_event, key) => {
+	return getValue(key);
+});
+ipcMain.handle("db:set", (_event, key, value) => {
+	return setValue(key, value);
+});
 ipcMain.handle("open-external", (_event, url) => shell.openExternal(url));
+ipcMain.handle("db:clear", () => {
+	return clearDatabase();
+});
 ipcMain.on("resize-window", (_event, size) => {
 	if (!mainWindow) return;
 	if (size === "max") {
@@ -260,6 +320,21 @@ ipcMain.handle("clear-stash", async () => {
 	} catch {
 		return false;
 	}
+});
+var isSafeToQuit = false;
+app.on("before-quit", (event) => {
+	if (!isSafeToQuit && mainWindow) {
+		event.preventDefault();
+		mainWindow.webContents.send("trigger-final-sync");
+		setTimeout(() => {
+			isSafeToQuit = true;
+			app.quit();
+		}, 3e3);
+	}
+});
+ipcMain.on("final-sync-done", () => {
+	isSafeToQuit = true;
+	app.quit();
 });
 app.on("will-quit", () => clipboardListener.stopListening());
 app.on("window-all-closed", () => {

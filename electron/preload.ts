@@ -29,9 +29,7 @@ interface ElectronAPI {
     buffer: ArrayBuffer,
     fileName: string
   ) => Promise<{ success: boolean; newPath: string; error?: string }>
-  stashUrl: (
-    url: string
-  ) => Promise<{
+  stashUrl: (url: string) => Promise<{
     success: boolean
     newPath: string
     fileName: string
@@ -74,6 +72,11 @@ const api: ElectronAPI = {
     ipcRenderer.send('resize-window', size)
   },
 
+  // SQLite 조작을 위한 API 추가
+  dbGet: (key: string) => ipcRenderer.invoke('db:get', key),
+  dbSet: (key: string, value: any) => ipcRenderer.invoke('db:set', key, value),
+  dbClear: () => ipcRenderer.invoke('db:clear'),
+
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   notifyReady: () => ipcRenderer.invoke('renderer:ready'),
 
@@ -94,7 +97,13 @@ const api: ElectronAPI = {
   saveRefreshToken: (token) =>
     ipcRenderer.invoke('auth:save-refresh-token', token),
   getRefreshToken: () => ipcRenderer.invoke('auth:get-refresh-token'),
-  clearRefreshToken: () => ipcRenderer.invoke('auth:clear-refresh-token')
+  clearRefreshToken: () => ipcRenderer.invoke('auth:clear-refresh-token'),
+
+  onTriggerFinalSync: (callback) => {
+    ipcRenderer.on('trigger-final-sync', callback)
+    return () => ipcRenderer.removeListener('trigger-final-sync', callback) // cleanup 함수 리턴
+  },
+  finalSyncDone: () => ipcRenderer.send('final-sync-done')
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

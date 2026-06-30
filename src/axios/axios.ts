@@ -3,7 +3,7 @@ import { useAuthStore } from '@/auth/authStore'
 
 const api = axios.create({
   baseURL: 'http://localhost:3000',
-  // 🌟 [추가] 기본 api 인스턴스에도 우리가 electron임을 명시해두면 좋습니다
+  // 🌟 기본 api 인스턴스에 electron 명시
   headers: {
     'X-Client-Type': 'electron'
   }
@@ -38,19 +38,28 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config
 
+    // 401 에러가 아니거나 이미 재시도한 요청이면 그대로 reject
     if (error.response?.status !== 401 || original._retry) {
       return Promise.reject(error)
     }
 
+    // 1. 이미 다른 요청이 갱신(isRefreshing)을 진행 중이라면 큐에서 대기
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject })
-      }).then((token) => {
-        original.headers.Authorization = `Bearer ${token}`
-        return api(original)
       })
+        .then((token) => {
+          // 토큰이 갱신되면 대기하던 요청의 헤더를 갈아끼우고 재출발
+          original.headers.Authorization = `Bearer ${token}`
+          return api(original)
+        })
+        .catch((err) => {
+          // 갱신 자체가 실패했다면 대기하던 요청도 reject
+          return Promise.reject(err)
+        })
     }
 
+    // 2. 내가 첫 번째 401 에러라면 갱신 로직 시작
     original._retry = true
     isRefreshing = true
 
@@ -65,7 +74,7 @@ api.interceptors.response.use(
 
       if (!savedRefreshToken) throw new Error('저장된 refreshToken 없음')
 
-      // 🌟 [수정 1] axios.post에 { headers: { 'X-Client-Type': 'electron' } } 필수 추가
+      // 🌟 axios.post에 { headers: { 'X-Client-Type': 'electron' } } 필수 추가
       const { data } = await axios.post(
         'http://localhost:3000/auth/refresh',
         { refreshToken: savedRefreshToken },
@@ -73,7 +82,7 @@ api.interceptors.response.use(
       )
       console.log('📦 [interceptor] refresh 응답:', data)
 
-      // 🌟 [수정 2] 백엔드 응답 키값에 맞게 'refreshToken'으로 추출
+      // 🌟 백엔드 응답 키값에 맞게 'refreshToken'으로 추출
       const { accessToken, refreshToken } = data
 
       if (!accessToken || !refreshToken) {
@@ -84,26 +93,31 @@ api.interceptors.response.use(
 
       const authStore = useAuthStore()
 
-      // 🌟🌟🌟 [핵심 수정] 변수에 직접 넣지 말고, localStorage까지 함께 갱신하는 함수 호출!
+      // 🌟 변수에 직접 넣지 말고, localStorage까지 함께 갱신하는 함수 호출!
       authStore.updateAccessToken(accessToken)
 
       // 🌟 추출한 refreshToken을 safeStorage에 저장
       await window.electronAPI.saveRefreshToken(refreshToken)
       console.log('✅ [interceptor] 갱신 및 safeStorage 저장 완료')
 
+      // 🌟 [핵심] 성공 시 대기 중인 큐(failedQueue)를 일제히 resolve 시킴
       flushQueue(null, accessToken)
+
+      // 🌟 처음 401이 났던 아까 그 요청(original)도 새 토큰 달고 재출발!
       original.headers.Authorization = `Bearer ${accessToken}`
       return api(original)
     } catch (refreshError) {
       console.error('❌ [interceptor] refresh 실패 원인:', refreshError)
+
+      // 🌟 [핵심] 갱신 실패 시 대기 중인 큐(failedQueue)를 일제히 reject 시킴
       flushQueue(refreshError, null)
 
       const authStore = useAuthStore()
       authStore.clearAuth()
-      authStore.openLoginModal()
 
       return Promise.reject(refreshError)
     } finally {
+      // 🌟 마지막에 무조건 플래그 해제
       isRefreshing = false
     }
   }

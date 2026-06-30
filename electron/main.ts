@@ -13,6 +13,8 @@ import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
 import fs from 'fs'
 
+import { initDatabase, getValue, setValue, clearDatabase } from './db'
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const require = createRequire(import.meta.url)
@@ -167,6 +169,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // 앱 시작 시 SQLITE 데이터 베이스 초기화
+  initDatabase()
+
   createWindow()
   const deepLink = process.argv.find((arg) => arg.startsWith('mooda://'))
   if (deepLink) {
@@ -176,9 +181,22 @@ app.whenReady().then(() => {
   }
 })
 
+// SQLite 전용 IPC 핸들러 등록
+ipcMain.handle('db:get', (_event, key: string) => {
+  return getValue(key)
+})
+
+ipcMain.handle('db:set', (_event, key: string, value: any) => {
+  return setValue(key, value)
+})
+
 ipcMain.handle('open-external', (_event, url: string) =>
   shell.openExternal(url)
 )
+
+ipcMain.handle('db:clear', () => {
+  return clearDatabase()
+})
 
 ipcMain.on(
   'resize-window',
@@ -320,6 +338,30 @@ ipcMain.handle('clear-stash', async () => {
   } catch {
     return false
   }
+})
+
+// 큐엥있는거보내는거
+let isSafeToQuit = false
+
+app.on('before-quit', (event) => {
+  if (!isSafeToQuit && mainWindow) {
+    event.preventDefault() // 앱 강제 종료 일시 정지
+
+    // 프론트엔드 Vue에 남은 Queue 동기화 명령 하달
+    mainWindow.webContents.send('trigger-final-sync')
+
+    // 타임아웃 3초 (인터넷 문제로 무한 대기하는 것 방지)
+    setTimeout(() => {
+      isSafeToQuit = true
+      app.quit()
+    }, 3000)
+  }
+})
+
+ipcMain.on('final-sync-done', () => {
+  // 프론트에서 동기화가 끝났다고 알려오면 즉시 종료
+  isSafeToQuit = true
+  app.quit()
 })
 
 app.on('will-quit', () => clipboardListener.stopListening())

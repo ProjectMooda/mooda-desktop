@@ -26,9 +26,7 @@ export interface IElectronAPI {
     buffer: ArrayBuffer,
     fileName: string
   ) => Promise<{ success: boolean; newPath: string; error?: string }>
-  stashUrl: (
-    url: string
-  ) => Promise<{
+  stashUrl: (url: string) => Promise<{
     success: boolean
     newPath: string
     fileName: string
@@ -36,6 +34,11 @@ export interface IElectronAPI {
     error?: string
   }>
   resizeWindow: (size: 'max' | 'middle' | 'min' | 'mini') => void
+
+  // SQLite 전용 IPC 브릿지 타입 추가
+  dbGet: (key: string) => Promise<any>
+  dbSet: (key: string, value: any) => Promise<boolean>
+  dbClear: () => Promise<boolean>
 
   openExternal: (url: string) => Promise<void>
   notifyReady: () => Promise<void>

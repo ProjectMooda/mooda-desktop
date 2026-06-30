@@ -1,4 +1,5 @@
 <template>
+  <LoginPage v-if="!authStore.isAuthenticated" />
   <div
     class="jarvis-wrapper"
     :class="{ 'is-mini-window': scheduleStore.isMiniMode }"
@@ -48,42 +49,44 @@
     </button>
 
     <GlobalSettingsModal v-if="sidebarStore.showSettings" />
-
-    <globalLoginModal v-model="authStore.isLoginModalOpen" />
   </div>
 </template>
-
 <script setup lang="ts">
 import { onMounted, onUnmounted, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 
-// 기존 임포트 유지
+// 페이지 임포트
+import LoginPage from './pages/login/LoginPage.vue'
+
+// 컴포넌트 임포트 유지
 import GlobalSidebar from './global-components/global-sidebar/GlobalSidebar.vue'
 import GlobalSettingsModal from './global-components/global-settings/GlobalSettingsModal.vue'
 import GlobalHeaderDock from './global-components/global-hedaer/GlobalHeaderDock.vue'
 import CalendarPage from '@/pages/calendar/CalendarPage.vue'
 import GoalPlanner from '@/pages/goal-planner/GoalPlannerPage.vue'
-
-// 🌟 [추가] 메인 레이아웃에서 StudioCard를 직접 띄우기 위해 임포트 (경로는 본인 프로젝트에 맞게 수정하세요)
 import StudioCard from '@/pages/calendar/right-dash/studio-card/StudioCard.vue'
 
+// 스토어 & API 임포트
 import { useSidebarStore } from './global-components/global-sidebar/useSidebarStore.ts'
 import { useSettingsStore } from './global-components/global-settings/useSettingsStore.ts'
 import { useScheduleStore } from '@/stores/useScheduleStore'
 import { useAuthStore } from './auth/authStore.ts'
-import globalLoginModal from './global-components/global-login/global-loginModal.vue'
 import api from './axios/axios.ts'
+
 const authStore = useAuthStore()
-let cleanups: Array<() => void> = []
 const sidebarStore = useSidebarStore()
 const settingsStore = useSettingsStore()
 const scheduleStore = useScheduleStore()
+
+let cleanups: Array<() => void> = []
+let syncInterval: ReturnType<typeof setInterval> | null = null
 
 const { currentTab, menuItems } = storeToRefs(sidebarStore)
 
 const currentMenuLabel = computed(() => {
   return menuItems.value[currentTab.value - 1]?.label || 'Workspace'
 })
+
 const todayDate = computed(() => {
   return new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric',
@@ -92,22 +95,52 @@ const todayDate = computed(() => {
     weekday: 'long'
   }).format(new Date())
 })
+
 const currentComponent = computed(() => {
   const label = menuItems.value[currentTab.value - 1]?.label
   if (label === 'Calendar') return CalendarPage
   if (label === 'GoalPlanner') return GoalPlanner
   return null
 })
+
+// 🌟 [핵심 로직] 계정 전환 감지 및 스케줄 초기화 래퍼 함수
+const initUserAndData = async (currentUserId: string) => {
+  if (!currentUserId) return
+
+  const savedUserId = await window.electronAPI.dbGet('current_user_id')
+
+  if (savedUserId && savedUserId !== currentUserId) {
+    console.log('🔄 계정 변경 감지됨. 기존 유저의 로컬 데이터를 날립니다.')
+
+    // 1. SQLite 삭제
+    await window.electronAPI.dbClear()
+
+    // 2. Pinia 메모리 삭제
+    scheduleStore.resetStore()
+
+    console.log(await window.electronAPI.dbGet('schedule_v2'))
+    console.log('🧹 Pinia 스토어 초기화 완료')
+  }
+
+  // 3. 새 유저 저장
+  await window.electronAPI.dbSet('current_user_id', currentUserId)
+
+  // 4. 새 유저 데이터 로드
+  await scheduleStore.initializeApp()
+}
 onMounted(async () => {
+  // 1. Electron IPC 리스너 등록
   cleanups.push(
     window.electronAPI.onAuthCallback(async (data) => {
       if (data.accessToken && data.userId && data.email) {
-        authStore.setAuth({
+        await authStore.setAuth({
           accessToken: data.accessToken,
           refreshToken: data.refreshToken ?? '',
           userId: data.userId,
           email: data.email
         })
+        // ✅ 딥링크 로그인 성공 직후 초기화 호출
+        await initUserAndData(data.userId)
       }
     }),
     window.electronAPI.onAuthError(({ message }) => {
@@ -116,14 +149,37 @@ onMounted(async () => {
   )
 
   await window.electronAPI.notifyReady()
+  settingsStore.loadSettings()
 
-  // ✅ 이미 유효한 accessToken 있으면 그냥 진행
+  // 온라인 복귀 시 자동 동기화
+  window.addEventListener('online', scheduleStore.syncWithServer)
+
+  // 백그라운드 동기화 큐 전송 타이머 (push 전용)
+  syncInterval = setInterval(() => {
+    if (scheduleStore.syncQueue.length > 0) {
+      console.log(
+        `⏱️ [Sync Timer] 큐 전송 시도: ${scheduleStore.syncQueue.length}개`
+      )
+      scheduleStore.syncWithServer()
+    }
+  }, 30000)
+
+  // =====================================================================
+  // 2. 인증(Auth) 로직 시작
+  // =====================================================================
+
+  // ✅ A. 이미 유효한 accessToken이 스토어에 있으면 로그인 유지
   if (authStore.isAuthenticated && authStore.accessToken) {
     console.log('✅ 기존 accessToken 유효 → 로그인 유지')
+    if (!authStore.user) {
+      await authStore.fetchProfile()
+    }
+    // AuthStore에 저장된 userId로 초기화 진행
+    await initUserAndData(authStore.user?.id || '')
     return
   }
 
-  // ✅ safeStorage에서 refreshToken으로 재발급 시도
+  // ✅ B. 스토어엔 없지만 safeStorage에 저장된 refreshToken이 있는 경우 (앱 재시작 등)
   const savedRefreshToken = await window.electronAPI.getRefreshToken()
   console.log(
     '💾 앱 시작 시 refreshToken:',
@@ -143,31 +199,52 @@ onMounted(async () => {
 
       if (res.ok) {
         const data = await res.json()
-        console.log('✅ 앱 시작 refresh 성공:', data)
+        console.log('✅ 앱 시작 refresh 성공')
 
-        authStore.accessToken = data.accessToken
-        authStore.isAuthenticated = true
+        await authStore.setAuth({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken || savedRefreshToken,
+          userId: data.userId || '',
+          email: data.email || ''
+        })
 
-        // ✅ 새 refreshToken safeStorage에 저장 (빠진 부분)
-        if (data.refreshToken) {
-          await window.electronAPI.saveRefreshToken(data.refreshToken)
-          console.log('💾 새 refreshToken 저장 완료')
-        }
+        // 백엔드 응답(data)에 userId가 포함되어 있어야 완벽하게 동작합니다.
+        await initUserAndData(data.userId)
         return
       } else {
         console.warn('⚠️ refresh 실패 상태코드:', res.status)
       }
     } catch (e) {
-      console.error('❌ 앱 시작 refresh 에러:', e)
+      console.error('❌ 앱 시작 refresh 에러 (네트워크 끊김 등):', e)
+      // 🌟 [오프라인 대응] 통신이 끊겨서 갱신을 못 했지만 토큰이 있다면,
+      // 당장 유저가 캘린더를 볼 수 있도록 로컬 SQLite 캐시를 강제로 읽어옵니다.
+      console.log('📡 오프라인 모드로 로컬 캐시 데이터를 띄웁니다.')
+      await scheduleStore.loadData()
     }
   }
+  // ✅ 브라우저 숨김시 동기화
+  window.addEventListener('blur', () => {
+    scheduleStore.syncWithServer()
+  })
 
-  authStore.openLoginModal()
-  settingsStore.loadSettings()
-  scheduleStore.loadData()
+  // ✅ [핵심] Electron Main Process에서 종료 신호가 올 때 마지막 동기화 수행
+  if (window.electronAPI?.onTriggerFinalSync) {
+    cleanups.push(
+      window.electronAPI.onTriggerFinalSync(async () => {
+        console.log('🛑 [IPC] 앱 종료 신호 수신. 남은 큐를 동기화합니다.')
+        if (scheduleStore.syncQueue.length > 0) {
+          await scheduleStore.syncWithServer()
+        }
+        // 동기화가 끝나면 Main으로 종료 허가 신호 전달
+        window.electronAPI.finalSyncDone()
+      })
+    )
+  }
 })
 
 onUnmounted(() => {
+  window.removeEventListener('online', scheduleStore.syncWithServer)
+  if (syncInterval) clearInterval(syncInterval)
   cleanups.forEach((fn) => fn())
 })
 </script>

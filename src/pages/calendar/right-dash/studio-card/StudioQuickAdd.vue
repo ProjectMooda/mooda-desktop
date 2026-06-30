@@ -81,7 +81,7 @@ const newTitle = ref('')
 const isFocused = ref(false)
 const isDropdownOpen = ref(false)
 
-const selectedMilestoneId = ref<number | null>(null)
+const selectedMilestoneId = ref<string | null>(null)
 
 const activeMilestones = computed(() => {
   return scheduleStore.milestones.filter((m) => !m.done)
@@ -99,7 +99,7 @@ const selectedMilestoneName = computed(() => {
 
 const titleInput = ref<HTMLInputElement | null>(null)
 
-const selectMilestone = (id: number | null) => {
+const selectMilestone = (id: string | null) => {
   selectedMilestoneId.value = id
   isDropdownOpen.value = false
   titleInput.value?.focus()

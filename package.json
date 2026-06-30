@@ -14,6 +14,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "better-sqlite3": "^12.11.1",
     "clipboard-event": "^1.6.0",
     "concurrently": "^10.0.3",
     "cross-env": "^10.1.0",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@commitlint/cli": "^21.0.1",
     "@commitlint/config-conventional": "^21.0.1",
+    "@electron/rebuild": "^4.0.6",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.13.2",
     "@typescript-eslint/eslint-plugin": "^8.59.0",

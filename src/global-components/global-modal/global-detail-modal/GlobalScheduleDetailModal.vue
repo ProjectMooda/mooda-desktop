@@ -63,7 +63,7 @@ import BaseTimePicker from '@/base-ui/BaseTimePicker.vue'
 import BaseButton from '@/base-ui/BaseButton.vue'
 import { useScheduleStore, type ScheduleItem } from '@/stores/useScheduleStore'
 import GlobalScheduleTitle from '../global-detail-modal/schedule-form/GlobalScheduleTitle.vue'
-import GlobalScheduleMeta from './schedule-form/global-schedule-meta/GlobalScheduleMeta.vue'
+import GlobalScheduleMeta from './schedule-form/GlobalScheduleMeta.vue'
 import GlobalDatePicker from '@/global-components/global-calendar/GlobalDatePicker.vue'
 
 // 🌟 서브태스크 컴포넌트 임포트 (경로는 프로젝트 설정에 맞게 조정해주세요)
@@ -114,7 +114,6 @@ watch(
 const handleCloseModal = () => {
   emit('close')
 }
-
 const handleSaveAndClose = () => {
   if (localData.value.subtasks && localData.value.subtasks.length > 0) {
     const total = localData.value.subtasks.length
@@ -132,11 +131,19 @@ const handleSaveAndClose = () => {
 
   delete baseDataToSave.endDate
 
-  store.syncMultipleSchedules(
-    props.data.id,
-    baseDataToSave as Partial<ScheduleItem>,
-    allSelectedDates
-  )
+  // 🌟 [수정된 부분] 날짜가 하나뿐이거나(single), 원본과 동일한 단일 날짜라면 update만 수행!
+  if (allSelectedDates.length === 1 && props.data.creationMode !== 'multiple') {
+    // 1. 단일 일정 수정 (기존 ID 유지, UPDATE 큐 생성)
+    baseDataToSave.startDate = allSelectedDates[0]
+    store.updateSchedule(props.data.id, baseDataToSave as Partial<ScheduleItem>)
+  } else {
+    // 2. 다중(Multiple) 일정 수정 (기존 삭제 후 새로 생성)
+    store.syncMultipleSchedules(
+      props.data.id,
+      baseDataToSave as Partial<ScheduleItem>,
+      allSelectedDates
+    )
+  }
 
   emit('update')
   handleCloseModal()

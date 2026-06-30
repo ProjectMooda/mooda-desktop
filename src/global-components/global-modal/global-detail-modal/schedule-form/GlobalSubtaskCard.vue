@@ -66,7 +66,7 @@ import GlobalTaskListArea from '@/global-components/global-task-list-area/Global
 
 // 스토어의 서브태스크 타입과 동일하게 정의
 export interface Subtask {
-  id: number
+  id: string
   text: string
   done: boolean
 }
@@ -113,7 +113,7 @@ const updateSubtaskProgress = (updatedItem: Subtask) => {
   emit('update:modelValue', newArray)
 }
 
-const removeSubtask = (subtaskId: number) => {
+const removeSubtask = (subtaskId: string) => {
   const newArray = props.modelValue.filter((sub) => sub.id !== subtaskId)
   emit('update:modelValue', newArray)
 }

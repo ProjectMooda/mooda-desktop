@@ -20,6 +20,9 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
 	resizeWindow: (size) => {
 		electron.ipcRenderer.send("resize-window", size);
 	},
+	dbGet: (key) => electron.ipcRenderer.invoke("db:get", key),
+	dbSet: (key, value) => electron.ipcRenderer.invoke("db:set", key, value),
+	dbClear: () => electron.ipcRenderer.invoke("db:clear"),
 	openExternal: (url) => electron.ipcRenderer.invoke("open-external", url),
 	notifyReady: () => electron.ipcRenderer.invoke("renderer:ready"),
 	onAuthCallback: (fn) => {
@@ -34,6 +37,11 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
 	},
 	saveRefreshToken: (token) => electron.ipcRenderer.invoke("auth:save-refresh-token", token),
 	getRefreshToken: () => electron.ipcRenderer.invoke("auth:get-refresh-token"),
-	clearRefreshToken: () => electron.ipcRenderer.invoke("auth:clear-refresh-token")
+	clearRefreshToken: () => electron.ipcRenderer.invoke("auth:clear-refresh-token"),
+	onTriggerFinalSync: (callback) => {
+		electron.ipcRenderer.on("trigger-final-sync", callback);
+		return () => electron.ipcRenderer.removeListener("trigger-final-sync", callback);
+	},
+	finalSyncDone: () => electron.ipcRenderer.send("final-sync-done")
 });
 //#endregion

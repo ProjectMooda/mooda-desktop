@@ -91,7 +91,7 @@
               v-if="listType === 'checkbox' && !readonly"
               class="tl-delete-btn"
               title="삭제"
-              @click.stop="$emit('delete', item.id as number)"
+              @click.stop="$emit('delete', item.id as string)"
             >
               <svg
                 width="14"
@@ -162,7 +162,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'update', payload: T): void
-  (e: 'delete', id: number): void
+  (e: 'delete', id: string): void
   (e: 'item-click', payload: T): void
 }>()
 

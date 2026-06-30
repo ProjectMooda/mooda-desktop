@@ -1,66 +1,80 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import api from '@/axios/axios'
 
-// 1. 일반 일정 및 테스크
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  return `id_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+}
+
+export interface SyncJob {
+  jobId: string
+  entity: 'schedule' | 'goal' | 'milestone' | 'category' | 'priority'
+  action: 'CREATE' | 'UPDATE' | 'DELETE'
+  targetId: string
+  payload?: any
+  timestamp: number
+}
+
+// ✅ 공통적으로 version과 deletedAt 추가
 export interface ScheduleItem {
-  id: number
-  groupId?: string // ✅ 반복/다중 생성된 일정들을 묶는 그룹 ID
-  creationMode: 'period' | 'weekly' | 'multiple' | 'single' // ✅ 생성 방식 기록
+  id: string
+  groupId?: string
+  creationMode: 'period' | 'weekly' | 'multiple' | 'single'
   type: 'task' | 'event'
-  goalId?: number | null
-  milestoneId?: number | null
+  goalId?: string | null
+  milestoneId?: string | null
   summary?: string
   done: boolean
-  startDate: string // ✅ 필수로 변경 (모든 일정은 시작일이 있음)
-  endDate?: string // 하루짜리나 단일 태스크는 undefined
+  startDate: string
+  endDate?: string
   startTime?: string
   endTime?: string
   category?: string
-  priority?: 'Low' | 'Medium' | 'High' | string
-  subtasks?: {
-    id: number
-    text: string
-    done: boolean
-  }[]
+  priority?: string
+  subtasks?: { id: string; text: string; done: boolean }[]
   isPinned?: boolean
   orderIndex?: number
   isRecurring?: boolean
   repeatWeekdays?: string[]
+  version?: number
+  deletedAt?: string | null
 }
 
-// 2. 장기 목표
 export interface Goal {
-  id: number
+  id: string
   title: string
   startDate: string
   endDate?: string
   color?: string
-  isArchived?: boolean // 목표 보관 확인 함수
+  isArchived?: boolean
+  version?: number
+  deletedAt?: string | null
 }
-
-// 3. 마일스톤
 export interface Milestone {
-  id: number
-  goalId: number
+  id: string
+  goalId: string
   title: string
   startDate: string
   endDate?: string
   done: boolean
+  version?: number
+  deletedAt?: string | null
 }
-
-// 카테고리 옵션
 export interface CategoryOption {
   id: string
   label: string
   emoji: string
+  deletedAt?: string | null
 }
-
-// 우선순위 옵션
 export interface PriorityOption {
   id: string
   label: string
   emoji: string
   color: string
+  deletedAt?: string | null
 }
 
 export const useScheduleStore = defineStore('schedule', () => {
@@ -74,35 +88,85 @@ export const useScheduleStore = defineStore('schedule', () => {
   const milestones = ref<Milestone[]>([])
   const selectedDate = ref(today)
   const dailyFocus = ref('')
-  const isMiniMode = ref(false) // 미니ㄹaddCategory 모드
+  const isMiniMode = ref(false)
+  const categories = ref<CategoryOption[]>([])
+  const priorityOptions = ref<PriorityOption[]>([])
 
-  const categories = ref<CategoryOption[]>([
-    { id: 'c-1', label: '기획', emoji: '💡' },
-    { id: 'c-2', label: '디자인', emoji: '🎨' },
-    { id: 'c-3', label: '개발', emoji: '💻' },
-    { id: 'c-4', label: '마케팅', emoji: '🚀' },
-    { id: 'c-5', label: '개인일정', emoji: '🏃' },
-    { id: 'c-6', label: '기타', emoji: '📌' }
-  ])
+  // 🌟 [수정] Map을 활용한 O(1) Queue (키: entity_targetId)
+  const syncQueueMap = ref<Map<string, SyncJob>>(new Map())
+  const isSyncing = ref(false)
+  let syncTimeout: ReturnType<typeof setTimeout> | null = null
 
-  const priorityOptions = ref<PriorityOption[]>([
-    { id: 'High', label: '높음', emoji: '🔥', color: '#fee2e2' },
-    { id: 'Medium', label: '중간', emoji: '⭐', color: '#fef3c7' },
-    { id: 'Low', label: '낮음', emoji: '💧', color: '#e0f2fe' }
-  ])
+  const isDataLoaded = ref(false)
 
   // =========================
-  // GETTERS
+  // QUEUE HELPER (Queue 압축 & Payload 병합)
   // =========================
+  const pushToQueue = (
+    entity: SyncJob['entity'],
+    action: SyncJob['action'],
+    targetId: string,
+    payload?: any
+  ) => {
+    const key = `${entity}_${targetId}`
+    const existing = syncQueueMap.value.get(key)
+    const cleanPayload = payload
+      ? JSON.parse(JSON.stringify(payload))
+      : undefined
+
+    if (existing) {
+      if (action === 'DELETE') {
+        if (existing.action === 'CREATE') {
+          syncQueueMap.value.delete(key) // 서버 가기도 전에 생성->삭제면 무시
+        } else {
+          existing.action = 'DELETE'
+          existing.payload = undefined
+          existing.timestamp = Date.now()
+        }
+      } else if (action === 'UPDATE' && existing.action !== 'DELETE') {
+        // 🌟 페이로드 병합 로직 (Payload Merge)
+        existing.payload = { ...existing.payload, ...cleanPayload }
+        existing.timestamp = Date.now()
+      }
+    } else {
+      syncQueueMap.value.set(key, {
+        jobId: generateId(),
+        entity,
+        action,
+        targetId,
+        payload: cleanPayload,
+        timestamp: Date.now()
+      })
+    }
+
+    saveData()
+
+    // 5초 입력 대기 디바운스
+    if (syncTimeout) clearTimeout(syncTimeout)
+    syncTimeout = setTimeout(() => {
+      syncWithServer()
+    }, 5000)
+  }
+
+  // =========================
+  // GETTERS (UI에는 삭제되지 않은 것만 노출)
+  // =========================
+  const activeSchedules = computed(() =>
+    schedules.value.filter((s) => !s.deletedAt)
+  )
+  const toDateString = (value: string | Date) =>
+    new Date(value).toISOString().slice(0, 10)
+
   const currentSchedules = computed(() => {
-    return schedules.value.filter((s) => {
-      // 기간 일정인 경우 startDate ~ endDate 사이에 selectedDate가 포함되는지 체크
-      const start = s.startDate
-      const end = s.endDate || s.startDate // endDate가 없으면 startDate와 동일하게 취급
-      return start <= selectedDate.value && end >= selectedDate.value
+    const selected = selectedDate.value
+
+    return activeSchedules.value.filter((s) => {
+      const start = toDateString(s.startDate)
+      const end = toDateString(s.endDate ?? s.startDate)
+
+      return start <= selected && end >= selected
     })
   })
-
   const tasks = computed(() =>
     currentSchedules.value.filter((s) => s.type === 'task')
   )
@@ -117,19 +181,18 @@ export const useScheduleStore = defineStore('schedule', () => {
   )
 
   // =========================
-  // ACTIONS
+  // ACTIONS (Tombstone 방식으로 로컬 삭제 처리)
   // =========================
-
-  // ✅ addSchedule 변경: groupId와 creationMode를 받도록 수정
   const addSchedule = (item: Partial<ScheduleItem>) => {
-    schedules.value.push({
-      id: Date.now() + Math.floor(Math.random() * 1000), // 다중 생성 시 id 중복 방지
-      groupId: item.groupId, // 반복/다중 그룹핑 ID
-      creationMode: item.creationMode || 'single', // 생성 모드 (기본 single)
+    const newId = generateId()
+    const newSchedule: ScheduleItem = {
+      id: newId,
+      groupId: item.groupId,
+      creationMode: item.creationMode || 'single',
       type: item.type || 'task',
       summary: item.summary || '',
       done: false,
-      startDate: item.startDate || today, // 최소한 오늘 날짜 보장
+      startDate: item.startDate || today,
       endDate: item.endDate,
       startTime: item.startTime,
       endTime: item.endTime,
@@ -139,258 +202,162 @@ export const useScheduleStore = defineStore('schedule', () => {
       milestoneId: item.milestoneId || null,
       isPinned: false,
       orderIndex: schedules.value.length,
-      subtasks: item.subtasks || []
-    })
-    saveData()
+      subtasks: item.subtasks || [],
+      version: 1
+    }
+    schedules.value.push(newSchedule)
+    pushToQueue('schedule', 'CREATE', newId, newSchedule)
   }
-
-  // ✅ 단일 할 일 추가 (기존 호환성 유지)
   const addTask = (summary: string, date?: string) => {
     addSchedule({
       type: 'task',
       creationMode: 'single',
       summary,
-      startDate: date || today,
-      endDate: undefined
+      startDate: date || today
     })
   }
-
-  const addMilestone = (
-    goalId: number,
-    title: string,
-    startDate: string,
-    endDate?: string
-  ) => {
-    milestones.value.push({
-      id: Date.now(),
-      goalId,
-      title,
-      startDate,
-      endDate,
-      done: false
-    })
-    saveData()
-  }
-
-  const addSubtask = (scheduleId: number, text: string) => {
-    const schedule = schedules.value.find((s) => s.id === scheduleId)
-    if (!schedule) return
-
-    if (!schedule.subtasks) schedule.subtasks = []
-
-    // ✅ 추가: 10개 이상이면 더 이상 추가하지 않고 false 반환
-    if (schedule.subtasks.length >= 10) {
-      return false
-    }
-
-    schedule.subtasks.push({ id: Date.now(), text, done: false })
-    saveData()
-    return true // 성공 시 true 반환
-  }
-
-  const removeSubtask = (scheduleId: number, subtaskId: number) => {
-    const schedule = schedules.value.find((s) => s.id === scheduleId)
-    if (!schedule?.subtasks) return
-    schedule.subtasks = schedule.subtasks.filter((sub) => sub.id !== subtaskId)
-    saveData()
-  }
-
-  const updateSchedule = (id: number, patch: Partial<ScheduleItem>) => {
+  const updateSchedule = (id: string, patch: Partial<ScheduleItem>) => {
     const idx = schedules.value.findIndex((s) => s.id === id)
     if (idx !== -1) {
       schedules.value[idx] = { ...schedules.value[idx], ...patch }
-      saveData()
+      pushToQueue('schedule', 'UPDATE', id, schedules.value[idx])
+    }
+  }
+
+  // 🌟 물리적 삭제 대신 로컬 Tombstone 세팅
+  const removeSchedule = (id: string) => {
+    const idx = schedules.value.findIndex((s) => s.id === id)
+    if (idx !== -1) schedules.value[idx].deletedAt = new Date().toISOString()
+    pushToQueue('schedule', 'DELETE', id)
+  }
+  const removeScheduleGroup = (groupId: string) => {
+    if (!groupId) return
+    const targets = schedules.value.filter(
+      (s) => s.groupId === groupId && !s.deletedAt
+    )
+    targets.forEach((target) => {
+      target.deletedAt = new Date().toISOString()
+      pushToQueue('schedule', 'DELETE', target.id)
+    })
+  }
+  const smartRemoveSchedule = (id: string, mode: 'single' | 'all') => {
+    const target = schedules.value.find((s) => s.id === id)
+    if (!target) return
+    if (mode === 'single') removeSchedule(id)
+    else if (mode === 'all' && target.groupId)
+      removeScheduleGroup(target.groupId)
+  }
+  const togglePin = (id: string) => {
+    const item = schedules.value.find((s) => s.id === id)
+    if (item) {
+      item.isPinned = !item.isPinned
+      updateSchedule(id, { isPinned: item.isPinned })
     }
   }
   const syncMultipleSchedules = (
-    originalId: number,
+    originalId: string,
     patchData: Partial<ScheduleItem>,
     targetDates: string[]
   ) => {
     const original = schedules.value.find((s) => s.id === originalId)
     if (!original) return
-
-    // ✅ endDate는 여기서도 명시적으로 제거 (혹시 남아있을 경우 대비)
     const cleanPatch = { ...patchData }
     delete cleanPatch.endDate
-
-    // ✅ 날짜 1개 = single, 2개 이상 = multiple (period 판정 완전 제거)
     const nextMode: ScheduleItem['creationMode'] =
       targetDates.length > 1 ? 'multiple' : 'single'
 
-    // 기존 그룹 전체 제거
-    if (original.groupId) {
-      schedules.value = schedules.value.filter(
-        (s) => s.groupId !== original.groupId
-      )
-    } else {
-      schedules.value = schedules.value.filter((s) => s.id !== originalId)
-    }
+    // 🌟 [핵심] 기존 것을 지울 때 반드시 Tombstone(DELETE 큐)이 발동해야 함!
+    if (original.groupId) removeScheduleGroup(original.groupId)
+    else removeSchedule(originalId)
 
     if (nextMode === 'multiple') {
-      const groupId = `group_multiple_${Date.now()}`
-      targetDates.forEach((dateStr, index) => {
-        schedules.value.push({
+      const groupId = `group_multiple_${generateId()}`
+      targetDates.forEach((dateStr) => {
+        addSchedule({
           ...original,
           ...cleanPatch,
-          id: Date.now() + index,
           groupId,
           creationMode: 'multiple',
           startDate: dateStr,
-          endDate: undefined // ✅ 명시적 제거
+          endDate: undefined
         })
       })
     } else {
-      // single: 날짜 1개
-      schedules.value.push({
+      addSchedule({
         ...original,
         ...cleanPatch,
-        id: original.id,
         groupId: undefined,
         creationMode: 'single',
         startDate: targetDates[0],
-        endDate: undefined // ✅ 명시적 제거
+        endDate: undefined
       })
     }
-
-    saveData()
   }
-  // ✅ 단일 삭제
-  const removeSchedule = (id: number) => {
-    schedules.value = schedules.value.filter((s) => s.id !== id)
-    saveData()
+  const addSubtask = (scheduleId: string, text: string) => {
+    const schedule = schedules.value.find((s) => s.id === scheduleId)
+    if (!schedule) return false
+    if (!schedule.subtasks) schedule.subtasks = []
+    if (schedule.subtasks.length >= 10) return false
+    schedule.subtasks.push({ id: generateId(), text, done: false })
+    pushToQueue('schedule', 'UPDATE', scheduleId, schedule)
+    return true
   }
-
-  // 🌟 NEW: 그룹 일괄 삭제 (이 일정과 연결된 모든 반복 일정 삭제)
-  const removeScheduleGroup = (groupId: string) => {
-    if (!groupId) return
-    schedules.value = schedules.value.filter((s) => s.groupId !== groupId)
-    saveData()
+  const removeSubtask = (scheduleId: string, subtaskId: string) => {
+    const schedule = schedules.value.find((s) => s.id === scheduleId)
+    if (!schedule?.subtasks) return
+    schedule.subtasks = schedule.subtasks.filter((sub) => sub.id !== subtaskId)
+    pushToQueue('schedule', 'UPDATE', scheduleId, schedule)
   }
-
-  // 🌟 NEW: 통합 스마트 삭제 액션
-  const smartRemoveSchedule = (id: number, mode: 'single' | 'all') => {
-    const target = schedules.value.find((s) => s.id === id)
-    if (!target) return
-
-    if (mode === 'single') {
-      removeSchedule(id) // 단일 삭제
-    } else if (mode === 'all' && target.groupId) {
-      removeScheduleGroup(target.groupId) // 그룹 삭제
-    }
-  }
-
-  const togglePin = (id: number) => {
-    const item = schedules.value.find((s) => s.id === id)
-    if (item) item.isPinned = !item.isPinned
-    saveData()
-  }
-
-  const loadData = () => {
-    const saved = localStorage.getItem('schedule_v2')
-    if (!saved) return
-
-    try {
-      const parsed = JSON.parse(saved)
-      schedules.value = Array.isArray(parsed.schedules) ? parsed.schedules : []
-      goals.value = Array.isArray(parsed.goals) ? parsed.goals : []
-      milestones.value = Array.isArray(parsed.milestones)
-        ? parsed.milestones
-        : []
-      dailyFocus.value = parsed.dailyFocus || ''
-
-      // 🌟 카테고리 마이그레이션: 구버전(문자열 배열)을 신버전(객체 배열)으로 자동 변환
-      if (Array.isArray(parsed.categories)) {
-        if (typeof parsed.categories[0] === 'string') {
-          categories.value = parsed.categories.map((c: string, i: number) => ({
-            id: `c-old-${Date.now()}-${i}`,
-            label: c,
-            emoji: '📌'
-          }))
-
-          // 기존 일정들의 category 값도 텍스트에서 id로 치환
-          schedules.value.forEach((s) => {
-            if (s.category) {
-              const matchedCat = categories.value.find(
-                (c) => c.label === s.category
-              )
-              if (matchedCat) s.category = matchedCat.id
-            }
-          })
-          saveData() // 자동 변환된 데이터를 바로 저장
-        } else {
-          categories.value = parsed.categories
-        }
-      }
-
-      if (Array.isArray(parsed.priorityOptions)) {
-        priorityOptions.value = parsed.priorityOptions
-      }
-    } catch (e) {
-      console.error('데이터 파싱 오류:', e)
-    }
-  }
-
-  const saveData = () => {
-    localStorage.setItem(
-      'schedule_v2',
-      JSON.stringify({
-        schedules: schedules.value,
-        goals: goals.value,
-        milestones: milestones.value,
-        dailyFocus: dailyFocus.value,
-        categories: categories.value,
-        priorityOptions: priorityOptions.value
-      })
-    )
-  }
-
   const addGoal = (goal: Omit<Goal, 'id'>) => {
-    goals.value.unshift({
-      id: Date.now(),
+    const newId = generateId()
+    const newGoal: Goal = {
+      id: newId,
       ...goal,
       endDate: goal.endDate || undefined,
-      color: goal.color || '#ef4444' // 🌟 기본 색상 추가
-    })
-    saveData()
+      color: goal.color || '#ef4444',
+      version: 1
+    }
+    goals.value.unshift(newGoal)
+    pushToQueue('goal', 'CREATE', newId, newGoal)
   }
-
-  const removeGoal = (id: number) => {
-    goals.value = goals.value.filter((g) => g.id !== id)
-    milestones.value = milestones.value.filter((m) => m.goalId !== id)
-    schedules.value = schedules.value.filter((s) => s.goalId !== id)
-    saveData()
+  const removeGoal = (id: string) => {
+    const idx = goals.value.findIndex((g) => g.id === id)
+    if (idx !== -1) goals.value[idx].deletedAt = new Date().toISOString()
+    pushToQueue('goal', 'DELETE', id)
   }
-
-  // 목표 보관함 토글 액션
-  const toggleGoalArchive = (id: number) => {
+  const toggleGoalArchive = (id: string) => {
     const goal = goals.value.find((g) => g.id === id)
     if (goal) {
       goal.isArchived = !goal.isArchived
-      saveData() // 변경 후 즉시 저장
+      pushToQueue('goal', 'UPDATE', id, goal)
     }
   }
-
-  const addPriorityOption = (newOption: Omit<PriorityOption, 'id'>) => {
-    if (priorityOptions.value.length >= 8) {
-      alert('최대 8개까지만 설정 가능합니다.')
-      return
+  const addMilestone = (
+    goalId: string,
+    title: string,
+    startDate: string,
+    endDate?: string
+  ) => {
+    const newId = generateId()
+    const newMilestone: Milestone = {
+      id: newId,
+      goalId,
+      title,
+      startDate,
+      endDate,
+      done: false,
+      version: 1
     }
-    const id = `p-${Date.now()}`
-    priorityOptions.value.push({ ...newOption, id })
-    saveData()
+    milestones.value.push(newMilestone)
+    pushToQueue('milestone', 'CREATE', newId, newMilestone)
   }
-
   const addCategory = (newOption: Omit<CategoryOption, 'id'>) => {
-    if (categories.value.length >= 10) {
-      alert('최대 10개까지만 설정 가능합니다.')
-      return
-    }
-    const id = `c-${Date.now()}`
-    categories.value.push({ ...newOption, id })
-    saveData()
+    if (categories.value.length >= 10) return
+    const newId = generateId()
+    const newCategory = { ...newOption, id: newId }
+    categories.value.push(newCategory)
+    pushToQueue('category', 'CREATE', newId, newCategory)
   }
-
   const updateCategoryOption = (
     id: string,
     newOption: Partial<CategoryOption>
@@ -398,34 +365,21 @@ export const useScheduleStore = defineStore('schedule', () => {
     const idx = categories.value.findIndex((c) => c.id === id)
     if (idx !== -1) {
       categories.value[idx] = { ...categories.value[idx], ...newOption }
-      saveData() // 일정의 category 필드가 id를 들고 있으므로 순회 불필요!
+      pushToQueue('category', 'UPDATE', id, categories.value[idx])
     }
   }
-
-  const toggleMiniMode = () => {
-    isMiniMode.value = !isMiniMode.value
-
-    // 🌟 Vue 상태가 변할 때 프로그램 창 크기도 같이 변경 요청!
-    if (window.electronAPI?.resizeWindow) {
-      window.electronAPI.resizeWindow(isMiniMode.value ? 'mini' : 'middle')
-    }
-  }
-
-  // =========================
-  // 카테고리 관리 로직 (수정/삭제)
-  // =========================
-
   const removeCategory = (id: string) => {
-    categories.value = categories.value.filter((c) => c.id !== id)
-    // 기존 일정들에서 해당 카테고리 연결 해제
-    schedules.value.forEach((s) => {
-      if (s.category === id) s.category = ''
-    })
-    saveData()
+    const idx = categories.value.findIndex((c) => c.id === id)
+    if (idx !== -1) categories.value[idx].deletedAt = new Date().toISOString()
+    pushToQueue('category', 'DELETE', id)
   }
-  // =========================
-  // 중요도 관리 로직 (수정/삭제)
-  // =========================
+  const addPriorityOption = (newOption: Omit<PriorityOption, 'id'>) => {
+    if (priorityOptions.value.length >= 8) return
+    const newId = generateId()
+    const newPriority = { ...newOption, id: newId }
+    priorityOptions.value.push(newPriority)
+    pushToQueue('priority', 'CREATE', newId, newPriority)
+  }
   const updatePriorityOption = (
     id: string,
     newOption: Partial<PriorityOption>
@@ -436,20 +390,209 @@ export const useScheduleStore = defineStore('schedule', () => {
         ...priorityOptions.value[idx],
         ...newOption
       }
-      saveData() // id는 그대로 유지되므로 일정(schedules) 데이터는 수정할 필요 없음
+      pushToQueue('priority', 'UPDATE', id, priorityOptions.value[idx])
+    }
+  }
+  const removePriorityOption = (id: string) => {
+    const idx = priorityOptions.value.findIndex((p) => p.id === id)
+    if (idx !== -1)
+      priorityOptions.value[idx].deletedAt = new Date().toISOString()
+    pushToQueue('priority', 'DELETE', id)
+  }
+  const toggleMiniMode = () => {
+    isMiniMode.value = !isMiniMode.value
+    if (window.electronAPI?.resizeWindow)
+      window.electronAPI.resizeWindow(isMiniMode.value ? 'mini' : 'middle')
+  }
+
+  // =========================
+  // 🌟 데이터 동기화 & 스토리지 로직
+  // =========================
+
+  const mergeDataList = (localList: any[], incomingList: any[]) => {
+    incomingList.forEach((inc) => {
+      // 🌟 [수정 1] 백엔드 변수명(categoryId)을 프론트엔드 변수명(category)으로 변환
+      if ('categoryId' in inc) inc.category = inc.categoryId
+      if ('priorityId' in inc) inc.priority = inc.priorityId
+
+      // 🌟 [수정 2] DB의 타임스탬프(T)를 잘라내어 프론트엔드의 YYYY-MM-DD 포맷과 일치시킴
+      if (inc.startDate) inc.startDate = inc.startDate.split('T')[0]
+      if (inc.endDate) inc.endDate = inc.endDate.split('T')[0]
+
+      const idx = localList.findIndex((local) => local.id === inc.id)
+      if (idx !== -1) localList[idx] = { ...localList[idx], ...inc }
+      else localList.push(inc)
+    })
+  }
+
+  const loadData = async () => {
+    if (!window.electronAPI?.dbGet) return
+    try {
+      const parsed = await window.electronAPI.dbGet('schedule_v2')
+      if (parsed) {
+        schedules.value = parsed.schedules || []
+        goals.value = parsed.goals || []
+        milestones.value = parsed.milestones || []
+        categories.value = parsed.categories || []
+        priorityOptions.value = parsed.priorityOptions || []
+        dailyFocus.value = parsed.dailyFocus || ''
+
+        // Map 복원
+        const queueArray = parsed.syncQueue || []
+        syncQueueMap.value = new Map(
+          queueArray.map((q: SyncJob) => [`${q.entity}_${q.targetId}`, q])
+        )
+      }
+    } catch (e) {
+      console.error('SQLite 로컬 스토리지 로드 실패:', e)
+    } finally {
+      isDataLoaded.value = true
     }
   }
 
-  const removePriorityOption = (id: string) => {
-    priorityOptions.value = priorityOptions.value.filter((p) => p.id !== id)
-    // ✅ 기존 일정들에서 해당 중요도 연결 해제
-    schedules.value.forEach((s) => {
-      if (s.priority === id) {
-        s.priority = ''
-      }
-    })
-    saveData()
+  const saveData = async () => {
+    if (!isDataLoaded.value) return
+    if (!window.electronAPI?.dbSet) return
+    try {
+      const snapshot = JSON.parse(
+        JSON.stringify({
+          schedules: schedules.value,
+          goals: goals.value,
+          milestones: milestones.value,
+          categories: categories.value,
+          priorityOptions: priorityOptions.value,
+          dailyFocus: dailyFocus.value,
+          syncQueue: Array.from(syncQueueMap.value.values()) // Map을 배열로
+        })
+      )
+      await window.electronAPI.dbSet('schedule_v2', snapshot)
+    } catch (e) {
+      console.error('SQLite 로컬 스토리지 저장 실패:', e)
+    }
   }
+
+  const syncWithServer = async () => {
+    if (syncQueueMap.value.size === 0 || isSyncing.value || !navigator.onLine)
+      return
+    isSyncing.value = true
+    const jobsToSend = Array.from(syncQueueMap.value.values())
+
+    try {
+      const response = await api.post('/sync', { jobs: jobsToSend })
+
+      if (response.data?.success) {
+        // ✅ 1. 성공적으로 서버에 전송한 작업은 대기열(Map)에서 삭제
+        jobsToSend.forEach((job) =>
+          syncQueueMap.value.delete(`${job.entity}_${job.targetId}`)
+        )
+
+        // ✅ 2. 서버가 삭제(Tombstone)를 정상 접수했으므로, 로컬 배열에서 물리적 삭제 처리
+        const deleteJobs = jobsToSend.filter((job) => job.action === 'DELETE')
+
+        deleteJobs.forEach((job) => {
+          const id = job.targetId
+          switch (job.entity) {
+            case 'schedule':
+              schedules.value = schedules.value.filter((s) => s.id !== id)
+              break
+            case 'goal':
+              goals.value = goals.value.filter((g) => g.id !== id)
+              break
+            case 'milestone':
+              milestones.value = milestones.value.filter((m) => m.id !== id)
+              break
+            case 'category':
+              categories.value = categories.value.filter((c) => c.id !== id)
+              break
+            case 'priority':
+              priorityOptions.value = priorityOptions.value.filter(
+                (p) => p.id !== id
+              )
+              break
+          }
+        })
+
+        // ✅ 3. 대기열 제거 및 물리적 삭제가 끝난 깔끔한 상태를 SQLite에 즉시 저장
+        await saveData()
+      }
+    } catch (error: any) {
+      console.error('❌ [Sync Failed]', error.message)
+    } finally {
+      isSyncing.value = false
+    }
+  }
+  // 🌟 Pull: 30일 체크 및 구조화된 병합
+  const pullIncrementalSync = async () => {
+    if (!window.electronAPI?.dbGet || !navigator.onLine) return
+    const lastSyncTime = (await window.electronAPI.dbGet('last_sync_time')) || 0
+
+    // ✅ 버그 수정: 앱 최초 실행 시 (lastSyncTime이 0일 때)
+    if (lastSyncTime === 0) {
+      console.log('🌱 최초 동기화: 서버에서 전체 데이터를 당겨옵니다.')
+      await performPull(0)
+      return
+    }
+
+    // ✅ 30일 이상 접속 안 했을 때 (정상 작동)
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+    if (Date.now() - lastSyncTime > THIRTY_DAYS_MS) {
+      console.log(
+        '🔄 30일 이상 미접속: 로컬 DB를 비우고 전체 데이터를 당겨옵니다.'
+      )
+      await window.electronAPI.dbClear()
+      resetStore()
+      await performPull(0) // 전체 Fetch
+      return
+    }
+
+    await performPull(lastSyncTime)
+  }
+
+  const performPull = async (since: number) => {
+    try {
+      const res = await api.get(`/sync/pull?since=${since}`)
+      const { schedule, goal, milestone, category, priority, serverTimestamp } =
+        res.data
+
+      // console 확인용
+      console.log(res.data)
+      if (schedule?.length) mergeDataList(schedules.value, schedule)
+      if (goal?.length) mergeDataList(goals.value, goal)
+      if (milestone?.length) mergeDataList(milestones.value, milestone)
+      if (category?.length) mergeDataList(categories.value, category)
+      if (priority?.length) mergeDataList(priorityOptions.value, priority)
+
+      if (serverTimestamp) {
+        await window.electronAPI.dbSet('last_sync_time', serverTimestamp)
+      }
+      await saveData()
+    } catch (e) {
+      console.error('증분 풀링 실패', e)
+    }
+  }
+
+  const initializeApp = async () => {
+    await loadData()
+    if (navigator.onLine) {
+      await syncWithServer()
+      await pullIncrementalSync()
+    }
+  }
+
+  const resetStore = () => {
+    schedules.value = []
+    goals.value = []
+    milestones.value = []
+    categories.value = []
+    priorityOptions.value = []
+    syncQueueMap.value.clear()
+    dailyFocus.value = ''
+    isDataLoaded.value = false
+  }
+
+  // 배열 상태 추적용 getter 노출
+  const syncQueue = computed(() => Array.from(syncQueueMap.value.values()))
+
   return {
     schedules,
     goals,
@@ -463,6 +606,9 @@ export const useScheduleStore = defineStore('schedule', () => {
     events,
     pinnedItems,
     completedItems,
+    syncQueue,
+    isMiniMode,
+    isDataLoaded,
     addSchedule,
     addTask,
     addMilestone,
@@ -474,18 +620,21 @@ export const useScheduleStore = defineStore('schedule', () => {
     smartRemoveSchedule,
     syncMultipleSchedules,
     togglePin,
-    loadData,
-    saveData,
     addGoal,
     removeGoal,
     toggleGoalArchive,
     addPriorityOption,
-    addCategory,
-    isMiniMode,
-    toggleMiniMode,
-    removeCategory,
-    updateCategoryOption,
     updatePriorityOption,
-    removePriorityOption
+    removePriorityOption,
+    addCategory,
+    updateCategoryOption,
+    removeCategory,
+    toggleMiniMode,
+    loadData,
+    saveData,
+    syncWithServer,
+    pullIncrementalSync,
+    initializeApp,
+    resetStore
   }
 })
